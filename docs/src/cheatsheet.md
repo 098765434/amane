@@ -267,7 +267,8 @@ use amane::*;
 
 | Command | Does |
 |---|---|
-| `amane startup` | creates `~/.config/amane/src/main.rs` |
+| `amane new [folder]` | creates a starter shell, asks where without a folder |
+| `amane target [folder]` | shows or sets the folder your shell lives in |
 | `amane dev` | rebuilds and restarts on every save |
 | `amane compile` | builds the shell `amane run` starts |
 | `amane compile --restart` | builds, then restarts the running shell |

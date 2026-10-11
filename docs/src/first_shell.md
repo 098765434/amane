@@ -5,10 +5,10 @@ This page gets a bar on your screen, then changes it while it runs.
 ## 1. Create the config
 
 ```sh
-amane startup
+amane new
 ```
 
-This creates `~/.config/amane/src/main.rs` (or `$XDG_CONFIG_HOME/amane/src/main.rs`) with a small bar in it. If the file already exists, `startup` stops and leaves it alone.
+It asks where the shell should go. Press Enter to use the default, `~/.config/amane` (or `$XDG_CONFIG_HOME/amane`). This page assumes the default. It creates `src/main.rs` there with a small bar in it. If the file already exists, `new` stops and leaves it alone.
 
 ## 2. Start it in dev mode
 

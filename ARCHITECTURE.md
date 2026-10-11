@@ -205,7 +205,7 @@ src/
 ├── files.rs           watch_file, through inotify
 ├── allocator.rs       glibc allocator limits for image decoding
 └── timing.rs          AMANE_FRAMES frame logging
-cli/                   the amane command: startup, dev, compile, run, clean, ipc call
+cli/                   the amane command: new, target, dev, compile, run, restart, clean, ipc call
 examples/              one small program per feature
 ```
 
