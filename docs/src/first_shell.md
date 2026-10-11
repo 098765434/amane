@@ -107,7 +107,7 @@ Then start it with:
 amane run
 ```
 
-`amane run` never builds. It only starts the shell `amane compile` saved, so after editing your shell, run `amane compile` again. To start your shell when you log in, run `amane run` from your compositor's startup config. For niri:
+`amane run` starts your shell in the background, so you can close the terminal. It never builds. It only starts the shell `amane compile` saved, so after editing your shell, run `amane compile --restart` to build and swap in the new shell in one go. To start your shell when you log in, run `amane run` from your compositor's startup config. For niri:
 
 ```kdl
 spawn-at-startup "amane" "run"

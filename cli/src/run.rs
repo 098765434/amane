@@ -1,5 +1,8 @@
+use std::os::unix::net::UnixStream;
 use std::os::unix::process::CommandExt;
 use std::process::{Command, ExitCode, Stdio};
+
+use amane::ipc_socket;
 
 use crate::paths;
 
@@ -9,6 +12,13 @@ pub fn run() -> ExitCode {
 
     if !shell.exists() {
         eprintln!("no compiled shell yet, run `amane compile` first");
+
+        return ExitCode::FAILURE;
+    }
+
+    // the shell's own "already running" error goes to /dev/null, so it is checked here
+    if UnixStream::connect(ipc_socket()).is_ok() {
+        eprintln!("amane is already running, use `amane restart` to restart it");
 
         return ExitCode::FAILURE;
     }

@@ -6,7 +6,9 @@
 | `amane startup --example` | Creates a full example bar in `~/.config/amane/src/`, split over several files, with workspace buttons for each monitor. Never overwrites an existing file. |
 | `amane dev` | Builds your shell, starts it, and rebuilds and restarts it on every save. |
 | `amane compile` | Builds your shell and saves it as `~/.cache/amane/amane-shell`, without starting it. |
-| `amane run` | Starts the shell `amane compile` saved. Never builds. |
+| `amane compile --restart` | Same as `amane compile`, then restarts the running shell with the new build, like `amane restart`. Restarts nothing if the build fails. |
+| `amane run` | Starts the shell `amane compile` saved in the background and gives your terminal back, so closing the terminal doesn't stop it. Never builds. Stops with an error if a shell is already running. |
+| `amane restart` | Stops the shell `amane run` started, then starts the one `amane compile` saved. Starts it anyway if none was running. Leaves the shell from `amane dev` alone. |
 | `amane clean` | Deletes the build output in `~/.cache/amane/project/`. Keeps the compiled shell, so `amane run` still works. Asks before deleting. |
 | `amane clean --yes` | Same as `amane clean`, without asking first. |
 | `amane ipc call <name> [arguments...]` | Calls a handler in the running shell. See [IPC](ipc.md). |

@@ -96,12 +96,26 @@ Builds your shell and saves it as `~/.cache/amane/amane-shell`, without starting
 amane compile
 ```
 
+`--restart` also restarts the running shell with the new build, like `amane restart`. If the build fails, the old shell keeps running.
+
+```sh
+amane compile --restart
+```
+
 ### amane run
 
-Starts the shell `amane compile` saved. It never builds, so after editing your shell, run `amane compile` first.
+Starts the shell `amane compile` saved, in the background. Your terminal is free right away, and closing it doesn't stop the shell. It never builds, so after editing your shell, run `amane compile` first. If a shell is already running, it stops with an error instead of starting a second one.
 
 ```sh
 amane run
+```
+
+### amane restart
+
+Stops the shell `amane run` started, then starts the one `amane compile` saved. If none was running, it just starts one. It leaves the shell from `amane dev` alone.
+
+```sh
+amane restart
 ```
 
 ### amane clean

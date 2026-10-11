@@ -118,6 +118,6 @@ bindsym $mod+space exec amane ipc call toggle-launcher
 
 ## One shell at a time
 
-There's one socket per session, so only one Amane shell can run at a time. Starting a second one stops it right away with `failed to listen: amane is already running`. `amane dev` restarts its own shell without hitting this, but it can't stop a shell started some other way. Stop your everyday shell (the one from `amane run`) before running `amane dev`.
+There's one socket per session, so only one Amane shell can run at a time. Starting a second one stops it right away with `failed to listen: amane is already running`. `amane run` checks first and says so in your terminal, and `amane restart` stops the running shell before starting the new one. `amane dev` restarts its own shell without hitting this, but it can't stop a shell started some other way. Stop your everyday shell (the one from `amane run`) before running `amane dev`.
 
 If `amane ipc call` says `amane is not running`, no shell is running in this session.

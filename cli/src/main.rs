@@ -6,6 +6,7 @@ mod dev;
 mod library;
 mod paths;
 mod project;
+mod restart;
 mod run;
 mod startup;
 mod watch;
@@ -23,9 +24,13 @@ fn main() -> ExitCode {
 
         ["startup", "--example"] => startup::run(true),
 
-        ["compile"] => compile::run(),
+        ["compile"] => compile::run(false),
+
+        ["compile", "--restart"] => compile::run(true),
 
         ["run"] => run::run(),
+
+        ["restart"] => restart::run(),
 
         ["dev"] => dev::run(),
 
@@ -45,7 +50,11 @@ fn usage() -> ExitCode {
     eprintln!("  amane startup --example              create a full example bar instead");
     eprintln!("  amane dev                           rebuild and restart on every save");
     eprintln!("  amane compile                        build the optimised shell");
+    eprintln!("  amane compile --restart              build it, then restart the running shell");
     eprintln!("  amane run                            start the compiled shell");
+    eprintln!(
+        "  amane restart                        stop the running shell and start the compiled one"
+    );
     eprintln!(
         "  amane clean                          remove the build cache, keep the compiled shell"
     );

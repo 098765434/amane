@@ -270,7 +270,9 @@ use amane::*;
 | `amane startup` | creates `~/.config/amane/src/main.rs` |
 | `amane dev` | rebuilds and restarts on every save |
 | `amane compile` | builds the shell `amane run` starts |
-| `amane run` | starts the compiled shell, never builds |
+| `amane compile --restart` | builds, then restarts the running shell |
+| `amane run` | starts the compiled shell in the background, never builds |
+| `amane restart` | stops the running shell, starts the compiled one |
 | `amane clean` | deletes the build output, keeps the compiled shell, asks first |
 | `amane clean --yes` | the same, without asking |
 | `amane ipc call <name> [args...]` | calls an IPC handler |
