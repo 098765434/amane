@@ -1,5 +1,5 @@
 use std::os::unix::process::CommandExt;
-use std::process::{Command, ExitCode};
+use std::process::{Command, ExitCode, Stdio};
 
 use crate::paths;
 
@@ -13,10 +13,22 @@ pub fn run() -> ExitCode {
         return ExitCode::FAILURE;
     }
 
-    // exec replaces this process, so it only returns when the shell could not start
-    let error = Command::new(&shell).exec();
+    /*
+     * its own process group keeps ctrl+c and closing the terminal
+     * away from the shell, and a closed terminal would make prints fail
+     */
+    let started = Command::new(&shell)
+        .process_group(0)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn();
 
-    eprintln!("failed to run {}: {error}", shell.display());
+    if let Err(error) = started {
+        eprintln!("failed to run {}: {error}", shell.display());
 
-    ExitCode::FAILURE
+        return ExitCode::FAILURE;
+    }
+
+    ExitCode::SUCCESS
 }
