@@ -49,20 +49,21 @@ pub fn focus_workspace(id: i64) {
         return;
     };
 
-    // is it in lua? do this
+    // if its true, do this
     if IS_LUA_MODE.load(Ordering::Relaxed) {
-        let _ = request(&format!("dispatch hl.dsp.focus({{ workspace = {target:?} }})"));
-        return;
+        let reply = request(&format!("dispatch hl.dsp.focus({{ workspace = {target:?} }})"));
+        
+        // If Lua dispatch succeeded (or returned "ok"), we're good
+        if reply.as_deref() == Some("ok") {
+            return;
+        }
+
+        // If Lua dispatch failed, mark it as false
+        IS_LUA_MODE.store(false, Ordering::Relaxed);
     }
 
-    let reply = request(&format!("dispatch workspace {target}"));
-
-    if reply.as_deref() == Some("ok") {
-        return;
-    }
-    
-    // Fallback worked, so mark Lua mode as false for future calls
-    IS_LUA_MODE.store(false, Ordering::Relaxed);
+    // Normal legacy dispatch fallback which is done if that variable is false
+    let _ = request(&format!("dispatch workspace {target}"));
 }
 
 
