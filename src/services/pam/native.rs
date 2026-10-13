@@ -6,9 +6,25 @@ use std::sync::Arc;
 use super::config::PreparedConfig;
 use super::{PamError, PamMessageKind, PamResult, Session};
 
-const SUCCESS: c_int = 0;
-const BUFFER_ERROR: c_int = 5;
-const CONVERSATION_ERROR: c_int = 19;
+const NO_FLAGS: c_int = 0;
+
+const PAM_SUCCESS: c_int = 0;
+const PAM_BUF_ERR: c_int = 5;
+const PAM_PERM_DENIED: c_int = 6;
+const PAM_AUTH_ERR: c_int = 7;
+const PAM_USER_UNKNOWN: c_int = 10;
+const PAM_MAXTRIES: c_int = 11;
+const PAM_NEW_AUTHTOK_REQD: c_int = 12;
+const PAM_ACCT_EXPIRED: c_int = 13;
+const PAM_CONV_ERR: c_int = 19;
+
+const PAM_USER: c_int = 2;
+
+const PAM_PROMPT_ECHO_OFF: c_int = 1;
+const PAM_PROMPT_ECHO_ON: c_int = 2;
+const PAM_ERROR_MSG: c_int = 3;
+const PAM_TEXT_INFO: c_int = 4;
+const PAM_MAX_NUM_MSG: c_int = 32;
 
 #[repr(C)]
 struct Message {
@@ -104,36 +120,36 @@ pub(super) fn authenticate(
             ),
         }
     };
-    if status != SUCCESS {
+    if status != PAM_SUCCESS {
         return classify(ptr::null_mut(), status);
     }
     let mut handle = Handle { pointer, status };
     if session.aborted() {
         return PamResult::Aborted;
     }
-    handle.status = unsafe { pam_authenticate(handle.pointer, 0) };
+    handle.status = unsafe { pam_authenticate(handle.pointer, NO_FLAGS) };
     if session.aborted() {
         return PamResult::Aborted;
     }
-    if handle.status == SUCCESS {
+    if handle.status == PAM_SUCCESS {
         // accepting a password must not bypass account expiry or access restrictions
-        handle.status = unsafe { pam_acct_mgmt(handle.pointer, 0) };
+        handle.status = unsafe { pam_acct_mgmt(handle.pointer, NO_FLAGS) };
     }
     if session.aborted() {
         return PamResult::Aborted;
     }
-    if handle.status != SUCCESS {
+    if handle.status != PAM_SUCCESS {
         return classify(handle.pointer, handle.status);
     }
 
     let mut user = ptr::null();
-    handle.status = unsafe { pam_get_item(handle.pointer, 2, &mut user) }; // PAM_USER
-    if handle.status != SUCCESS {
+    handle.status = unsafe { pam_get_item(handle.pointer, PAM_USER, &mut user) };
+    if handle.status != PAM_SUCCESS {
         return classify(handle.pointer, handle.status);
     }
     // a module can change PAM_USER; success for someone else must not unlock this user's session
     if user.is_null() || unsafe { CStr::from_ptr(user.cast()) } != config.user.as_c_str() {
-        handle.status = 7; // PAM_AUTH_ERR
+        handle.status = PAM_AUTH_ERR;
         return PamResult::Error(PamError::UserChanged);
     }
     PamResult::Success
@@ -151,7 +167,8 @@ fn classify(handle: *mut c_void, code: c_int) -> PamResult {
     let error = PamError::Native { code, message };
     match code {
         // policy or credential rejection, distinct from a broken/unavailable PAM backend
-        6 | 7 | 10 | 11 | 12 | 13 => PamResult::Rejected(error),
+        PAM_PERM_DENIED | PAM_AUTH_ERR | PAM_USER_UNKNOWN | PAM_MAXTRIES | PAM_NEW_AUTHTOK_REQD
+        | PAM_ACCT_EXPIRED => PamResult::Rejected(error),
         _ => PamResult::Error(error),
     }
 }
@@ -192,7 +209,7 @@ unsafe extern "C" fn converse(
     panic::catch_unwind(AssertUnwindSafe(|| unsafe {
         answer(count, messages, responses, data)
     }))
-    .unwrap_or(CONVERSATION_ERROR)
+    .unwrap_or(PAM_CONV_ERR)
 }
 
 unsafe fn answer(
@@ -201,13 +218,17 @@ unsafe fn answer(
     responses: *mut *mut Response,
     data: *mut c_void,
 ) -> c_int {
-    if !(1..=32).contains(&count) || messages.is_null() || responses.is_null() || data.is_null() {
-        return CONVERSATION_ERROR;
+    if !(1..=PAM_MAX_NUM_MSG).contains(&count)
+        || messages.is_null()
+        || responses.is_null()
+        || data.is_null()
+    {
+        return PAM_CONV_ERR;
     }
     let count = count as usize;
     let pointer = unsafe { calloc(count, size_of::<Response>()) }.cast::<Response>();
     if pointer.is_null() {
-        return BUFFER_ERROR;
+        return PAM_BUF_ERR;
     }
     let answers = Answers { pointer, count };
     let context = unsafe { &*data.cast::<Context<'_>>() };
@@ -215,32 +236,32 @@ unsafe fn answer(
         // Linux-PAM supplies an array of message pointers, not a contiguous Message array
         let pointer = unsafe { *messages.add(index) };
         if pointer.is_null() {
-            return CONVERSATION_ERROR;
+            return PAM_CONV_ERR;
         }
         let message = unsafe { &*pointer };
         let kind = match message.style {
-            1 => PamMessageKind::Prompt { visible: false },
-            2 => PamMessageKind::Prompt { visible: true },
-            3 => PamMessageKind::Error,
-            4 => PamMessageKind::Info,
-            _ => return CONVERSATION_ERROR,
+            PAM_PROMPT_ECHO_OFF => PamMessageKind::Prompt { visible: false },
+            PAM_PROMPT_ECHO_ON => PamMessageKind::Prompt { visible: true },
+            PAM_ERROR_MSG => PamMessageKind::Error,
+            PAM_TEXT_INFO => PamMessageKind::Info,
+            _ => return PAM_CONV_ERR,
         };
         if message.text.is_null() {
-            return CONVERSATION_ERROR;
+            return PAM_CONV_ERR;
         }
         let text = unsafe { CStr::from_ptr(message.text) }
             .to_string_lossy()
             .into_owned();
         let Ok(response) = super::message(context.session, text, kind, context.password) else {
-            return CONVERSATION_ERROR;
+            return PAM_CONV_ERR;
         };
         if let Some(response) = response {
             let Ok(response) = CString::new(response) else {
-                return CONVERSATION_ERROR;
+                return PAM_CONV_ERR;
             };
             let text = unsafe { strdup(response.as_ptr()) };
             if text.is_null() {
-                return BUFFER_ERROR;
+                return PAM_BUF_ERR;
             }
             unsafe {
                 (*answers.pointer.add(index)).text = text;
@@ -250,5 +271,5 @@ unsafe fn answer(
     unsafe {
         *responses = answers.release();
     }
-    SUCCESS
+    PAM_SUCCESS
 }

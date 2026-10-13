@@ -32,6 +32,12 @@ pub(super) struct Session {
 }
 
 impl Session {
+    pub fn is_current(self: &Arc<Self>, current: &Option<Arc<Self>>) -> bool {
+        current
+            .as_ref()
+            .is_some_and(|current| Arc::ptr_eq(current, self))
+    }
+
     pub fn abort(&self) {
         self.aborted.store(true, Ordering::Release);
     }
@@ -170,11 +176,7 @@ pub(super) fn start(
 fn finish(session: &Arc<Session>, result: PamResult, completed: Option<Completion>) {
     let result = {
         let mut pam = Pam::write();
-        if !pam
-            .session
-            .as_ref()
-            .is_some_and(|current| Arc::ptr_eq(current, session))
-        {
+        if !session.is_current(&pam.session) {
             pam.quiet();
             return;
         }
@@ -197,11 +199,7 @@ fn finish(session: &Arc<Session>, result: PamResult, completed: Option<Completio
 
 pub(super) fn abort_session(session: &Arc<Session>) {
     let mut pam = Pam::write();
-    if pam
-        .session
-        .as_ref()
-        .is_some_and(|current| Arc::ptr_eq(current, session))
-    {
+    if session.is_current(&pam.session) {
         pam.cancel();
     } else {
         // the worker may have finished just before the lock reset, but its callback must not unlock
@@ -220,12 +218,7 @@ fn message(
     let (sender, receiver) = mpsc::channel();
     {
         let mut pam = Pam::write();
-        if session.aborted()
-            || !pam
-                .session
-                .as_ref()
-                .is_some_and(|current| Arc::ptr_eq(current, session))
-        {
+        if session.aborted() || !session.is_current(&pam.session) {
             pam.quiet();
             return Err(());
         }

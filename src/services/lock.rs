@@ -126,11 +126,7 @@ impl Lock {
         let result = pam::start(config, password, attempt.clone(), Some(Self::finished));
         if result.is_err() {
             let mut lock = Self::write();
-            if lock
-                .attempt
-                .as_ref()
-                .is_some_and(|current| Arc::ptr_eq(current, &attempt))
-            {
+            if attempt.is_current(&lock.attempt) {
                 lock.attempt = None;
                 lock.checking = false;
                 lock.failed = true;
@@ -143,11 +139,7 @@ impl Lock {
 
     fn finished(attempt: &Arc<Session>, result: &PamResult) {
         let mut lock = Self::write();
-        if !lock
-            .attempt
-            .as_ref()
-            .is_some_and(|current| Arc::ptr_eq(current, attempt))
-        {
+        if !attempt.is_current(&lock.attempt) {
             lock.quiet();
             return;
         }
