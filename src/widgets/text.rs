@@ -1,6 +1,6 @@
 mod lines;
 
-use ttf_parser::Face;
+use swash::FontRef;
 
 use crate::graphics::{Area, Renderer, font};
 use crate::{Color, Size, Weight};
@@ -91,7 +91,7 @@ impl Text {
         lines::stack_height(font, self.size, arranged.len())
     }
 
-    fn face(&self) -> &'static Face<'static> {
+    fn face(&self) -> FontRef<'static> {
         font::load_weighted(self.font.as_deref(), self.weight)
     }
 }

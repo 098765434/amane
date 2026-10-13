@@ -190,7 +190,7 @@ impl Gpu {
             }
 
             Command::Glyph {
-                face,
+                font,
                 id,
                 size,
                 color,
@@ -198,7 +198,7 @@ impl Gpu {
                 y,
             } => self
                 .quads
-                .letter(&self.queue, face, id, size, color, x, y, clips),
+                .letter(&self.queue, font, id, size, color, x, y, clips),
 
             Command::Image {
                 image,

@@ -24,6 +24,8 @@ impl Gpu {
 
         self.painting = 0;
 
+        self.quads.start_frame();
+
         let canvas = self.take_canvas(width, height);
 
         self.run(commands, &canvas);

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ttf_parser::Face;
+use swash::FontRef;
 use vello::wgpu::{
     Device, Extent3d, Origin3d, Queue, TexelCopyBufferLayout, TexelCopyTextureInfo, Texture,
     TextureAspect, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
@@ -24,12 +24,13 @@ pub struct Letter {
     pub top: f32,
 }
 
-// the face, the letter and its size in pixels
-type Key = (usize, u16, u32);
+// the font, the letter and its size in pixels
+type Key = (u64, u16, u32);
 
 /*
  * every letter drawn so far, in one texture of coverage values; letters fill
- * it in rows, and a full atlas starts over empty and fills again from what is shown
+ * it in rows, and a full atlas is emptied when the next frame starts, since
+ * letters queued this frame still read their pixels
  */
 pub struct Atlas {
     texture: Texture,
@@ -40,6 +41,9 @@ pub struct Atlas {
     row_top: u32,
     row_x: u32,
     row_height: u32,
+
+    // no room was left this frame, so it starts over empty next frame
+    full: bool,
 }
 
 impl Atlas {
@@ -65,6 +69,7 @@ impl Atlas {
             row_top: 0,
             row_x: 0,
             row_height: 0,
+            full: false,
         }
     }
 
@@ -72,21 +77,36 @@ impl Atlas {
         &self.texture
     }
 
+    // the last frame's draws were submitted, so nothing reads the old pixels anymore
+    pub fn start_frame(&mut self) {
+        if !self.full {
+            return;
+        }
+
+        self.letters.clear();
+
+        self.row_top = 0;
+        self.row_x = 0;
+        self.row_height = 0;
+
+        self.full = false;
+    }
+
     // none for a letter without pixels, like a space
     pub fn letter(
         &mut self,
         queue: &Queue,
-        face: &'static Face<'static>,
+        font: FontRef<'static>,
         id: u16,
         size: f32,
     ) -> Option<Letter> {
-        let key = (std::ptr::from_ref(face) as usize, id, size.to_bits());
+        let key = (font.key.value(), id, size.to_bits());
 
         if let Some(letter) = self.letters.get(&key) {
             return *letter;
         }
 
-        let Some(pixels) = letter::rasterize(face, id, size) else {
+        let Some(pixels) = letter::rasterize(font, id, size) else {
             self.letters.insert(key, None);
 
             return None;
@@ -95,12 +115,15 @@ impl Atlas {
         let width = pixels.width;
         let height = pixels.height;
 
-        // too big for the atlas at all
+        // too big for the atlas at all, kept so it isn't turned into pixels every frame
         if width + PADDING > SIZE || height + PADDING > SIZE {
+            self.letters.insert(key, None);
+
             return None;
         }
 
-        let (x, y) = self.place(width, height);
+        // not kept, so it gets placed again once the atlas is emptied
+        let (x, y) = self.place(width, height)?;
 
         let target = TexelCopyTextureInfo {
             texture: &self.texture,
@@ -137,8 +160,8 @@ impl Atlas {
         Some(letter)
     }
 
-    // the next free spot in the rows, starting over once the atlas is full
-    fn place(&mut self, width: u32, height: u32) -> (u32, u32) {
+    // the next free spot in the rows, none once the atlas is full
+    fn place(&mut self, width: u32, height: u32) -> Option<(u32, u32)> {
         if self.row_x + width + PADDING > SIZE {
             self.row_top += self.row_height + PADDING;
             self.row_x = 0;
@@ -146,11 +169,9 @@ impl Atlas {
         }
 
         if self.row_top + height + PADDING > SIZE {
-            self.letters.clear();
+            self.full = true;
 
-            self.row_top = 0;
-            self.row_x = 0;
-            self.row_height = 0;
+            return None;
         }
 
         let spot = (self.row_x, self.row_top);
@@ -158,6 +179,6 @@ impl Atlas {
         self.row_x += width + PADDING;
         self.row_height = self.row_height.max(height);
 
-        spot
+        Some(spot)
     }
 }

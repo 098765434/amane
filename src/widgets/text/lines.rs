@@ -1,4 +1,5 @@
-use ttf_parser::Face;
+use swash::FontRef;
+use swash::zeno::Bounds;
 
 use crate::graphics::font;
 
@@ -10,7 +11,7 @@ pub struct Rules {
     pub max_lines: Option<usize>,
 }
 
-pub fn measure(content: &str, font: &Face, size: f32) -> f32 {
+pub fn measure(content: &str, font: FontRef<'static>, size: f32) -> f32 {
     let mut total = 0.0;
 
     for letter in content.chars() {
@@ -21,27 +22,22 @@ pub fn measure(content: &str, font: &Face, size: f32) -> f32 {
 }
 
 // the height of one line, from the top of the tallest letter to the bottom of the lowest
-pub fn height(font: &Face, size: f32) -> f32 {
-    let units = size / f32::from(font.units_per_em());
+pub fn height(font: FontRef<'static>, size: f32) -> f32 {
+    let metrics = font.metrics(font::coords(font)).scale(size);
 
-    let ascent = f32::from(font.ascender()) * units;
-    let descent = f32::from(font.descender()) * units;
-
-    // descent is negative, so this adds the part below the baseline
-    ascent - descent
+    // swash counts descent downward from the baseline, so both add up
+    metrics.ascent + metrics.descent
 }
 
 // the distance from the top of one line to the top of the next
-pub fn spacing(font: &Face, size: f32) -> f32 {
-    let units = size / f32::from(font.units_per_em());
-
-    let gap = f32::from(font.line_gap()) * units;
+pub fn spacing(font: FontRef<'static>, size: f32) -> f32 {
+    let gap = font.metrics(font::coords(font)).scale(size).leading;
 
     height(font, size) + gap
 }
 
 // the height of several lines stacked, without a gap after the last one
-pub fn stack_height(font: &Face, size: f32, count: usize) -> f32 {
+pub fn stack_height(font: FontRef<'static>, size: f32, count: usize) -> f32 {
     if count == 0 {
         return 0.0;
     }
@@ -51,7 +47,7 @@ pub fn stack_height(font: &Face, size: f32, count: usize) -> f32 {
     above_last + height(font, size)
 }
 
-pub fn arrange(content: &str, font: &Face, size: f32, width: f32, rules: Rules) -> Vec<String> {
+pub fn arrange(content: &str, font: FontRef<'static>, size: f32, width: f32, rules: Rules) -> Vec<String> {
     let mut lines = match rules.wrap {
         true => wrap(content, font, size, width),
         false => vec![String::from(content)],
@@ -80,7 +76,7 @@ pub fn arrange(content: &str, font: &Face, size: f32, width: f32, rules: Rules) 
 }
 
 // fills each line with whole words until the next one would not fit
-fn wrap(content: &str, font: &Face, size: f32, width: f32) -> Vec<String> {
+fn wrap(content: &str, font: FontRef<'static>, size: f32, width: f32) -> Vec<String> {
     let mut lines = Vec::new();
 
     for paragraph in content.split('\n') {
@@ -114,7 +110,7 @@ fn wrap(content: &str, font: &Face, size: f32, width: f32) -> Vec<String> {
 }
 
 // drops letters from the end until the rest and "…" fit
-fn elide(line: &str, font: &Face, size: f32, width: f32) -> String {
+fn elide(line: &str, font: FontRef<'static>, size: f32, width: f32) -> String {
     let mut kept = String::from(line.trim_end());
 
     loop {
@@ -129,7 +125,7 @@ fn elide(line: &str, font: &Face, size: f32, width: f32) -> String {
 }
 
 // where the letters' ink starts and ends, counted from the pen's starting point
-pub fn ink(content: &str, font: &Face, size: f32) -> (f32, f32) {
+pub fn ink(content: &str, font: FontRef<'static>, size: f32) -> (f32, f32) {
     let mut pen = 0.0;
 
     let mut left = f32::MAX;
@@ -139,9 +135,9 @@ pub fn ink(content: &str, font: &Face, size: f32) -> (f32, f32) {
         let measured = font::measure_letter(font, letter, size);
 
         // a space has no ink, only an advance
-        if let Some(bounds) = measured.face.glyph_bounding_box(measured.id) {
-            left = left.min(pen + f32::from(bounds.x_min) * measured.units);
-            right = right.max(pen + f32::from(bounds.x_max) * measured.units);
+        if let Some(bounds) = bounds(measured.font, measured.id) {
+            left = left.min(pen + bounds.min.x * measured.units);
+            right = right.max(pen + bounds.max.x * measured.units);
         }
 
         pen += measured.advance;
@@ -153,4 +149,24 @@ pub fn ink(content: &str, font: &Face, size: f32) -> (f32, f32) {
     }
 
     (left, right)
+}
+
+// the box around a letter's outline, in the font's own units; none for a space
+fn bounds(font: FontRef<'static>, id: u16) -> Option<Bounds> {
+    font::with_context(|context| {
+        let mut scaler = context
+            .builder(font)
+            .normalized_coords(font::coords(font))
+            .build();
+
+        let shape = scaler.scale_outline(id)?;
+
+        let bounds = shape.bounds();
+
+        if bounds.width() == 0.0 {
+            return None;
+        }
+
+        Some(bounds)
+    })
 }

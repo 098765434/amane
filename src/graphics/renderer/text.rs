@@ -1,18 +1,15 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use ttf_parser::{Face, GlyphId};
+use swash::FontRef;
 
 use crate::graphics::{Area, BezierPath, Color, Outline, Renderer, Transform, font};
 
 use super::Command;
 
 thread_local! {
-    /*
-     * each letter's outline, read from the font once; fonts stay loaded
-     * for the whole run, so where a face lives in memory names it
-     */
-    static OUTLINES: RefCell<HashMap<(usize, u16), Option<BezierPath>>> =
+    // each letter's outline, read from the font once; swash gives every font its own key
+    static OUTLINES: RefCell<HashMap<(u64, u16), Option<BezierPath>>> =
         RefCell::new(HashMap::new());
 }
 
@@ -24,7 +21,7 @@ impl Renderer {
     pub fn text(
         &mut self,
         content: &str,
-        font: &'static Face<'static>,
+        font: FontRef<'static>,
         size: f32,
         color: Color,
         area: Area,
@@ -42,17 +39,17 @@ impl Renderer {
     fn text_pictures(
         &mut self,
         content: &str,
-        font: &'static Face<'static>,
+        font: FontRef<'static>,
         pixel_size: f32,
         color: Color,
         area: Area,
     ) {
-        let units = pixel_size / f32::from(font.units_per_em());
+        let ascent = font.metrics(font::coords(font)).scale(pixel_size).ascent;
 
         let start = self.transform.map(area.x, area.y);
 
         let line_x = start.0.round();
-        let baseline = (start.1 + f32::from(font.ascender()) * units).round();
+        let baseline = (start.1 + ascent).round();
 
         let mut pen = 0.0;
 
@@ -64,8 +61,8 @@ impl Renderer {
             pen += measured.advance;
 
             self.commands.push(Command::Glyph {
-                face: measured.face,
-                id: measured.id.0,
+                font: measured.font,
+                id: measured.id,
                 size: pixel_size,
                 color,
                 x: letter_x,
@@ -74,11 +71,17 @@ impl Renderer {
         }
     }
 
-    fn text_outlines(&mut self, content: &str, font: &Face, size: f32, color: Color, area: Area) {
-        // fonts measure in their own units, this turns them into pixels
-        let units = size / f32::from(font.units_per_em());
+    fn text_outlines(
+        &mut self,
+        content: &str,
+        font: FontRef<'static>,
+        size: f32,
+        color: Color,
+        area: Area,
+    ) {
+        let ascent = font.metrics(font::coords(font)).scale(size).ascent;
 
-        let baseline = area.y + f32::from(font.ascender()) * units;
+        let baseline = area.y + ascent;
 
         let mut pen_x = area.x;
 
@@ -90,7 +93,7 @@ impl Renderer {
             pen_x += measured.advance;
 
             // a space has no outline but still moves the pen
-            let Some(path) = outline(measured.face, measured.id) else {
+            let Some(path) = outline(measured.font, measured.id) else {
                 continue;
             };
 
@@ -110,8 +113,8 @@ impl Renderer {
     }
 }
 
-fn outline(font: &Face, id: GlyphId) -> Option<BezierPath> {
-    let key = (std::ptr::from_ref(font) as usize, id.0);
+fn outline(font: FontRef<'static>, id: u16) -> Option<BezierPath> {
+    let key = (font.key.value(), id);
 
     OUTLINES.with_borrow_mut(|outlines| {
         let path = outlines
@@ -122,10 +125,16 @@ fn outline(font: &Face, id: GlyphId) -> Option<BezierPath> {
     })
 }
 
-fn read_outline(font: &Face, id: GlyphId) -> Option<BezierPath> {
-    let mut outline = Outline::new();
+fn read_outline(font: FontRef<'static>, id: u16) -> Option<BezierPath> {
+    font::with_context(|context| {
+        // no size keeps the outline in the font's own units
+        let mut scaler = context
+            .builder(font)
+            .normalized_coords(font::coords(font))
+            .build();
 
-    font.outline_glyph(id, &mut outline)?;
+        let shape = scaler.scale_outline(id)?;
 
-    outline.finish()
+        Outline::new().read(shape.path()).finish()
+    })
 }

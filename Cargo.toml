@@ -17,7 +17,7 @@ wayland-client = "0.31.15"
 # only for client_system, which hands the gpu libwayland's own display pointer
 wayland-backend = { version = "0.3.17", features = ["client_system"] }
 fontconfig = "0.11"
-ttf-parser = "0.25.1"
+swash = "0.2.10"
 zune-jpeg = "0.5.15"
 png = "0.18.1"
 inotify = { version = "0.11.5", default-features = false }

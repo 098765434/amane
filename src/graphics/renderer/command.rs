@@ -2,14 +2,14 @@ use crate::graphics::image::Bitmap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use ttf_parser::Face;
+use swash::FontRef;
 
 use crate::graphics::{Area, BezierPath, Cap, Color, Corners, Gradient, Transform};
 
 pub enum Command {
     // one letter as a picture, at a whole device pixel; x and y are where its baseline starts
     Glyph {
-        face: &'static Face<'static>,
+        font: FontRef<'static>,
         id: u16,
         size: f32,
         color: Color,

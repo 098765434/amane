@@ -1,6 +1,6 @@
 use vello::wgpu::{Device, Queue};
 
-use ttf_parser::Face;
+use swash::FontRef;
 
 use crate::graphics::gpu::picture;
 use crate::graphics::image::Bitmap;
@@ -60,7 +60,7 @@ impl Quads {
     pub fn letter(
         &mut self,
         queue: &Queue,
-        face: &'static Face<'static>,
+        font: FontRef<'static>,
         id: u16,
         size: f32,
         color: Color,
@@ -68,7 +68,7 @@ impl Quads {
         y: f32,
         clips: Clips,
     ) {
-        let Some(letter) = self.atlas.letter(queue, face, id, size) else {
+        let Some(letter) = self.atlas.letter(queue, font, id, size) else {
             return;
         };
 

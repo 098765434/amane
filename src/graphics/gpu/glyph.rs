@@ -2,7 +2,7 @@ use vello::Scene;
 use vello::kurbo::Affine;
 use vello::peniko::{Blob, ImageAlphaType, ImageBrush, ImageData, ImageFormat, ImageQuality};
 
-use ttf_parser::Face;
+use swash::FontRef;
 
 use crate::graphics::Color;
 use crate::graphics::letter;
@@ -34,15 +34,15 @@ impl Glyph {
     }
 }
 
-// the face, the letter, the size and the color, which all change the pixels
-pub(super) type GlyphKey = (usize, u16, u32, u32);
+// the font, the letter, the size and the color, which all change the pixels
+pub(super) type GlyphKey = (u64, u16, u32, u32);
 
 impl Gpu {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn draw_glyph(
         &mut self,
         scene: &mut Scene,
-        face: &'static Face<'static>,
+        font: FontRef<'static>,
         id: u16,
         size: f32,
         color: Color,
@@ -50,7 +50,7 @@ impl Gpu {
         y: f32,
     ) {
         let key = (
-            std::ptr::from_ref(face) as usize,
+            font.key.value(),
             id,
             size.to_bits(),
             u32::from_be_bytes([color.r, color.g, color.b, color.a]),
@@ -63,7 +63,7 @@ impl Gpu {
         let glyph = self
             .glyphs
             .entry(key)
-            .or_insert_with(|| rasterize(face, id, size, color));
+            .or_insert_with(|| rasterize(font, id, size, color));
 
         // a space has no pixels
         let Some(glyph) = glyph else {
@@ -79,8 +79,8 @@ impl Gpu {
     }
 }
 
-fn rasterize(face: &'static Face<'static>, id: u16, size: f32, color: Color) -> Option<Glyph> {
-    let letter = letter::rasterize(face, id, size)?;
+fn rasterize(font: FontRef<'static>, id: u16, size: f32, color: Color) -> Option<Glyph> {
+    let letter = letter::rasterize(font, id, size)?;
 
     let mut pixels = Vec::with_capacity(letter.coverage.len() * 4);
 

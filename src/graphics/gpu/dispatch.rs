@@ -25,13 +25,13 @@ impl Gpu {
             } => shape::border(scene, area, radius, thickness, transform, color),
 
             Command::Glyph {
-                face,
+                font,
                 id,
                 size,
                 color,
                 x,
                 y,
-            } => self.draw_glyph(scene, face, id, size, color, x, y),
+            } => self.draw_glyph(scene, font, id, size, color, x, y),
 
             Command::Fill {
                 path,

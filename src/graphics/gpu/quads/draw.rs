@@ -9,6 +9,11 @@ use crate::graphics::gpu::texture;
 use super::{Clip, Quads};
 
 impl Quads {
+    // before any letter of the frame is placed
+    pub fn start_frame(&mut self) {
+        self.atlas.start_frame();
+    }
+
     // draws everything gathered onto the canvas, over what is already there
     pub fn draw(&mut self, device: &Device, queue: &Queue, canvas: &Texture) {
         self.draw_with(device, queue, canvas, false);

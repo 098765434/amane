@@ -1,8 +1,10 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex, PoisonError};
 
 use fontconfig::{CharSet, Fontconfig, Pattern, UnicodeCoverage};
-use ttf_parser::{Face, GlyphId};
+use swash::FontRef;
+use swash::scale::ScaleContext;
 
 use crate::Weight;
 
@@ -12,12 +14,24 @@ const FALLBACK_FAMILIES: [&str; 2] = ["Noto Sans", "Noto Sans CJK JP"];
 static DEFAULT_FAMILY: LazyLock<Mutex<String>> =
     LazyLock::new(|| Mutex::new(String::from("sans-serif")));
 
-static LOADED: LazyLock<Mutex<HashMap<String, &'static Face<'static>>>> =
+static LOADED: LazyLock<Mutex<HashMap<String, FontRef<'static>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-// the font found for each letter, none when no installed font has it
-static FALLBACKS: LazyLock<Mutex<HashMap<char, Option<&'static Face<'static>>>>> =
+// a variable font's slider positions, kept by the font's key; a font without any isn't listed
+static COORDS: LazyLock<Mutex<HashMap<u64, &'static [i16]>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
+
+// a letter and the weight of the text it is in
+type FallbackKey = (char, u16);
+
+// the font found for each letter at each weight, none when no installed font has it
+static FALLBACKS: LazyLock<Mutex<HashMap<FallbackKey, Option<FontRef<'static>>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+thread_local! {
+    // swash keeps its working memory here, so each letter doesn't allocate it again
+    static CONTEXT: RefCell<ScaleContext> = RefCell::new(ScaleContext::new());
+}
 
 pub fn set_default(family: &str) {
     let mut default_family = DEFAULT_FAMILY
@@ -27,7 +41,7 @@ pub fn set_default(family: &str) {
     *default_family = String::from(family);
 }
 
-pub fn load_weighted(family: Option<&str>, weight: Weight) -> &'static Face<'static> {
+pub fn load_weighted(family: Option<&str>, weight: Weight) -> FontRef<'static> {
     let family = match family {
         Some(family) => String::from(family),
         None => DEFAULT_FAMILY
@@ -42,21 +56,17 @@ pub fn load_weighted(family: Option<&str>, weight: Weight) -> &'static Face<'sta
     let mut loaded = LOADED.lock().unwrap_or_else(PoisonError::into_inner);
 
     if let Some(font) = loaded.get(&key) {
-        return font;
+        return *font;
     }
 
-    /*
-     * fonts stay loaded until the program exits,
-     * so leaking gives a reference that is valid forever
-     */
-    let font = Box::leak(Box::new(read(&family, weight)));
+    let font = read(&family, weight);
 
     loaded.insert(key, font);
 
     font
 }
 
-fn read(family: &str, weight: Weight) -> Face<'static> {
+fn read(family: &str, weight: Weight) -> FontRef<'static> {
     let fontconfig = Fontconfig::new().expect("failed to start fontconfig");
 
     // regular asks for no style, so plain text finds the same file it always did
@@ -73,38 +83,81 @@ fn read(family: &str, weight: Weight) -> Face<'static> {
     open(&found.path.to_string_lossy(), index)
 }
 
-fn open(path: &str, index: u32) -> Face<'static> {
+fn open(path: &str, index: u32) -> FontRef<'static> {
     let bytes = std::fs::read(path).expect("failed to read font file");
 
-    // the face borrows the bytes, so they have to live as long as it
+    /*
+     * fonts stay loaded until the program exits,
+     * so leaking gives bytes that are valid forever
+     */
     let bytes = Vec::leak(bytes);
 
     // fontconfig keeps a variable font's named style in the upper half, the file only knows the lower
-    let face_index = index & 0xffff;
+    let font_index = index & 0xffff;
 
-    Face::parse(bytes, face_index).expect("failed to parse font")
+    let font = FontRef::from_index(bytes, font_index as usize).expect("failed to parse font");
+
+    // the upper half counts named styles from 1, 0 keeps the font's default
+    let instance = index >> 16;
+
+    if instance == 0 {
+        return font;
+    }
+
+    let Some(style) = font.instances().nth(instance as usize - 1) else {
+        return font;
+    };
+
+    let coords: Vec<i16> = style.normalized_coords().collect();
+
+    let mut all_coords = COORDS.lock().unwrap_or_else(PoisonError::into_inner);
+
+    all_coords.insert(font.key.value(), Vec::leak(coords));
+
+    font
+}
+
+/*
+ * where a variable font's sliders sit, like its weight;
+ * empty means the font's default, which is all a plain font has
+ */
+pub fn coords(font: FontRef<'static>) -> &'static [i16] {
+    let all_coords = COORDS.lock().unwrap_or_else(PoisonError::into_inner);
+
+    all_coords.get(&font.key.value()).copied().unwrap_or(&[])
 }
 
 // the font that has this letter: the text's own font first, then a fallback
-pub fn with_letter<'a>(font: &'a Face<'a>, letter: char) -> (&'a Face<'a>, GlyphId) {
-    if let Some(id) = font.glyph_index(letter) {
+pub fn with_letter(font: FontRef<'static>, letter: char) -> (FontRef<'static>, u16) {
+    // glyph 0 is the font's placeholder box, which means it lacks the letter
+    let id = font.charmap().map(letter);
+
+    if id != 0 {
         return (font, id);
     }
 
+    // so a letter in bold text gets a bold fallback
+    let weight = font.attributes().weight().0;
+
     // a letter no font has draws as the text's own placeholder box
-    let Some(fallback) = fallback(letter) else {
-        return (font, GlyphId(0));
+    let Some(fallback) = fallback(letter, weight) else {
+        return (font, 0);
     };
 
-    let id = fallback.glyph_index(letter).unwrap_or_default();
+    let id = fallback.charmap().map(letter);
 
     (fallback, id)
 }
 
-// one letter at a text size: the face that has it, its glyph, and how it measures in pixels
-pub struct MeasuredLetter<'a> {
-    pub face: &'a Face<'a>,
-    pub id: GlyphId,
+// swash's working memory for turning letters into outlines and pixels
+pub fn with_context<T>(work: impl FnOnce(&mut ScaleContext) -> T) -> T {
+    CONTEXT.with_borrow_mut(work)
+}
+
+// one letter at a text size: the font that has it, its glyph, and how it measures in pixels
+pub struct MeasuredLetter {
+    pub font: FontRef<'static>,
+    pub id: u16,
 
     // font units to pixels; a fallback font can measure in other units than the text's own
     pub units: f32,
@@ -113,33 +166,35 @@ pub struct MeasuredLetter<'a> {
     pub advance: f32,
 }
 
-pub fn measure_letter<'a>(font: &'a Face<'a>, letter: char, size: f32) -> MeasuredLetter<'a> {
-    let (face, id) = with_letter(font, letter);
+pub fn measure_letter(font: FontRef<'static>, letter: char, size: f32) -> MeasuredLetter {
+    let (font, id) = with_letter(font, letter);
 
-    let advance = face
-        .glyph_hor_advance(id)
-        .expect("failed to read letter advance");
+    let units_per_em = font.metrics(coords(font)).units_per_em;
 
-    let units = size / f32::from(face.units_per_em());
+    let units = size / f32::from(units_per_em);
+
+    let advance = font.glyph_metrics(coords(font)).advance_width(id);
 
     MeasuredLetter {
-        face,
+        font,
         id,
         units,
-        advance: f32::from(advance) * units,
+        advance: advance * units,
     }
 }
 
-fn fallback(letter: char) -> Option<&'static Face<'static>> {
+fn fallback(letter: char, weight: u16) -> Option<FontRef<'static>> {
+    let key = (letter, weight);
+
     let mut fallbacks = FALLBACKS.lock().unwrap_or_else(PoisonError::into_inner);
 
-    if let Some(found) = fallbacks.get(&letter) {
+    if let Some(found) = fallbacks.get(&key) {
         return *found;
     }
 
-    let found = find_covering(letter);
+    let found = find_covering(letter, weight);
 
-    fallbacks.insert(letter, found);
+    fallbacks.insert(key, found);
 
     found
 }
@@ -149,7 +204,7 @@ fn fallback(letter: char) -> Option<&'static Face<'static>> {
  * with it ties with noto; the first noto font that has it wins, any other
  * font with it is kept in case no noto font has the letter
  */
-fn find_covering(letter: char) -> Option<&'static Face<'static>> {
+fn find_covering(letter: char, weight: u16) -> Option<FontRef<'static>> {
     let fontconfig = Fontconfig::new()?;
 
     let mut pattern = Pattern::new(&fontconfig).ok()?;
@@ -159,6 +214,10 @@ fn find_covering(letter: char) -> Option<&'static Face<'static>> {
 
         pattern.add_string(c"family", &family).ok()?;
     }
+
+    pattern
+        .add_integer(c"weight", fontconfig_weight(weight))
+        .ok()?;
 
     let mut charset = CharSet::new(&fontconfig).ok()?;
 
@@ -188,35 +247,55 @@ fn find_covering(letter: char) -> Option<&'static Face<'static>> {
             continue;
         }
 
-        let face = load_file(path, index);
+        let font = load_file(path, index);
 
         // the fonts with the letter come first, so the first without it ends the search
-        if face.glyph_index(letter).is_none() {
+        if font.charmap().map(letter) == 0 {
             break;
         }
 
         if noto {
-            return Some(face);
+            return Some(font);
         }
 
-        other = Some(face);
+        other = Some(font);
     }
 
     other
 }
 
-fn load_file(path: &str, index: u32) -> &'static Face<'static> {
+/*
+ * fonts count weight from 100 to 900, fontconfig has its own scale
+ * where regular is 80 and bold is 200
+ */
+fn fontconfig_weight(weight: u16) -> i32 {
+    let hundreds = (weight + 50) / 100;
+
+    match hundreds {
+        0 | 1 => 0,
+        2 => 40,
+        3 => 50,
+        4 => 80,
+        5 => 100,
+        6 => 180,
+        7 => 200,
+        8 => 205,
+        _ => 210,
+    }
+}
+
+fn load_file(path: &str, index: u32) -> FontRef<'static> {
     let key = format!("{path} {index}");
 
     let mut loaded = LOADED.lock().unwrap_or_else(PoisonError::into_inner);
 
-    if let Some(face) = loaded.get(&key) {
-        return face;
+    if let Some(font) = loaded.get(&key) {
+        return *font;
     }
 
-    let face = Box::leak(Box::new(open(path, index)));
+    let font = open(path, index);
 
-    loaded.insert(key, face);
+    loaded.insert(key, font);
 
-    face
+    font
 }
