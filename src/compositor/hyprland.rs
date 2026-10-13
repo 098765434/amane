@@ -39,34 +39,33 @@ fn request(command: &str) -> Option<String> {
 
 
 // track whether hyprland is running in lua mode or not
-// defaults to true, and if it fails the first time, it defaults to false
-// caution: on every launch, it stays true by default
-// and we're assuming nearly everyone is in lua mode
-static IS_LUA_MODE: AtomicBool = AtomicBool::new(true);
+// defaults to false, and if it fails the first time, it defaults to true 
+// caution: on every launch, it stays false by default
+
+static IS_LUA_MODE: AtomicBool = AtomicBool::new(false);
 
 pub fn focus_workspace(id: i64) {
     let Some(target) = target_of(id) else {
         return;
     };
 
-    // if its true, do this
+    // confirmed lua? send lua systax
     if IS_LUA_MODE.load(Ordering::Relaxed) {
-        let reply = request(&format!("dispatch hl.dsp.focus({{ workspace = {target:?} }})"));
-        
-        // If Lua dispatch succeeded (or returned "ok"), we're good
-        if reply.as_deref() == Some("ok") {
-            return;
-        }
-
-        // If Lua dispatch failed, mark it as false
-        IS_LUA_MODE.store(false, Ordering::Relaxed);
+        let _ = request(&format!("dispatch hl.dsp.focus({{ workspace = {target:?} }})"));
+        return;
     }
 
-    // Normal legacy dispatch fallback which is done if that variable is false
-    let _ = request(&format!("dispatch workspace {target}"));
+    // try normal legacy dispatch first
+    let reply = request(&format!("dispatch workspace {target}"));
+
+    if reply.as_deref() == Some("ok") {
+        return;
+    }
+
+    // legacy failed, so we're on lua mode, so run dispatcher again
+    let _ = request(&format!("dispatch hl.dsp.focus({{ workspace = {target:?} }})"));
+    IS_LUA_MODE.store(true, Ordering::Relaxed);
 }
-
-
 
 // what both dispatch forms accept, a number or name:<name>
 fn target_of(id: i64) -> Option<String> {
