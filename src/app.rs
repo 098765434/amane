@@ -1,6 +1,6 @@
 #[cfg(target_env = "gnu")]
 use crate::allocator;
-use crate::graphics::font;
+use crate::graphics::{GpuSession, font};
 use crate::ipc::IpcHandlers;
 use crate::scale::ScaleFactor;
 use crate::wayland::WaylandApp;
@@ -18,6 +18,7 @@ pub struct App {
     lock: Option<fn(&Monitor) -> LayerWindow>,
 
     handlers: IpcHandlers,
+    ipc_disabled: bool,
 }
 
 impl App {
@@ -78,6 +79,13 @@ impl App {
         self
     }
 
+    /// Runs without an IPC socket, allowing a standalone app alongside the shell.
+    pub fn without_ipc(mut self) -> Self {
+        self.ipc_disabled = true;
+
+        self
+    }
+
     pub fn run(self) {
         let no_windows = self.windows.is_empty() && self.normal_windows.is_empty();
 
@@ -92,12 +100,19 @@ impl App {
             font::set_default(family);
         }
 
+        // Created first and dropped last, including when backend startup unwinds.
+        let _gpu = GpuSession;
+
         let mut backend = WaylandApp::new(
             self.windows,
             self.normal_windows,
             self.per_monitor,
             self.lock,
-            self.handlers,
+            if self.ipc_disabled {
+                None
+            } else {
+                Some(self.handlers)
+            },
             self.scale_factor,
         );
 

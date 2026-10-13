@@ -45,6 +45,7 @@
 - [Workspaces](workspaces.md)
 - [Apps](apps.md)
 - [Palette](palette.md)
+- [PAM Authentication](pam.md)
 
 # Talking to the System
 
