@@ -8,7 +8,7 @@ use serde_json::Value;
 
 use crate::Workspace;
 
-// Enum indicating the configuration syntax supported by Hyprland
+// enum indicating the configuration syntax supported by hyprland
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ConfigProvider {
     Hyprlang, // hyprland.conf files
@@ -64,8 +64,7 @@ pub fn focus_workspace(id: i64) {
         return;
     };
 
-    // Lazily detect and cache the provider on the very first user interaction.
-    // Subsequent calls bypass detection entirely and go straight to the matched branch.
+    // detect and cache the provider on the very first user interaction
     let provider = *HYPRLAND_CONFIG_PROVIDER.get_or_init(|| {
         detect_config_provider(&target)
     });
