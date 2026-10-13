@@ -2,11 +2,20 @@ use std::env;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::OnceLock;
 
 use serde_json::Value;
 
 use crate::Workspace;
+
+// Enum indicating the configuration syntax supported by Hyprland
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ConfigProvider {
+    Hyprlang, // hyprland.conf files
+    Lua,      // hyprland.lua files 
+}
+
+static HYPRLAND_CONFIG_PROVIDER: OnceLock<ConfigProvider> = OnceLock::new();
 
 // hyprland keeps its sockets in a folder named after the running instance
 fn socket(name: &str) -> Option<PathBuf> {
@@ -36,35 +45,39 @@ fn request(command: &str) -> Option<String> {
     Some(reply)
 }
 
+fn detect_config_provider(target: &str) -> ConfigProvider {
+    // Try normal legacy dispatch first. If running under legacy Hyprlang,
+    // this succeeds and sets the provider. If running under Lua mode,
+    // this fails, allowing us to fall back to the Lua dispatcher.
+    let reply = request(&format!("dispatch workspace {target}"));
 
-
-// track whether hyprland is running in lua mode or not
-// defaults to false, and if it fails the first time, it defaults to true 
-// caution: on every launch, it stays false by default
-
-static IS_LUA_MODE: AtomicBool = AtomicBool::new(false);
+    if reply.as_deref() == Some("ok") {
+        ConfigProvider::Hyprlang
+    } else {
+        let _ = request(&format!("dispatch hl.dsp.focus({{ workspace = {target:?} }})"));
+        ConfigProvider::Lua
+    }
+}
 
 pub fn focus_workspace(id: i64) {
     let Some(target) = target_of(id) else {
         return;
     };
 
-    // confirmed lua? send lua systax
-    if IS_LUA_MODE.load(Ordering::Relaxed) {
-        let _ = request(&format!("dispatch hl.dsp.focus({{ workspace = {target:?} }})"));
-        return;
+    // Lazily detect and cache the provider on the very first user interaction.
+    // Subsequent calls bypass detection entirely and go straight to the matched branch.
+    let provider = *HYPRLAND_CONFIG_PROVIDER.get_or_init(|| {
+        detect_config_provider(&target)
+    });
+
+    match provider {
+        ConfigProvider::Lua => {
+            let _ = request(&format!("dispatch hl.dsp.focus({{ workspace = {target:?} }})"));
+        }
+        ConfigProvider::Hyprlang => {
+            let _ = request(&format!("dispatch workspace {target}"));
+        }
     }
-
-    // try normal legacy dispatch first
-    let reply = request(&format!("dispatch workspace {target}"));
-
-    if reply.as_deref() == Some("ok") {
-        return;
-    }
-
-    // legacy failed, so we're on lua mode, so run dispatcher again
-    let _ = request(&format!("dispatch hl.dsp.focus({{ workspace = {target:?} }})"));
-    IS_LUA_MODE.store(true, Ordering::Relaxed);
 }
 
 // what both dispatch forms accept, a number or name:<name>
