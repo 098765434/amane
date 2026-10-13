@@ -2,6 +2,7 @@ use std::env;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde_json::Value;
 
@@ -35,24 +36,36 @@ fn request(command: &str) -> Option<String> {
     Some(reply)
 }
 
+
+
+// track whether hyprland is running in lua mode or not
+// defaults to true, and if it fails the first time, it defaults to false
+// caution: on every launch, it stays true by default
+// and we're assuming nearly everyone is in lua mode
+static IS_LUA_MODE: AtomicBool = AtomicBool::new(true);
+
 pub fn focus_workspace(id: i64) {
     let Some(target) = target_of(id) else {
         return;
     };
+
+    // is it in lua? do this
+    if IS_LUA_MODE.load(Ordering::Relaxed) {
+        let _ = request(&format!("dispatch hl.dsp.focus({{ workspace = {target:?} }})"));
+        return;
+    }
 
     let reply = request(&format!("dispatch workspace {target}"));
 
     if reply.as_deref() == Some("ok") {
         return;
     }
-
-    /*
-     * since 0.56 a lua config reads dispatch as lua, so the line above
-     * only gets a syntax error back; {:?} quotes the target as a string
-     * with escapes lua reads the same way
-     */
-    let _ = request(&format!("dispatch hl.dsp.focus({{ workspace = {target:?} }})"));
+    
+    // Fallback worked, so mark Lua mode as false for future calls
+    IS_LUA_MODE.store(false, Ordering::Relaxed);
 }
+
+
 
 // what both dispatch forms accept, a number or name:<name>
 fn target_of(id: i64) -> Option<String> {
