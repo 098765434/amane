@@ -76,14 +76,18 @@ pub fn focus_workspace(id: i64) {
             // legacy succeeded on the first try? keep it and avoid double dispatch
             ConfigProvider::Hyprlang
         }
-        Some(resp) if resp.starts_with("error:") && (resp.contains("dispatcher") || resp.contains("unknown")) => {
-            // legacy failed specifically because the dispatcher doesn't exist (Lua mode)
-            let _ = request(&format!("dispatch hl.dsp.focus({{ workspace = {target:?} }})"));
-            ConfigProvider::Lua
-        }
         _ => {
-            // Any other response (socket issue, rejected target, etc.) -> do not cache
-            return;
+            // the legacy form failed, so ask in lua and keep it only if hyprland accepts
+            let lua_reply = request(&format!("dispatch hl.dsp.focus({{ workspace = {target:?} }})"));
+
+            let accepted = lua_reply.is_some_and(|text| text.starts_with("ok"));
+
+            // socket missing or target rejected, so try again on the next click
+            if !accepted {
+                return;
+            }
+
+            ConfigProvider::Lua
         }
     };
 
