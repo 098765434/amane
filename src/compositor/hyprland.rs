@@ -8,7 +8,7 @@ use serde_json::Value;
 
 use crate::Workspace;
 
-// enum indicating the configuration syntax supported by hyprland
+// Enum indicating the configuration syntax supported by Hyprland (since 0.56 Lua support)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ConfigProvider {
     Hyprlang, // hyprland.conf files
@@ -45,38 +45,49 @@ fn request(command: &str) -> Option<String> {
     Some(reply)
 }
 
-fn detect_config_provider(target: &str) -> ConfigProvider {
-    // Try normal legacy dispatch first. If running under legacy Hyprlang,
-    // this succeeds and sets the provider. If running under Lua mode,
-    // this fails, allowing us to fall back to the Lua dispatcher.
-    let reply = request(&format!("dispatch workspace {target}"));
-
-    if reply.as_deref() == Some("ok") {
-        ConfigProvider::Hyprlang
-    } else {
-        let _ = request(&format!("dispatch hl.dsp.focus({{ workspace = {target:?} }})"));
-        ConfigProvider::Lua
-    }
-}
-
 pub fn focus_workspace(id: i64) {
     let Some(target) = target_of(id) else {
         return;
     };
 
-    // detect and cache the provider on the very first user interaction
-    let provider = *HYPRLAND_CONFIG_PROVIDER.get_or_init(|| {
-        detect_config_provider(&target)
-    });
-
-    match provider {
-        ConfigProvider::Lua => {
-            let _ = request(&format!("dispatch hl.dsp.focus({{ workspace = {target:?} }})"));
+    // If provider is already cached, execute a single direct dispatch request
+    if let Some(&provider) = HYPRLAND_CONFIG_PROVIDER.get() {
+        match provider {
+            ConfigProvider::Hyprlang => {
+                let _ = request(&format!("dispatch workspace {target}"));
+            }
+            ConfigProvider::Lua => {
+                /*
+                 * since 0.56 a lua config reads dispatch as lua, so the line above
+                 * only gets a syntax error back; {:?} quotes the target as a string
+                 * with escapes lua reads the same way
+                 */
+                let _ = request(&format!("dispatch hl.dsp.focus({{ workspace = {target:?} }})"));
+            }
         }
-        ConfigProvider::Hyprlang => {
-            let _ = request(&format!("dispatch workspace {target}"));
-        }
+        return;
     }
+
+    // 1st: test with legacy dispatcher
+    let reply = request(&format!("dispatch workspace {target}"));
+
+    let provider = match reply.as_deref() {
+        Some("ok") => {
+            // legacy succeeded on the first try? keep it and avoid double dispatch
+            ConfigProvider::Hyprlang
+        }
+        Some(resp) if resp.starts_with("error:") && (resp.contains("dispatcher") || resp.contains("unknown")) => {
+            // legacy failed specifically because the dispatcher doesn't exist (Lua mode)
+            let _ = request(&format!("dispatch hl.dsp.focus({{ workspace = {target:?} }})"));
+            ConfigProvider::Lua
+        }
+        _ => {
+            // Any other response (socket issue, rejected target, etc.) -> do not cache
+            return;
+        }
+    };
+
+    let _ = HYPRLAND_CONFIG_PROVIDER.set(provider);
 }
 
 // what both dispatch forms accept, a number or name:<name>
@@ -242,3 +253,4 @@ mod tests {
         assert_eq!(list[3].name.as_deref(), Some("chat"));
     }
 }
+        
