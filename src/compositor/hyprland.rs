@@ -2,10 +2,20 @@ use std::env;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
 use serde_json::Value;
 
 use crate::Workspace;
+
+// Enum indicating the configuration syntax supported by Hyprland (since 0.56 Lua support)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ConfigProvider {
+    Hyprlang, // hyprland.conf files
+    Lua,      // hyprland.lua files 
+}
+
+static HYPRLAND_CONFIG_PROVIDER: OnceLock<ConfigProvider> = OnceLock::new();
 
 // hyprland keeps its sockets in a folder named after the running instance
 fn socket(name: &str) -> Option<PathBuf> {
@@ -40,18 +50,48 @@ pub fn focus_workspace(id: i64) {
         return;
     };
 
-    let reply = request(&format!("dispatch workspace {target}"));
-
-    if reply.as_deref() == Some("ok") {
+    // If provider is already cached, execute a single direct dispatch request
+    if let Some(&provider) = HYPRLAND_CONFIG_PROVIDER.get() {
+        match provider {
+            ConfigProvider::Hyprlang => {
+                let _ = request(&format!("dispatch workspace {target}"));
+            }
+            ConfigProvider::Lua => {
+                /*
+                 * since 0.56 a lua config reads dispatch as lua, so the line above
+                 * only gets a syntax error back; {:?} quotes the target as a string
+                 * with escapes lua reads the same way
+                 */
+                let _ = request(&format!("dispatch hl.dsp.focus({{ workspace = {target:?} }})"));
+            }
+        }
         return;
     }
 
-    /*
-     * since 0.56 a lua config reads dispatch as lua, so the line above
-     * only gets a syntax error back; {:?} quotes the target as a string
-     * with escapes lua reads the same way
-     */
-    let _ = request(&format!("dispatch hl.dsp.focus({{ workspace = {target:?} }})"));
+    // 1st: test with legacy dispatcher
+    let reply = request(&format!("dispatch workspace {target}"));
+
+    let provider = match reply.as_deref() {
+        Some("ok") => {
+            // legacy succeeded on the first try? keep it and avoid double dispatch
+            ConfigProvider::Hyprlang
+        }
+        _ => {
+            // the legacy form failed, so ask in lua and keep it only if hyprland accepts
+            let lua_reply = request(&format!("dispatch hl.dsp.focus({{ workspace = {target:?} }})"));
+
+            let accepted = lua_reply.is_some_and(|text| text.starts_with("ok"));
+
+            // socket missing or target rejected, so try again on the next click
+            if !accepted {
+                return;
+            }
+
+            ConfigProvider::Lua
+        }
+    };
+
+    let _ = HYPRLAND_CONFIG_PROVIDER.set(provider);
 }
 
 // what both dispatch forms accept, a number or name:<name>
@@ -217,3 +257,4 @@ mod tests {
         assert_eq!(list[3].name.as_deref(), Some("chat"));
     }
 }
+        
