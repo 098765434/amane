@@ -24,7 +24,10 @@ To install it system-wide, add it to your flake inputs:
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    amane.url = "github:MystiaFin/amane";
+    amane = {
+      url = "github:MystiaFin/amane";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = { nixpkgs, amane, ... }: {
@@ -42,6 +45,8 @@ To install it system-wide, add it to your flake inputs:
 ```
 
 Replace `your-host` with your host's name, then rebuild.
+
+The `follows` line builds Amane with your system's nixpkgs, so it uses the same glibc as your graphics driver. Without it, the shell can fail to find your GPU.
 
 ## Other distributions
 

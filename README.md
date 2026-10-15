@@ -49,7 +49,10 @@ This puts `amane` in `~/.cargo/bin`, so make sure that folder is on your `PATH` 
 Add amane to your flake inputs, then add its package to your system packages:
 
 ```nix
-inputs.amane.url = "github:MystiaFin/amane";
+inputs.amane = {
+  url = "github:MystiaFin/amane";
+  inputs.nixpkgs.follows = "nixpkgs";
+};
 ```
 
 ```nix
