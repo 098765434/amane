@@ -1,4 +1,5 @@
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell, OnceCell, RefCell};
+use std::ffi::c_void;
 use std::process;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -9,6 +10,7 @@ use vello::wgpu::{
 };
 use vello::{AaSupport, RendererOptions};
 
+use super::target::Display;
 use super::wait::wait;
 
 /*
@@ -29,19 +31,31 @@ pub struct Shared {
 
 // every window draws on the main thread, so thread locals are enough
 thread_local! {
-    static INSTANCE: Instance = Instance::new(InstanceDescriptor::new_without_display_handle_from_env());
+    static INSTANCE: OnceCell<Instance> = const { OnceCell::new() };
 
     static SHARED: RefCell<Option<Shared>> = const { RefCell::new(None) };
 }
 
-// the surfaces of every window come from the same instance
-pub fn instance() -> Instance {
-    INSTANCE.with(Instance::clone)
+/*
+ * the surfaces of every window come from the same instance, made with the
+ * first window's display: the gl backend picks how it presents when the
+ * instance is made, and without the display it can only draw offscreen
+ */
+pub fn instance(display: *mut c_void) -> Instance {
+    INSTANCE.with(|instance| instance.get_or_init(|| open_instance(display)).clone())
+}
+
+fn open_instance(display: *mut c_void) -> Instance {
+    let display = Box::new(Display::new(display));
+
+    let descriptor = InstanceDescriptor::new_with_display_handle_from_env(display);
+
+    Instance::new(descriptor)
 }
 
 // opened by the first window, with a gpu that can draw to its surface; later windows reuse it
-pub fn get(surface: &Surface) -> Shared {
-    SHARED.with_borrow_mut(|shared| shared.get_or_insert_with(|| open(surface)).clone())
+pub fn get(instance: &Instance, surface: &Surface) -> Shared {
+    SHARED.with_borrow_mut(|shared| shared.get_or_insert_with(|| open(instance, surface)).clone())
 }
 
 pub fn clear() {
@@ -49,13 +63,13 @@ pub fn clear() {
     drop(SHARED.with_borrow_mut(Option::take));
 }
 
-fn open(surface: &Surface) -> Shared {
+fn open(instance: &Instance, surface: &Surface) -> Shared {
     let adapter_options = RequestAdapterOptions {
         compatible_surface: Some(surface),
         ..RequestAdapterOptions::default()
     };
 
-    let adapter = wait(instance().request_adapter(&adapter_options))
+    let adapter = wait(instance.request_adapter(&adapter_options))
         .expect("failed to find a gpu that can draw to the window");
 
     // a software driver draws on the cpu and keeps every texture in ram, so say which one was picked

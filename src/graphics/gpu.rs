@@ -102,7 +102,9 @@ pub struct Gpu {
 impl Gpu {
     // the pointers are libwayland's display and surface, which have to outlive the gpu
     pub fn new(display: *mut c_void, surface: *mut c_void) -> Self {
-        let surface = target::create(&shared::instance(), display, surface);
+        let instance = shared::instance(display);
+
+        let surface = target::create(&instance, display, surface);
 
         let Shared {
             adapter,
@@ -110,7 +112,7 @@ impl Gpu {
             queue,
             vello,
             atlas_drops,
-        } = shared::get(&surface);
+        } = shared::get(&instance, &surface);
 
         let config = target::configure(&surface, &adapter);
 

@@ -2,12 +2,42 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use vello::wgpu::rwh::{
-    RawDisplayHandle, RawWindowHandle, WaylandDisplayHandle, WaylandWindowHandle,
+    DisplayHandle, HandleError, HasDisplayHandle, RawDisplayHandle, RawWindowHandle,
+    WaylandDisplayHandle, WaylandWindowHandle,
 };
 use vello::wgpu::{
     Adapter, CompositeAlphaMode, Instance, PresentMode, Surface, SurfaceColorSpace,
     SurfaceConfiguration, SurfaceTargetUnsafe, TextureFormat, TextureUsages,
 };
+
+// libwayland's display, which the gl backend needs before it can present to any window
+#[derive(Debug)]
+pub(super) struct Display(NonNull<c_void>);
+
+// only touches the display on the main thread, and the connection outlives the gpu
+unsafe impl Send for Display {}
+unsafe impl Sync for Display {}
+
+impl Display {
+    pub(super) fn new(display: *mut c_void) -> Self {
+        let display = NonNull::new(display).expect("failed to read the wayland display");
+
+        Self(display)
+    }
+
+    fn raw(&self) -> RawDisplayHandle {
+        RawDisplayHandle::Wayland(WaylandDisplayHandle::new(self.0))
+    }
+}
+
+impl HasDisplayHandle for Display {
+    fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
+        // the connection stays open for as long as the gpu uses it
+        let handle = unsafe { DisplayHandle::borrow_raw(self.raw()) };
+
+        Ok(handle)
+    }
+}
 
 // the pointers are libwayland's display and surface, which have to outlive the gpu
 pub(super) fn create(
@@ -15,13 +45,11 @@ pub(super) fn create(
     display: *mut c_void,
     surface: *mut c_void,
 ) -> Surface<'static> {
-    let display = NonNull::new(display).expect("failed to read the wayland display");
+    let display = Display::new(display);
     let surface = NonNull::new(surface).expect("failed to read the wayland surface");
 
     let target = SurfaceTargetUnsafe::RawHandle {
-        raw_display_handle: Some(RawDisplayHandle::Wayland(WaylandDisplayHandle::new(
-            display,
-        ))),
+        raw_display_handle: Some(display.raw()),
         raw_window_handle: RawWindowHandle::Wayland(WaylandWindowHandle::new(surface)),
     };
 
