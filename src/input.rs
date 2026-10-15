@@ -1,7 +1,9 @@
 pub mod focus;
+pub mod modifiers;
 mod pointer;
 mod target;
 
+pub use modifiers::Modifiers;
 pub use pointer::Pointer;
 pub use target::{Handlers, KeyHandler, Target, clip};
 

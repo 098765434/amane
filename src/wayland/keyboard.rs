@@ -106,10 +106,16 @@ impl KeyboardHandler for WaylandState {
         _: &QueueHandle<Self>,
         _: &WlKeyboard,
         _: u32,
-        _: Modifiers,
+        modifiers: Modifiers,
         _: RawModifiers,
         _: u32,
     ) {
+        crate::input::modifiers::set(
+            modifiers.ctrl,
+            modifiers.shift,
+            modifiers.alt,
+            modifiers.logo,
+        );
     }
 }
 
@@ -132,21 +138,21 @@ fn to_key(event: &KeyEvent) -> Key {
 
 // the text a key types already has shift and the keyboard layout applied
 fn character(event: &KeyEvent) -> Key {
-    let Some(text) = &event.utf8 else {
-        return Key::Other;
-    };
-
-    let mut letters = text.chars();
-
-    // a key that types more than one character has no single letter to give
-    let (Some(letter), None) = (letters.next(), letters.next()) else {
-        return Key::Other;
-    };
-
-    // with ctrl held, keys type invisible control characters
-    if letter.is_control() {
-        return Key::Other;
+    // the normal case: the key typed one printable character
+    if let Some(text) = &event.utf8 {
+        let mut letters = text.chars();
+        if let (Some(letter), None) = (letters.next(), letters.next()) {
+            if !letter.is_control() {
+                return Key::Character(letter);
+            }
+        }
     }
 
-    Key::Character(letter)
+    // ctrl (etc.) makes keys type invisible control characters; fall back to the
+    // keysym's own character so a chord like Ctrl+A arrives as Character('a') — the
+    // handler tells it apart from typed text via `modifiers()`.
+    match event.keysym.key_char() {
+        Some(letter) if !letter.is_control() => Key::Character(letter),
+        _ => Key::Other,
+    }
 }

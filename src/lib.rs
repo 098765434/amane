@@ -61,7 +61,8 @@ pub use input::cursor_names::{
     ResizeBottomRight, ResizeHorizontal, ResizeLeft, ResizeRight, ResizeTop, ResizeTopLeft,
     ResizeTopRight, ResizeVertical, Text, Wait,
 };
-pub use input::{Button, Cursor, Key, Point, Scroll, ScrollSource};
+pub use input::modifiers::get as modifiers;
+pub use input::{Button, Cursor, Key, Modifiers, Point, Scroll, ScrollSource};
 pub use ipc::{IpcCall, ipc_socket};
 pub use layer_window::{
     Horizontal, InputArea, Keyboard, Layer, LayerWindow, Margin, Vertical, WindowSize, Zone,

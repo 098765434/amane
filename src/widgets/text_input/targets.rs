@@ -52,6 +52,11 @@ fn submit(id: &'static str, on_submit: Option<&TextHandler>) {
 }
 
 fn edit(id: &'static str, key: Key, on_change: Option<&TextHandler>) {
+    // a command chord (Ctrl/Alt/Super + key) is not text, so don't type it
+    if matches!(key, Key::Character(_) | Key::Space) && crate::modifiers().command() {
+        return;
+    }
+
     let mut field = fields::get(id);
 
     let changed = field.apply(key);
