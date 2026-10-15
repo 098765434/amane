@@ -192,14 +192,24 @@ fn to_exclusive_zone(settings: &Settings, scale_factor: ScaleFactor) -> i32 {
 
 // a bar on the left or right edge is as thick as its width, any other bar as its height
 fn measure_thickness(settings: &Settings, scale_factor: ScaleFactor) -> i32 {
-    let size = match (settings.horizontal, settings.width) {
-        (Horizontal::Left | Horizontal::Right, WindowSize::Fixed(_)) => settings.width,
-        _ => settings.height,
+    let margin = settings.margin;
+
+    // the compositor adds the anchored edge's margin, but never the one facing the windows
+    let (size, inner_margin) = match (settings.horizontal, settings.width) {
+        (Horizontal::Left, WindowSize::Fixed(_)) => (settings.width, margin.right),
+        (Horizontal::Right, WindowSize::Fixed(_)) => (settings.width, margin.left),
+
+        _ => match settings.vertical {
+            Vertical::Top => (settings.height, margin.bottom),
+            Vertical::Bottom => (settings.height, margin.top),
+            Vertical::Middle => (settings.height, 0),
+        },
     };
 
-    let reserved = to_pixels(size, scale_factor);
+    let thickness = to_pixels(size, scale_factor);
+    let thickness = i32::try_from(thickness).expect("failed to convert reserved space");
 
-    i32::try_from(reserved).expect("failed to convert reserved space")
+    thickness + scale_factor.coordinate(inner_margin)
 }
 
 #[cfg(test)]
@@ -229,5 +239,13 @@ mod tests {
         settings.horizontal = Horizontal::Left;
         settings.width = WindowSize::Fixed(20.0);
         assert_eq!(to_exclusive_zone(&settings, ScaleFactor::new(1.5)), 30);
+
+        // the margin facing the windows is reserved too
+        settings.horizontal = Horizontal::Middle;
+        settings.width = WindowSize::Full;
+        settings.height = WindowSize::Fixed(30.0);
+        settings.vertical = Vertical::Top;
+        settings.margin.bottom = 10;
+        assert_eq!(to_exclusive_zone(&settings, ScaleFactor::new(1.0)), 40);
     }
 }
