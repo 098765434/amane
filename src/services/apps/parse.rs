@@ -43,13 +43,31 @@ pub fn read(path: &Path, icons: &HashMap<String, PathBuf>) -> Option<DesktopApp>
         .or(fields.get("GenericName"))
         .map(|description| description.to_string());
 
+    let categories = list_field(fields.get("Categories"));
+    let keywords = list_field(fields.get("Keywords"));
+
     Some(DesktopApp {
         name,
         exec,
         icon,
         icon_path,
         description,
+        categories,
+        keywords,
     })
+}
+
+// a desktop-entry list value is semicolon-separated, with a trailing separator
+fn list_field(value: Option<&&str>) -> Vec<String> {
+    match value {
+        Some(value) => value
+            .split(';')
+            .map(str::trim)
+            .filter(|item| !item.is_empty())
+            .map(str::to_string)
+            .collect(),
+        None => Vec::new(),
+    }
 }
 
 // the keys of [Desktop Entry], leaving out translations like Name[de] and the action sections

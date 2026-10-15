@@ -9,6 +9,8 @@ pub struct DesktopApp {
     pub(crate) icon: Option<String>,
     pub(crate) icon_path: Option<PathBuf>,
     pub(crate) description: Option<String>,
+    pub(crate) categories: Vec<String>,
+    pub(crate) keywords: Vec<String>,
 }
 
 impl DesktopApp {
@@ -34,6 +36,16 @@ impl DesktopApp {
     // the entry's Comment, or its GenericName like "Web Browser" when it has none
     pub fn description(&self) -> Option<&str> {
         self.description.as_deref()
+    }
+
+    // the freedesktop Categories, like "Development" or "Network" (no trailing empty)
+    pub fn categories(&self) -> &[String] {
+        &self.categories
+    }
+
+    // the entry's Keywords, extra search terms the author added
+    pub fn keywords(&self) -> &[String] {
+        &self.keywords
     }
 
     // starts the program and moves on without waiting for it
