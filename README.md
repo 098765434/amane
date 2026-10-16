@@ -1,6 +1,6 @@
 > [!NOTE]
 > **amane is on hiatus until mid-december 2026.**
-> i'm pausing the project to focus on my college thesis, so the repo is archived and issues and PRs are closed for now.
+> i'm pausing the project to focus on my college thesis, so issues and PRs are closed for now.
 > everything still works: you can install it, read the [docs](https://mystiafin.github.io/amane/), and fork it. thanks for following along, i'll be back once my thesis is done.
 
 <p align="center">
@@ -54,10 +54,7 @@ This puts `amane` in `~/.cargo/bin`, so make sure that folder is on your `PATH` 
 Add amane to your flake inputs, then add its package to your system packages:
 
 ```nix
-inputs.amane = {
-  url = "github:MystiaFin/amane";
-  inputs.nixpkgs.follows = "nixpkgs";
-};
+inputs.amane.url = "github:MystiaFin/amane";
 ```
 
 ```nix
