@@ -40,6 +40,18 @@ impl PointerHandler for WaylandState {
 impl WaylandState {
     // returns whether a handler ran
     fn handle_pointer(&mut self, event: &PointerEvent) -> bool {
+        // Grab any serial off the event first so we don't double-borrow self.
+        // xdg_popup.grab() needs a recent input serial; any pointer event works.
+        match &event.kind {
+            PointerEventKind::Enter { serial, .. }
+            | PointerEventKind::Leave { serial, .. }
+            | PointerEventKind::Press { serial, .. }
+            | PointerEventKind::Release { serial, .. } => {
+                self.last_input_serial = Some(*serial);
+            }
+            _ => {}
+        }
+
         // every event names the surface it happened on
         let Some(window) = self.window(&event.surface) else {
             return false;

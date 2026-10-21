@@ -3,6 +3,7 @@ use crate::allocator;
 use crate::graphics::{GpuSession, font};
 use crate::ipc::IpcHandlers;
 use crate::scale::ScaleFactor;
+use crate::popup::Popup;
 use crate::wayland::WaylandApp;
 use crate::window::NamedWindow;
 use crate::{LayerWindow, Monitor, Window};
@@ -14,6 +15,7 @@ pub struct App {
 
     windows: Vec<fn() -> LayerWindow>,
     normal_windows: Vec<NamedWindow>,
+    popups: Vec<fn() -> Popup>,
     per_monitor: Vec<fn(&Monitor) -> LayerWindow>,
     lock: Option<fn(&Monitor) -> LayerWindow>,
 
@@ -52,6 +54,14 @@ impl App {
     pub fn normal_window(mut self, name: &'static str, view: fn() -> Window) -> Self {
         self.normal_windows.push((name, view));
 
+        self
+    }
+
+    /// Registers a popup slot. The view fn is called each tick to decide
+    /// whether to map a transient xdg-popup. Set `.visible(false)` on the
+    /// returned `Popup` to tear a live popup down.
+    pub fn popup(mut self, view: fn() -> Popup) -> Self {
+        self.popups.push(view);
         self
     }
 
@@ -106,6 +116,7 @@ impl App {
         let mut backend = WaylandApp::new(
             self.windows,
             self.normal_windows,
+            self.popups,
             self.per_monitor,
             self.lock,
             if self.ipc_disabled {

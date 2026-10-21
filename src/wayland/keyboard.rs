@@ -19,11 +19,12 @@ impl KeyboardHandler for WaylandState {
         _: &QueueHandle<Self>,
         _: &WlKeyboard,
         surface: &WlSurface,
-        _: u32,
+        serial: u32,
         _: &[u32],
         _: &[Keysym],
     ) {
         self.keyboard_focus = Some(surface.clone());
+        self.last_input_serial = Some(serial);
     }
 
     fn leave(
@@ -47,9 +48,10 @@ impl KeyboardHandler for WaylandState {
         _: &Connection,
         _: &QueueHandle<Self>,
         _: &WlKeyboard,
-        _: u32,
+        serial: u32,
         event: KeyEvent,
     ) {
+        self.last_input_serial = Some(serial);
         let Some(surface) = self.keyboard_focus.clone() else {
             return;
         };

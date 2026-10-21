@@ -26,6 +26,7 @@ zbus = "5.19.0"
 libpulse-binding = "2.30"
 # turns svg icons into pixels once, so they draw like any other image
 resvg = { version = "0.48.1", default-features = false }
+bitflags = "2"
 
 [dev-dependencies]
 chrono = "0.4"
