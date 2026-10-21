@@ -11,7 +11,7 @@ rebasable series on top of upstream — everything else is stock.
 |---|---|
 | Upstream | `https://github.com/MystiaFin/amane` (remote: `upstream`) |
 | Fork point | upstream commit `72e23eb` (tag `fork-base`) — the real upstream tree the feature was authored against |
-| Fork branch | `gesture-services` (upstream `main` is kept in sync for PRs) |
+| Fork branch | `ocbk` (upstream `main` is kept in sync for PRs) |
 
 > The fork point is a real upstream commit, so `git log fork-base..HEAD` and `git range-diff` line
 > up against genuine upstream history.

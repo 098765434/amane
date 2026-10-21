@@ -1,6 +1,6 @@
 > **Fork** of [amane](https://github.com/MystiaFin/amane) — adds xdg-popups and niri compositor
 > services (`Windows`, `Gestures`) for the [`amane-shell`](https://github.com/098765434/amane-shell)
-> bar. The feature lives on the `gesture-services` branch; see **[FORK.md](FORK.md)** for the delta
+> bar. The feature lives on the `ocbk` branch; see **[FORK.md](FORK.md)** for the delta
 > and the rebase/update workflow. The rest of this README is upstream's.
 
 ---
