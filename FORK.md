@@ -32,6 +32,12 @@ A single feature commit on top of `fork-base`:
   (`src/services/gestures.rs`.) Requires the niri gesture-IPC fork
   ([098765434/niri](https://github.com/098765434/niri)).
 
+- **`Battery` via UPower + `PowerProfile` service** — peripheral batteries, warning level, time
+  estimates and AC state from UPower (sysfs kept as the fallback), and power-profiles-daemon's
+  power-saver / balanced / performance. Both are signal-driven, not polled.
+  (`src/services/battery/`, `src/services/power_profile.rs`.) See [docs/battery.md](docs/battery.md)
+  and [docs/power-profile.md](docs/power-profile.md).
+
 ## Consumed by
 
 The [`amane-shell`](https://github.com/098765434/amane-shell) bar, as a git dependency pinned to a

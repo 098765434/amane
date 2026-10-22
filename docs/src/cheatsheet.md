@@ -234,7 +234,8 @@ use amane::*;
 
 | Service | Reads | Controls |
 |---|---|---|
-| `Battery` | `present`, `percent`, `charging`, `full` | |
+| `Battery` | `present`, `percent`, `charging`, `full`, `state`, `on_ac`, `warning`, `time_to_empty`, `time_to_full`, `icon`, `peripherals` | |
+| `PowerProfile` | `present`, `active`, `available`, `degraded` | `set` |
 | `Cpu` | `percent` | |
 | `Memory` | `percent`, `used_kib`, `total_kib` | |
 | `Brightness` | `present`, `percent` | `set` |

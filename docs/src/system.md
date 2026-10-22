@@ -33,7 +33,7 @@ fn view() -> LayerWindow {
 
 ## Battery
 
-Read from the kernel (`/sys/class/power_supply`), every 5 seconds.
+Read from UPower when it's running, and updated as soon as the battery changes. Without UPower it's read from the kernel (`/sys/class/power_supply`) every 5 seconds.
 
 | Function | Gives |
 |---|---|
@@ -41,6 +41,14 @@ Read from the kernel (`/sys/class/power_supply`), every 5 seconds.
 | `percent()` | charge, 0 to 100 |
 | `charging()` | `true` while charging |
 | `full()` | plugged in and not charging, usually because it's full |
+| `state()` | a `BatteryState`, like `Charging` or `Discharging` |
+| `on_ac()` | `true` while plugged in |
+| `warning()` | a `WarningLevel`, `Low` and `Critical` when the battery runs out (UPower only) |
+| `time_to_empty()`, `time_to_full()` | how long is left, or `None` while unknown (UPower only) |
+| `icon()` | a freedesktop icon name (UPower only) |
+| `peripherals()` | mice, keyboards and headsets with their own battery (UPower only) |
+
+The power profile toggle is the `PowerProfile` Service: `active()`, `available()`, `degraded()`, and `PowerProfile::set(name)`.
 
 On a desktop, `present()` is `false` and everything else reads 0. Hide the battery widget there:
 
