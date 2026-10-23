@@ -84,6 +84,11 @@ notify-send "hello" "from amane"
 | `urgency()` | `Urgency::Low`, `Normal`, or `Critical` |
 | `actions()` | the buttons the sender asked for, in order |
 | `has_default_action()` | whether clicking the notification itself does something |
+| `icon_path()` | the icon as a file, found from its theme name or the sender's `desktop-entry`, or `None` |
+| `timeout()` | how long the sender asked it to show, see [Timeouts](#timeouts) |
+| `category()` | the kind of event, like `"email.arrived"`, or empty |
+| `desktop_entry()` | the sender's desktop file id, like `"firefox"`, or empty |
+| `transient()` | whether to leave it out of a history once shown |
 | `received()` | when it arrived, or when the sender last replaced it, as a `SystemTime` |
 
 Each `Action` has `key()`, to pass to `invoke`, and `label()`, the text to show on the button.
@@ -95,6 +100,7 @@ Each `Action` has `key()`, to pass to `invoke`, and `label()`, the text to show 
 | `Notifications::click(id)` | runs the default action, or dismisses it when there's none. Use it when the notification itself is clicked. |
 | `Notifications::invoke(id, key)` | runs one of its actions. Use it for action buttons. |
 | `Notifications::dismiss(id)` | closes it |
+| `Notifications::expire(id)` | closes it as expired, for a popup you're done showing |
 | `Notifications::clear()` | closes all of them |
 
 After an action runs, the notification closes, unless the sender asked for it to stay.
@@ -124,6 +130,6 @@ notify-send -A yes=Yes -A no=No "question" "pick one"
 
 ## Timeouts
 
-Notifications stay until they're dismissed. Amane ignores the timeout the sender asks for.
+Notifications stay until they're dismissed. Amane never closes one by itself, but `timeout()` tells you what the sender asked for: `Timeout::Default` (it's up to you), `Timeout::Never`, or `Timeout::After(duration)`.
 
-To hide popups after a few seconds, compare `received()` with the current time in a Service that polls every second, and only show the recent ones in your popup window. Keep the full list for a notification center.
+To hide popups after a few seconds, compare `received()` plus the timeout with the current time in a Service that polls, and only show the recent ones in your popup window. Keep the full list for a notification center. When a `transient()` notification's popup ends, call `Notifications::expire(id)` so it leaves the list too.

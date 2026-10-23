@@ -86,7 +86,7 @@ fn is_true(value: Option<&&str>) -> bool {
 }
 
 // an icon can be a full path instead of a name from the theme
-fn find_icon(icon: &str, icons: &HashMap<String, PathBuf>) -> Option<PathBuf> {
+pub fn find_icon(icon: &str, icons: &HashMap<String, PathBuf>) -> Option<PathBuf> {
     let path = Path::new(icon);
 
     if path.is_absolute() {

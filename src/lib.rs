@@ -73,7 +73,7 @@ pub use services::{
     Bluetooth, BluetoothDevice, Brightness, Cpu, DesktopApp, DeviceKind, Gestures, Idle, Link,
     Lock, Media, MediaPlayer, Memory, Network, Notification, Notifications, Palette, Pam,
     PamConfig, PamError, PamMessage, PamMessageKind, PamResult, PowerDevice, PowerProfile, Scheme,
-    Service, Urgency, WarningLevel, WindowInfo, Windows, Workspace, Workspaces,
+    Service, Timeout, Urgency, WarningLevel, WindowInfo, Windows, Workspace, Workspaces,
 };
 pub use style::{Fill, Image, Mask, Radius, Shadow};
 pub use widgets::{

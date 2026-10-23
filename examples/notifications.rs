@@ -1,6 +1,6 @@
 use amane::{
     Action, App, Center, Color, Column, Horizontal, Layer, LayerWindow, Notification,
-    Notifications, Parent, Rectangle, Row, Service, Text, Urgency, Vertical, Widget,
+    Notifications, Parent, Rectangle, Row, Service, Text, Timeout, Urgency, Vertical, Widget,
 };
 
 /*
@@ -40,11 +40,19 @@ fn view() -> LayerWindow {
 
 // click a notification to run its default action, or to dismiss it
 fn notification_card(notification: &Notification) -> Box<dyn Widget> {
+    // what the sender asked for; amane never closes it by itself
+    let timeout = match notification.timeout() {
+        Timeout::Default => String::from("default"),
+        Timeout::Never => String::from("never"),
+        Timeout::After(duration) => format!("{}s", duration.as_secs()),
+    };
+
     let label = format!(
-        "{}: {}  {}",
+        "{}: {}  {}  [{} {timeout}]",
         notification.app_name(),
         notification.summary(),
         notification.body(),
+        notification.category(),
     );
 
     let fill = match notification.urgency() {

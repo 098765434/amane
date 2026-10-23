@@ -52,6 +52,12 @@ A single feature commit on top of `fork-base`:
   switch the default. (`src/services/audio/device.rs`, `src/services/audio/pulse.rs`.) See
   [docs/audio.md](docs/audio.md).
 
+- **Notification timeout and hints** — `timeout()` (the sender's `expire_timeout` as `Timeout`),
+  `category()`, `desktop_entry()`, `transient()`, an `icon_path()` found from the icon's theme
+  name, and `Notifications::expire(id)` for a toast the shell is done with. amane still never
+  closes one by itself. (`src/services/notifications/`.) See
+  [docs/notifications.md](docs/notifications.md).
+
 - **`Easing::Spring { bounce }`** — a damped-spring easing that settles within the animation's
   duration (`bounce` 0 = no overshoot, up to 0.9), for iOS-style motion. `Easing` loses `Eq`
   for the `f32` field. (`src/animation.rs`.)

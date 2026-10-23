@@ -2,7 +2,7 @@ mod image_hint;
 mod notification;
 mod server;
 
-pub use notification::{Action, Notification, Urgency};
+pub use notification::{Action, Notification, Timeout, Urgency};
 
 use crate::Service;
 
@@ -18,6 +18,9 @@ pub struct Notifications {
 // the numbers the spec gives each way a notification can close
 #[derive(Clone, Copy)]
 pub enum Reason {
+    // the shell let it go after showing it, like a transient one
+    Expired = 1,
+
     Dismissed = 2,
 
     // the sender asked with CloseNotification
@@ -55,6 +58,11 @@ impl Notifications {
 
     pub fn dismiss(id: u32) {
         Self::write().close(id, Reason::Dismissed);
+    }
+
+    // the shell is done showing it, without the user dismissing it
+    pub fn expire(id: u32) {
+        Self::write().close(id, Reason::Expired);
     }
 
     pub fn clear() {
