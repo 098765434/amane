@@ -38,6 +38,11 @@ A single feature commit on top of `fork-base`:
   (`src/services/battery/`, `src/services/power_profile.rs`.) See [docs/battery.md](docs/battery.md)
   and [docs/power-profile.md](docs/power-profile.md).
 
+- **`Idle` service** — idle detection through the compositor's `ext-idle-notify-v1` at
+  shell-chosen levels, and amane serving `org.freedesktop.ScreenSaver` (own-if-absent) so app
+  inhibits are honoured. (`src/services/idle.rs`, `src/wayland/idle.rs`.) See
+  [docs/idle.md](docs/idle.md).
+
 ## Consumed by
 
 The [`amane-shell`](https://github.com/098765434/amane-shell) bar, as a git dependency pinned to a

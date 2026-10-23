@@ -31,6 +31,19 @@ impl Method {
         &self.arguments
     }
 
+    pub(crate) fn interface(&self) -> Option<String> {
+        let header = self.message.header();
+
+        header.interface().map(|interface| interface.to_string())
+    }
+
+    // the caller's unique name like :1.42, to notice when it leaves the bus
+    pub fn sender(&self) -> Option<String> {
+        let header = self.message.header();
+
+        header.sender().map(|name| name.to_string())
+    }
+
     // a failed reply means the caller already left, so there is nobody to tell
     pub fn reply(&self, arguments: &[Argument]) {
         let header = self.message.header();
@@ -62,6 +75,21 @@ impl Bus {
             .expect("failed to watch method calls: bad interface name")
             .build();
 
+        self.watch(rule)
+    }
+
+    // every interface at this path, for a server that also answers Introspect
+    pub(crate) fn methods_at(&self, path: &str) -> Methods {
+        let rule = MatchRule::builder()
+            .msg_type(Type::MethodCall)
+            .path(path)
+            .expect("failed to watch method calls: bad path")
+            .build();
+
+        self.watch(rule)
+    }
+
+    fn watch(&self, rule: MatchRule<'_>) -> Methods {
         let messages = self
             .connection
             .and_then(|connection| MessageIterator::for_match_rule(rule, connection, None).ok());
