@@ -17,7 +17,7 @@ pub trait Blend: Copy + PartialEq + Send + Sync + 'static {
 }
 
 // how the speed changes between the start and the target
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum Easing {
     // the same speed the whole way
     Linear,
@@ -28,6 +28,12 @@ pub enum Easing {
 
     // starts slow, speeds up in the middle and slows down again
     InOut,
+
+    /*
+     * a damped spring that settles within the duration; `bounce` 0 arrives
+     * without overshooting, higher overshoots and wobbles more (up to 0.9)
+     */
+    Spring { bounce: f32 },
 }
 
 impl<T: Blend> Animation<T> {
@@ -118,6 +124,7 @@ impl Easing {
             Easing::Linear => progress,
             Easing::Out => Self::out(progress),
             Easing::InOut => Self::in_out(progress),
+            Easing::Spring { bounce } => Self::spring(progress, bounce),
         }
     }
 
@@ -135,6 +142,34 @@ impl Easing {
         let remaining = 2.0 - 2.0 * progress;
 
         1.0 - remaining * remaining * remaining / 2.0
+    }
+
+    /*
+     * a unit step on a damped spring, stiff enough that what's left of the
+     * swing is about 0.001 when the duration runs out, and then exactly 1
+     * so it always lands on the target
+     */
+    fn spring(progress: f32, bounce: f32) -> f32 {
+        if progress >= 1.0 {
+            return 1.0;
+        }
+
+        let damping = 1.0 - bounce.clamp(0.0, 0.9);
+
+        if damping >= 1.0 {
+            let stiffness = 9.2;
+            let decay = (-stiffness * progress).exp();
+
+            return 1.0 - decay * (1.0 + stiffness * progress);
+        }
+
+        let stiffness = 6.9 / damping;
+        let wobble = stiffness * (1.0 - damping * damping).sqrt();
+        let decay = (-damping * stiffness * progress).exp();
+        let swing =
+            (wobble * progress).cos() + damping * stiffness / wobble * (wobble * progress).sin();
+
+        1.0 - decay * swing
     }
 }
 
@@ -169,5 +204,37 @@ pub mod moving {
     // asked once after each view, so the flag only ever describes that view
     pub fn take() -> bool {
         MOVING.swap(false, Ordering::Relaxed)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Easing;
+
+    fn samples(easing: Easing) -> impl Iterator<Item = f32> {
+        (0..=100).map(move |step| easing.apply(step as f32 / 100.0))
+    }
+
+    #[test]
+    fn spring_starts_at_zero_and_lands_on_one() {
+        for bounce in [0.0, 0.15, 0.3, 0.9] {
+            let spring = Easing::Spring { bounce };
+
+            assert!(spring.apply(0.0).abs() < 1e-6);
+            assert_eq!(spring.apply(1.0), 1.0);
+            assert!((spring.apply(0.99) - 1.0).abs() < 0.01);
+        }
+    }
+
+    #[test]
+    fn spring_without_bounce_never_overshoots() {
+        assert!(samples(Easing::Spring { bounce: 0.0 }).all(|x| x <= 1.0));
+    }
+
+    #[test]
+    fn spring_with_bounce_overshoots() {
+        let peak = samples(Easing::Spring { bounce: 0.3 }).fold(0.0, f32::max);
+
+        assert!(peak > 1.0);
     }
 }
