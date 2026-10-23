@@ -247,6 +247,7 @@ use amane::*;
 | `Notifications` | `list`, `running` | `click`, `invoke`, `dismiss`, `clear` |
 | `Workspaces` | `list` | `focus` |
 | `Apps` | `list` | `launch` on each `DesktopApp` |
+| `Appearance` | `present`, `scheme`, `prefers_dark`, `accent` | |
 | `Palette` | `colors`, `dominant`, `accent`, `background`, `foreground`, `on_accent`, `light` | `open` |
 | [`Pam`](pam.md) | `active`, `messages`, `prompt`, `result` | `start`, `respond`, `abort` |
 | [`Lock`](lock_screen.md) | `checking`, `failed` | `start`, `unlock`, `authenticate`, `abort` |

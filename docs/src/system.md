@@ -145,3 +145,16 @@ let dimmed = idle.crossed(Duration::from_secs(120)) && !idle.inhibited();
 ```
 
 See [docs/idle.md](../idle.md) for how it works.
+
+## Appearance
+
+The desktop's light/dark preference and accent colour, from the XDG Settings portal. It updates as soon as the desktop changes them.
+
+| Function | Gives |
+|---|---|
+| `present()` | `false` without xdg-desktop-portal |
+| `scheme()` | `Scheme::Dark`, `Scheme::Light` or `Scheme::NoPreference` |
+| `prefers_dark()` | `true` when the scheme is `Dark` |
+| `accent()` | the accent `Color`, or `None` when the desktop has none |
+
+See [docs/appearance.md](../appearance.md) for how it works.

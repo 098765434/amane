@@ -1,3 +1,4 @@
+mod appearance;
 mod apps;
 mod audio;
 mod battery;
@@ -29,6 +30,7 @@ use std::time::Duration;
 
 use crate::changes;
 
+pub use appearance::{Appearance, Scheme};
 pub use apps::{Apps, DesktopApp};
 pub use audio::Audio;
 pub use battery::{Battery, BatteryState, DeviceKind, PowerDevice, WarningLevel};

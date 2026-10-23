@@ -16,6 +16,9 @@
 //! - [`Idle`] — idle levels from the compositor's ext-idle-notify, and
 //!   app inhibits through a served `org.freedesktop.ScreenSaver`. See
 //!   [`docs/idle.md`](../docs/idle.md).
+//! - [`Appearance`] — the desktop's light/dark preference and accent colour
+//!   from the XDG Settings portal. See
+//!   [`docs/appearance.md`](../docs/appearance.md).
 
 #[cfg(target_env = "gnu")] // skip glibc tuning if there is no glibc
 mod allocator;
@@ -66,11 +69,11 @@ pub use popup::{Anchor as PopupAnchor, AnchorRect, ConstraintAdjustment, Gravity
 pub use placement::{Align, Center, End, Justify, Padding, Size, Start};
 pub use process::{lines, output, spawn};
 pub use services::{
-    AccessPoint, Action, Apps, Audio, Battery, BatteryState, Bluetooth, BluetoothDevice,
-    Brightness, Cpu, DesktopApp, DeviceKind, Gestures, Idle, Link, Lock, Media, MediaPlayer, Memory,
-    Network, Notification, Notifications, Palette, Pam, PamConfig, PamError, PamMessage,
-    PamMessageKind, PamResult, PowerDevice, PowerProfile, Service, Urgency, WarningLevel,
-    WindowInfo, Windows, Workspace, Workspaces,
+    AccessPoint, Action, Appearance, Apps, Audio, Battery, BatteryState, Bluetooth,
+    BluetoothDevice, Brightness, Cpu, DesktopApp, DeviceKind, Gestures, Idle, Link, Lock, Media,
+    MediaPlayer, Memory, Network, Notification, Notifications, Palette, Pam, PamConfig, PamError,
+    PamMessage, PamMessageKind, PamResult, PowerDevice, PowerProfile, Scheme, Service, Urgency,
+    WarningLevel, WindowInfo, Windows, Workspace, Workspaces,
 };
 pub use style::{Fill, Image, Mask, Radius, Shadow};
 pub use widgets::{
