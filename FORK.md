@@ -47,6 +47,11 @@ A single feature commit on top of `fork-base`:
   the XDG Settings portal, updated live from `SettingChanged`. Read-only.
   (`src/services/appearance.rs`.) See [docs/appearance.md](docs/appearance.md).
 
+- **Audio devices** — `Audio::outputs()` / `inputs()` with each device's `AudioKind` (built-in,
+  speaker, headphones, headset, display …), the default's kind, and `set_output` / `set_input` to
+  switch the default. (`src/services/audio/device.rs`, `src/services/audio/pulse.rs`.) See
+  [docs/audio.md](docs/audio.md).
+
 ## Consumed by
 
 The [`amane-shell`](https://github.com/098765434/amane-shell) bar, as a git dependency pinned to a

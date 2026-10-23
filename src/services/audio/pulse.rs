@@ -8,6 +8,7 @@ use libpulse_binding::context::subscribe::InterestMaskSet;
 use libpulse_binding::context::{Context, FlagSet, State};
 use libpulse_binding::mainloop::standard::{IterateResult, Mainloop};
 use libpulse_binding::operation::{self, Operation};
+use libpulse_binding::proplist::Proplist;
 use libpulse_binding::volume::{ChannelVolumes, Volume};
 
 #[derive(Clone, Copy)]
@@ -35,6 +36,44 @@ pub struct Level {
     pub volume: u8,
 
     pub muted: bool,
+}
+
+// one output or input the sound server offers, as it describes itself
+#[derive(Default, Clone)]
+pub struct Endpoint {
+    // pulse's own name, used to make it the default
+    pub name: String,
+
+    // the name people see, like "Built-in Audio Analog Stereo"
+    pub description: String,
+
+    // the jack or connector in use, like "[Out] Headphones"
+    pub port: String,
+
+    // what the device says it is, like "headset", empty when it doesn't say
+    pub form_factor: String,
+
+    // a freedesktop icon name like "audio-headphones-bluetooth"
+    pub icon_name: String,
+}
+
+impl Endpoint {
+    fn new(
+        name: Option<&str>,
+        description: Option<&str>,
+        port: Option<&str>,
+        properties: &Proplist,
+    ) -> Self {
+        let property = |key| properties.get_str(key).unwrap_or_default();
+
+        Self {
+            name: String::from(name.unwrap_or_default()),
+            description: String::from(description.unwrap_or_default()),
+            port: String::from(port.unwrap_or_default()),
+            form_factor: property("device.form_factor"),
+            icon_name: property("device.icon_name"),
+        }
+    }
 }
 
 // what pulse reports for a default device, before converting to percent
@@ -121,6 +160,29 @@ pub fn set_muted(device: Device, muted: bool) {
     });
 }
 
+// every output or every input, and the name of the one that is the default now
+pub fn devices(device: Device) -> (Vec<Endpoint>, String) {
+    with_connection(|connection| {
+        let endpoints = connection.endpoints(device);
+
+        let default = connection.default_name(device);
+
+        (endpoints, default)
+    })
+}
+
+// sounds that follow the default move along, which pipewire does for every stream
+pub fn set_default(device: Device, name: &str) {
+    with_connection(|connection| {
+        let operation = match device {
+            Device::Output => connection.context.set_default_sink(name, |_| {}),
+            Device::Input => connection.context.set_default_source(name, |_| {}),
+        };
+
+        connection.wait(operation);
+    });
+}
+
 /*
  * calls changed after every change to an output, an input or the
  * default choice, and never returns; it keeps its own
@@ -164,9 +226,10 @@ fn follow(mut connection: Connection, changed: &mut impl FnMut()) {
     }
 }
 
+// fields drop in order, and pulse wants the context gone before its mainloop
 struct Connection {
-    mainloop: Mainloop,
     context: Context,
+    mainloop: Mainloop,
 }
 
 impl Connection {
@@ -232,6 +295,85 @@ impl Connection {
                 self.wait(operation);
             }
         }
+
+        found.take()
+    }
+
+    fn endpoints(&mut self, device: Device) -> Vec<Endpoint> {
+        let found = Rc::new(RefCell::new(Vec::new()));
+        let list = Rc::clone(&found);
+
+        let introspect = self.context.introspect();
+
+        match device {
+            Device::Output => {
+                let operation = introspect.get_sink_info_list(move |result| {
+                    let ListResult::Item(sink) = result else {
+                        return;
+                    };
+
+                    let port = sink
+                        .active_port
+                        .as_ref()
+                        .and_then(|port| port.name.as_deref());
+
+                    list.borrow_mut().push(Endpoint::new(
+                        sink.name.as_deref(),
+                        sink.description.as_deref(),
+                        port,
+                        &sink.proplist,
+                    ));
+                });
+
+                self.wait(operation);
+            }
+
+            Device::Input => {
+                let operation = introspect.get_source_info_list(move |result| {
+                    let ListResult::Item(source) = result else {
+                        return;
+                    };
+
+                    // every output also shows up as an input that records it, which nobody picks as a microphone
+                    if source.monitor_of_sink.is_some() {
+                        return;
+                    }
+
+                    let port = source
+                        .active_port
+                        .as_ref()
+                        .and_then(|port| port.name.as_deref());
+
+                    list.borrow_mut().push(Endpoint::new(
+                        source.name.as_deref(),
+                        source.description.as_deref(),
+                        port,
+                        &source.proplist,
+                    ));
+                });
+
+                self.wait(operation);
+            }
+        }
+
+        found.take()
+    }
+
+    // empty when nothing is the default, like with no sound card at all
+    fn default_name(&mut self, device: Device) -> String {
+        let found = Rc::new(RefCell::new(String::new()));
+        let slot = Rc::clone(&found);
+
+        let operation = self.context.introspect().get_server_info(move |info| {
+            let name = match device {
+                Device::Output => &info.default_sink_name,
+                Device::Input => &info.default_source_name,
+            };
+
+            *slot.borrow_mut() = String::from(name.as_deref().unwrap_or_default());
+        });
+
+        self.wait(operation);
 
         found.take()
     }
