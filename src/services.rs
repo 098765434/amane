@@ -32,7 +32,7 @@ use crate::changes;
 
 pub use appearance::{Appearance, Scheme};
 pub use apps::{Apps, DesktopApp};
-pub use audio::Audio;
+pub use audio::{Audio, AudioDevice, AudioKind};
 pub use battery::{Battery, BatteryState, DeviceKind, PowerDevice, WarningLevel};
 pub use bluetooth::{Bluetooth, BluetoothDevice};
 pub use brightness::Brightness;
