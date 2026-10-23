@@ -43,6 +43,10 @@ A single feature commit on top of `fork-base`:
   inhibits are honoured. (`src/services/idle.rs`, `src/wayland/idle.rs`.) See
   [docs/idle.md](docs/idle.md).
 
+- **`Appearance` service** — the desktop's light/dark preference (`Scheme`) and accent colour from
+  the XDG Settings portal, updated live from `SettingChanged`. Read-only.
+  (`src/services/appearance.rs`.) See [docs/appearance.md](docs/appearance.md).
+
 ## Consumed by
 
 The [`amane-shell`](https://github.com/098765434/amane-shell) bar, as a git dependency pinned to a
