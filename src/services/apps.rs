@@ -6,6 +6,7 @@ mod parse;
 mod walk;
 
 use std::collections::HashSet;
+use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
 
@@ -55,6 +56,17 @@ impl Apps {
     pub fn list(&self) -> &[DesktopApp] {
         &self.list
     }
+}
+
+/*
+ * an icon name from the user's theme, or a full path as it is; the theme's folders are read
+ * the first time and kept, so an icon theme switched while the program runs shows after a
+ * restart here (a rescan of the apps reads them again)
+ */
+pub(crate) fn find_icon(icon: &str) -> Option<PathBuf> {
+    static FOLDERS: std::sync::OnceLock<Vec<Vec<PathBuf>>> = std::sync::OnceLock::new();
+
+    parse::find_icon(icon, FOLDERS.get_or_init(icons::read_icon_folders))
 }
 
 fn scan() -> Vec<DesktopApp> {

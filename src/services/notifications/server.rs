@@ -1,6 +1,8 @@
+use std::path::PathBuf;
 use std::time::SystemTime;
 
-use crate::{Argument, Bus, Method, Notification, Notifications, Service, Urgency, Value};
+use crate::services::apps;
+use crate::{Argument, Bus, Method, Notification, Notifications, Service, Timeout, Urgency, Value};
 
 use super::{Action, Reason, image_hint};
 
@@ -51,7 +53,7 @@ fn notify(method: &Method) {
         body,
         actions,
         hints,
-        _timeout,
+        timeout,
     ] = method.arguments()
     else {
         method.reply(&[]);
@@ -60,6 +62,8 @@ fn notify(method: &Method) {
     };
 
     let (actions, has_default) = read_actions(actions);
+
+    let desktop_entry = hints.get("desktop-entry").text();
 
     let notification = Notification {
         // add() picks the real id
@@ -70,6 +74,7 @@ fn notify(method: &Method) {
         body: String::from(body.text()),
         icon: String::from(icon.text()),
         image: image_hint::read(hints),
+        icon_path: find_icon(icon.text(), desktop_entry),
 
         urgency: Urgency::from_level(hints.get("urgency").number()),
 
@@ -77,6 +82,12 @@ fn notify(method: &Method) {
         has_default,
 
         resident: hints.get("resident").bool(),
+        transient: hints.get("transient").bool(),
+
+        category: String::from(hints.get("category").text()),
+        desktop_entry: String::from(desktop_entry),
+
+        timeout: Timeout::from_millis(timeout.number()),
 
         received: SystemTime::now(),
     };
@@ -115,6 +126,22 @@ fn read_actions(list: &Value) -> (Vec<Action>, bool) {
     (actions, has_default)
 }
 
+/*
+ * the icon a sender names, or its program's own icon when it names none;
+ * found here on the bus thread, since the first lookup walks the themes
+ */
+fn find_icon(icon: &str, desktop_entry: &str) -> Option<PathBuf> {
+    let icon = icon.strip_prefix("file://").unwrap_or(icon);
+
+    let name = if icon.is_empty() { desktop_entry } else { icon };
+
+    if name.is_empty() {
+        return None;
+    }
+
+    apps::find_icon(name)
+}
+
 fn close(method: &Method) {
     let id = method.arguments().first().map(|id| id.number() as u32);
 
@@ -130,6 +157,8 @@ fn send_capabilities(method: &Method) {
         String::from("actions"),
         String::from("body"),
         String::from("icon-static"),
+        // a shell keeps notifications in a history until they are dismissed
+        String::from("persistence"),
     ];
 
     method.reply(&[Argument::from(capabilities)]);
@@ -157,4 +186,39 @@ pub fn announce_closed(id: u32, reason: Reason) {
     let arguments = [Argument::from(id), Argument::from(reason as u32)];
 
     Bus::session().emit(PATH, INTERFACE, "NotificationClosed", &arguments);
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    // paths never reach the theme walk, so these stay quick
+    #[test]
+    fn finds_an_icon_given_as_a_path() {
+        let path = Some(PathBuf::from("/tmp/avatar.png"));
+
+        assert_eq!(find_icon("/tmp/avatar.png", ""), path);
+        assert_eq!(find_icon("file:///tmp/avatar.png", "firefox"), path);
+        assert_eq!(find_icon("", ""), None);
+    }
+
+    #[test]
+    fn leaves_the_default_action_out_of_the_buttons() {
+        let text = |text: &str| Value::Text(String::from(text));
+
+        let list = Value::List(vec![
+            text("default"),
+            text("Open"),
+            text("yes"),
+            text("Yes"),
+        ]);
+
+        let (actions, has_default) = read_actions(&list);
+
+        assert!(has_default);
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].key(), "yes");
+        assert_eq!(actions[0].label(), "Yes");
+    }
 }

@@ -43,7 +43,7 @@ pub use lock::Lock;
 pub use media::{Media, MediaPlayer};
 pub use memory::Memory;
 pub use network::{AccessPoint, Link, Network};
-pub use notifications::{Action, Notification, Notifications, Urgency};
+pub use notifications::{Action, Notification, Notifications, Timeout, Urgency};
 pub use palette::Palette;
 pub use pam::{Pam, PamConfig, PamError, PamMessage, PamMessageKind, PamResult};
 pub use power_profile::PowerProfile;
