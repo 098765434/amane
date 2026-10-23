@@ -8,7 +8,10 @@ impl SeatHandler for WaylandState {
         &mut self.seat
     }
 
-    fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: WlSeat) {}
+    // a seat added while running needs idle timers too, so all of them are made again
+    fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: WlSeat) {
+        self.make_idle_notifications();
+    }
 
     fn new_capability(
         &mut self,

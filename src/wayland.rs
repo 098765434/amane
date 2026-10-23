@@ -1,5 +1,6 @@
 mod compositor;
 mod dropped;
+mod idle;
 mod keyboard;
 mod layer;
 mod lock;
@@ -16,6 +17,9 @@ mod update;
 mod wake;
 mod windows;
 
+use smithay_client_toolkit::reexports::protocols::ext::idle_notify::v1::client::{
+    ext_idle_notification_v1::ExtIdleNotificationV1, ext_idle_notifier_v1::ExtIdleNotifierV1,
+};
 use smithay_client_toolkit::reexports::protocols::wp::{
     fractional_scale::v1::client::wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
     viewporter::client::wp_viewporter::WpViewporter,
@@ -90,6 +94,10 @@ struct WaylandState {
     fractional_scale: Option<WpFractionalScaleManagerV1>,
     viewporter: Option<WpViewporter>,
 
+    // tells Idle when the user went away, none when the compositor lacks ext-idle-notify
+    idle_notifier: Option<ExtIdleNotifierV1>,
+    idle_notifications: Vec<ExtIdleNotificationV1>,
+
     /*
      * the lock screen's view, what asks the compositor for a lock (kept, so
      * the session can be locked again), and the lock while the session is locked
@@ -151,6 +159,8 @@ impl WaylandApp {
         let fractional_scale = globals.bind(&qh, 1..=1, ()).ok();
         let viewporter = globals.bind(&qh, 1..=1, ()).ok();
 
+        let idle_notifier = globals.bind(&qh, 1..=1, ()).ok();
+
         let data_device_manager = DataDeviceManagerState::bind(&globals, &qh).ok();
 
         // windows per monitor are opened once the compositor describes each monitor
@@ -180,6 +190,9 @@ impl WaylandApp {
 
             fractional_scale,
             viewporter,
+
+            idle_notifier,
+            idle_notifications: Vec::new(),
 
             lock_view,
             lock_state: None,
@@ -212,6 +225,9 @@ impl WaylandApp {
 
         // a Lock::start before run() has no event loop to wake yet
         state.start_lock_if_asked();
+
+        // the same for Idle::set_levels, and the seats there at start-up never pass new_seat
+        state.update_idle_if_asked();
 
         let event_loop = EventLoop::try_new().expect("failed to create event loop");
 

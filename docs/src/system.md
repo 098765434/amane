@@ -126,3 +126,22 @@ fn scrolled(scroll: Scroll) {
 ```
 
 `set` runs on a background thread, so a slow answer never freezes the shell.
+
+## Idle
+
+The compositor says when the user has been away from the mouse and keyboard (ext-idle-notify), and amane serves `org.freedesktop.ScreenSaver`, so a browser playing a video can ask not to idle. Nothing is dimmed or locked for you: the shell decides.
+
+| Function | Gives |
+|---|---|
+| `is_idle()` | `true` while the user has been away longer than at least one level |
+| `crossed(level)` | `true` while the user has been away longer than this `Duration` |
+| `inhibited()` | `true` while a program asked not to idle. Check it before dimming or locking. |
+| `Idle::set_levels(&[..])` | the levels to watch, 2 and 5 minutes by default |
+
+```rust
+let idle = Idle::read();
+
+let dimmed = idle.crossed(Duration::from_secs(120)) && !idle.inhibited();
+```
+
+See [docs/idle.md](../idle.md) for how it works.

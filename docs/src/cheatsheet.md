@@ -237,6 +237,7 @@ use amane::*;
 | `Battery` | `present`, `percent`, `charging`, `full`, `state`, `on_ac`, `warning`, `time_to_empty`, `time_to_full`, `icon`, `peripherals` | |
 | `PowerProfile` | `present`, `active`, `available`, `degraded` | `set` |
 | `Cpu` | `percent` | |
+| `Idle` | `is_idle`, `crossed`, `levels`, `inhibited`, `inhibitors`, `running` | `set_levels` |
 | `Memory` | `percent`, `used_kib`, `total_kib` | |
 | `Brightness` | `present`, `percent` | `set` |
 | `Audio` | `volume`, `muted`, `microphone_volume`, `microphone_muted` | `set_volume`, `toggle_mute`, `set_microphone_volume`, `toggle_microphone_mute` |
