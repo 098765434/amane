@@ -21,6 +21,8 @@ pub struct Handlers {
     pub hover: Option<HoverHandler>,
     pub scroll: Option<ScrollHandler>,
     pub drag: Option<PointHandler>,
+    // the left button let go after a drag that started here, wherever the pointer is then
+    pub release: Option<PointHandler>,
     pub motion: Option<PointHandler>,
     pub drop: Option<DropHandler>,
 

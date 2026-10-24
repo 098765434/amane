@@ -8,9 +8,19 @@ use crate::{InputArea, LayerWindow};
 
 use super::{
     WaylandState,
+    background_effect::BlurEffect,
     layer::{self, Settings},
     surface::{Content, OpenWindow, Role},
 };
+
+// the protocol object for a window's surface, none when the compositor lacks the protocol
+fn make_blur_effect(window: &OpenWindow) -> Option<BlurEffect> {
+    let manager = window.background_effect.as_ref()?;
+
+    let surface = manager.get_background_effect(window.role.wl_surface(), &window.qh, ());
+
+    Some(BlurEffect { surface })
+}
 
 impl OpenWindow {
     // settings changed by input or services reach the compositor before anything is drawn
@@ -21,6 +31,7 @@ impl OpenWindow {
         };
 
         self.update_input_region(window);
+        self.update_blur_region(window);
 
         // the compositor sizes lock screens itself, and never lets them hide
         let Role::Layer {
@@ -84,6 +95,47 @@ impl OpenWindow {
         }
 
         surface.set_input_region(Some(&region));
+
+        // the surface keeps its own copy, so the region can go right away
+        region.destroy();
+    }
+
+    // only a changed region is sent, it takes effect with the next commit like the rest
+    pub fn update_blur_region(&mut self, window: &LayerWindow) {
+        if window.blur_region == self.blur_region {
+            return;
+        }
+
+        // a window that never asks keeps the compositor's rules, without the protocol object
+        if self.blur_effect.is_none() {
+            if window.blur_region.is_none() {
+                return;
+            }
+
+            self.blur_effect = make_blur_effect(self);
+        }
+
+        self.blur_region = window.blur_region.clone();
+
+        let Some(effect) = &self.blur_effect else {
+            return;
+        };
+
+        // no region set gives the choice back to the compositor's rules
+        let Some(areas) = &self.blur_region else {
+            effect.surface.set_blur_region(None);
+
+            return;
+        };
+
+        let region = self.compositor.create_region(&self.qh, ());
+
+        for area in areas {
+            let area = scaled_region(*area, self.scale_factor);
+            region.add(area.x, area.y, area.width, area.height);
+        }
+
+        effect.surface.set_blur_region(Some(&region));
 
         // the surface keeps its own copy, so the region can go right away
         region.destroy();

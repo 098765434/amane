@@ -99,11 +99,10 @@ impl WaylandState {
                     return false;
                 };
 
-                if button == Button::Left {
-                    pointer.stop_drag();
-                }
+                // the drop comes before the click, so a widget can tell one from the other
+                let dropped = button == Button::Left && pointer.stop_drag();
 
-                pointer.release(button)
+                pointer.release(button) || dropped
             }
 
             PointerEventKind::Axis {

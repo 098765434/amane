@@ -60,9 +60,9 @@ impl Pointer {
         self.pressed = None;
 
         // the release will not reach this window, so the drag ends here
-        self.dragged = None;
+        let released = self.end_drag();
 
-        self.update_hovered(Vec::new())
+        self.update_hovered(Vec::new()) || released
     }
 
     // tells the targets the pointer entered or left, and returns whether any were told
@@ -169,8 +169,28 @@ impl Pointer {
         self.drag()
     }
 
-    pub fn stop_drag(&mut self) {
-        self.dragged = None;
+    // tells the dragged target the button was let go, and returns whether it listened
+    pub fn stop_drag(&mut self) -> bool {
+        self.end_drag()
+    }
+
+    fn end_drag(&mut self) -> bool {
+        let Some(index) = self.dragged.take() else {
+            return false;
+        };
+
+        // a redraw since the press may have removed this target
+        let Some(target) = self.targets.get(index) else {
+            return false;
+        };
+
+        let Some(release) = &target.handlers.release else {
+            return false;
+        };
+
+        release(target.point(self.x, self.y));
+
+        true
     }
 
     // keeps reporting to the target pressed on, even after the pointer leaves it
@@ -229,5 +249,62 @@ impl Pointer {
         drop(files);
 
         true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    use super::*;
+    use crate::Point;
+    use crate::graphics::Area;
+    use crate::input::{Handlers, Target};
+
+    #[test]
+    fn a_drag_ends_with_one_release_where_the_pointer_is() {
+        let released = Rc::new(RefCell::new(Vec::new()));
+        let seen = released.clone();
+        let handlers = Handlers {
+            drag: Some(Rc::new(|_| {})),
+            release: Some(Rc::new(move |point: Point| seen.borrow_mut().push(point))),
+            ..Handlers::default()
+        };
+        let mut pointer = Pointer::default();
+        pointer.set_targets(vec![Target::new(
+            Area::new(10.0, 10.0, 50.0, 50.0),
+            handlers,
+        )]);
+
+        pointer.move_to(20.0, 20.0);
+        assert!(pointer.start_drag());
+        pointer.move_to(100.0, 100.0);
+
+        assert!(pointer.stop_drag());
+        assert_eq!(released.borrow().as_slice(), [Point { x: 90.0, y: 90.0 }]);
+
+        // the drag has ended, so a second release goes nowhere
+        assert!(!pointer.stop_drag());
+        assert_eq!(released.borrow().len(), 1);
+    }
+
+    #[test]
+    fn leaving_the_window_ends_the_drag_too() {
+        let count = Rc::new(RefCell::new(0));
+        let seen = count.clone();
+        let handlers = Handlers {
+            drag: Some(Rc::new(|_| {})),
+            release: Some(Rc::new(move |_| *seen.borrow_mut() += 1)),
+            ..Handlers::default()
+        };
+        let mut pointer = Pointer::default();
+        pointer.set_targets(vec![Target::new(Area::new(0.0, 0.0, 10.0, 10.0), handlers)]);
+
+        pointer.move_to(5.0, 5.0);
+        assert!(pointer.start_drag());
+        assert!(pointer.leave());
+        assert_eq!(*count.borrow(), 1);
+        assert!(!pointer.stop_drag());
     }
 }

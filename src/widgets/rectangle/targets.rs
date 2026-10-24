@@ -37,6 +37,16 @@ impl Rectangle {
         self
     }
 
+    /*
+     * runs once the left button is let go after a drag that started on the
+     * rectangle, wherever the pointer is then, with the position on the rectangle
+     */
+    pub fn on_release(mut self, handler: impl Fn(Point) + 'static) -> Self {
+        self.handlers.release = Some(Rc::new(handler));
+
+        self
+    }
+
     // how the pointer looks while it is over the rectangle
     pub fn cursor(mut self, cursor: Cursor) -> Self {
         self.handlers.cursor = Some(cursor);
