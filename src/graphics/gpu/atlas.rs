@@ -29,8 +29,9 @@ type Key = (u64, u16, u32);
 
 /*
  * every letter drawn so far, in one texture of coverage values; letters fill
- * it in rows, and a full atlas is emptied when the next frame starts, since
- * letters queued this frame still read their pixels
+ * it in rows, and a full atlas is emptied when the next frame starts, or
+ * mid-frame once the letters queued so far are drawn (see Quads::letter),
+ * since those still read their pixels
  */
 pub struct Atlas {
     texture: Texture,
@@ -79,10 +80,18 @@ impl Atlas {
 
     // the last frame's draws were submitted, so nothing reads the old pixels anymore
     pub fn start_frame(&mut self) {
-        if !self.full {
-            return;
+        if self.full {
+            self.empty();
         }
+    }
 
+    // whether a letter found no room since the atlas was last emptied
+    pub fn is_full(&self) -> bool {
+        self.full
+    }
+
+    // starts over with no letters; only once nothing queued reads the old pixels
+    pub fn empty(&mut self) {
         self.letters.clear();
 
         self.row_top = 0;

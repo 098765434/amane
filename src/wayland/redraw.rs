@@ -27,6 +27,9 @@ impl OpenWindow {
 
         let name = content.name();
 
+        // what the compositor blurs behind the last frame shown, put back if this one is skipped
+        let shown_blur = self.blur_sent();
+
         self.update_surface(&content);
 
         // 0 until the compositor configures the window, and again while it is hidden
@@ -83,9 +86,19 @@ impl OpenWindow {
 
         self.last_frame = Some(started);
 
-        // a skipped frame commits nothing, so the request goes out on its own
-        if !presented && frame.moving {
-            self.role.commit();
+        if !presented {
+            timing::skipped(name);
+
+            /*
+             * the blur this frame asked for goes with its buffer: the next commit
+             * would otherwise move the blur under the last frame's content
+             */
+            self.restore_blur(shown_blur);
+
+            // a skipped frame commits nothing, so the request goes out on its own
+            if frame.moving {
+                self.role.commit();
+            }
         }
     }
 

@@ -65,7 +65,7 @@ impl Gpu {
                 Route::Quads => {
                     self.paint_pending_vello(scene, canvas, borrowed);
 
-                    self.add_to_quads(command, clips);
+                    self.add_to_quads(command, canvas, clips);
                 }
 
                 Route::Vello => self.add_to_vello(scene, command, canvas, clips),
@@ -153,7 +153,7 @@ impl Gpu {
     }
 
     // route only sends commands here that move and scale without turning
-    fn add_to_quads(&mut self, command: Command, clips: Clips) {
+    fn add_to_quads(&mut self, command: Command, canvas: &Texture, clips: Clips) {
         match command {
             Command::Rectangle {
                 area,
@@ -196,9 +196,18 @@ impl Gpu {
                 color,
                 x,
                 y,
-            } => self
-                .quads
-                .letter(&self.queue, font, id, size, color, x, y, clips),
+            } => self.quads.letter(
+                &self.device,
+                &self.queue,
+                canvas,
+                font,
+                id,
+                size,
+                color,
+                x,
+                y,
+                clips,
+            ),
 
             Command::Image {
                 image,
