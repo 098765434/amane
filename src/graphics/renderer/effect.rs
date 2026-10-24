@@ -5,7 +5,7 @@ use crate::graphics::{Area, Color, Corners, Renderer};
 use super::Command;
 
 // how many rows of four numbers a shader can be handed as values
-pub const VALUE_ROWS: usize = 16;
+pub const VALUE_ROWS: usize = 64;
 
 impl Renderer {
     pub fn shadow(&mut self, area: Area, radius: Corners, color: Color, blur: f32) {
