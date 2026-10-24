@@ -70,6 +70,7 @@ impl WaylandState {
             output,
 
             input_region: None,
+            blur_region: None,
 
             width: 0,
             height: 0,
@@ -88,10 +89,12 @@ impl WaylandState {
             gpu,
 
             fractional,
+            blur_effect: None,
 
             role,
 
             compositor: self.compositor.wl_compositor().clone(),
+            background_effect: self.background_effect.clone(),
 
             qh: self.qh.clone(),
         };

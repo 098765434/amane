@@ -1,3 +1,4 @@
+mod background_effect;
 mod compositor;
 mod dropped;
 mod idle;
@@ -17,6 +18,7 @@ mod update;
 mod wake;
 mod windows;
 
+use smithay_client_toolkit::reexports::protocols::ext::background_effect::v1::client::ext_background_effect_manager_v1::ExtBackgroundEffectManagerV1;
 use smithay_client_toolkit::reexports::protocols::ext::idle_notify::v1::client::{
     ext_idle_notification_v1::ExtIdleNotificationV1, ext_idle_notifier_v1::ExtIdleNotifierV1,
 };
@@ -94,6 +96,9 @@ struct WaylandState {
     fractional_scale: Option<WpFractionalScaleManagerV1>,
     viewporter: Option<WpViewporter>,
 
+    // lets a window say where the compositor blurs behind it, none when it lacks ext-background-effect
+    background_effect: Option<ExtBackgroundEffectManagerV1>,
+
     // tells Idle when the user went away, none when the compositor lacks ext-idle-notify
     idle_notifier: Option<ExtIdleNotifierV1>,
     idle_notifications: Vec<ExtIdleNotificationV1>,
@@ -159,6 +164,8 @@ impl WaylandApp {
         let fractional_scale = globals.bind(&qh, 1..=1, ()).ok();
         let viewporter = globals.bind(&qh, 1..=1, ()).ok();
 
+        let background_effect = globals.bind(&qh, 1..=1, ()).ok();
+
         let idle_notifier = globals.bind(&qh, 1..=1, ()).ok();
 
         let data_device_manager = DataDeviceManagerState::bind(&globals, &qh).ok();
@@ -190,6 +197,8 @@ impl WaylandApp {
 
             fractional_scale,
             viewporter,
+
+            background_effect,
 
             idle_notifier,
             idle_notifications: Vec::new(),

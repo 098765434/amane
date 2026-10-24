@@ -2,6 +2,7 @@ use std::any::TypeId;
 use std::collections::HashSet;
 use std::time::Instant;
 
+use smithay_client_toolkit::reexports::protocols::ext::background_effect::v1::client::ext_background_effect_manager_v1::ExtBackgroundEffectManagerV1;
 use smithay_client_toolkit::{
     session_lock::SessionLockSurface,
     shell::{
@@ -21,6 +22,7 @@ use crate::{InputArea, LayerWindow, Monitor, Popup, Widget, Window};
 
 use super::{
     WaylandState,
+    background_effect::BlurEffect,
     layer::{self, Settings},
     scale::Fractional,
 };
@@ -34,6 +36,9 @@ pub struct OpenWindow {
 
     // the input region last sent, so only a real change is sent again
     pub input_region: Option<Vec<InputArea>>,
+
+    // the blur region last sent, the same way
+    pub blur_region: Option<Vec<InputArea>>,
 
     pub width: u32,
     pub height: u32,
@@ -60,10 +65,16 @@ pub struct OpenWindow {
     // none at whole scales; dropped before the role, since it belongs to its surface
     pub fractional: Option<Fractional>,
 
+    // made once a view asks for a blur region; dropped before the role too
+    pub blur_effect: Option<BlurEffect>,
+
     pub role: Role,
 
     // kept to make input regions, which come from the compositor
     pub compositor: WlCompositor,
+
+    // kept to ask for a blur region, none when the compositor lacks the protocol
+    pub background_effect: Option<ExtBackgroundEffectManagerV1>,
 
     pub qh: QueueHandle<WaylandState>,
 }
