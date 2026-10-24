@@ -122,8 +122,19 @@ impl Pointer {
         true
     }
 
-    // the look asked for by the innermost target under the pointer
+    // the look asked for by the innermost target under the pointer; while a
+    // drag is in flight, by the target being dragged, wherever the pointer is
+    // (a resize handle doesn't follow the pointer, and the cursor shouldn't
+    // flip back and forth as the pointer runs off it)
     pub fn cursor(&self) -> Cursor {
+        let dragged = self
+            .dragged
+            .and_then(|index| self.targets.get(index))
+            .and_then(|target| target.handlers.cursor);
+        if let Some(cursor) = dragged {
+            return cursor;
+        }
+
         let Some(index) = self.find_topmost(|target| target.handlers.cursor.is_some()) else {
             return Cursor::Default;
         };
@@ -287,6 +298,25 @@ mod tests {
         // the drag has ended, so a second release goes nowhere
         assert!(!pointer.stop_drag());
         assert_eq!(released.borrow().len(), 1);
+    }
+
+    #[test]
+    fn the_dragged_target_keeps_the_cursor_until_the_drop() {
+        let handlers = Handlers {
+            drag: Some(Rc::new(|_| {})),
+            cursor: Some(Cursor::ResizeBottomRight),
+            ..Handlers::default()
+        };
+        let mut pointer = Pointer::default();
+        pointer.set_targets(vec![Target::new(Area::new(0.0, 0.0, 10.0, 10.0), handlers)]);
+
+        pointer.move_to(5.0, 5.0);
+        assert_eq!(pointer.cursor(), Cursor::ResizeBottomRight);
+        assert!(pointer.start_drag());
+        pointer.move_to(50.0, 50.0);
+        assert_eq!(pointer.cursor(), Cursor::ResizeBottomRight);
+        pointer.stop_drag();
+        assert_eq!(pointer.cursor(), Cursor::Default);
     }
 
     #[test]
