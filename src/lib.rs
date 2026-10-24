@@ -24,6 +24,7 @@
 mod allocator;
 mod animation;
 mod app;
+mod blur;
 mod changes;
 mod compositor;
 mod dbus;
@@ -50,6 +51,7 @@ mod window;
 pub use animation::{Animation, Blend, Easing, request_frame};
 pub use changes::mark_all;
 pub use app::App;
+pub use blur::{BlurShape, blur_fades, material_available};
 pub use dbus::{Argument, Bus, Method, Signal, Value};
 pub use files::watch_file;
 pub use full::Full;

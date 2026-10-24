@@ -4,11 +4,12 @@ use wayland_client::{
 };
 
 use crate::scale::ScaleFactor;
-use crate::{InputArea, LayerWindow};
+use crate::{BlurShape, InputArea, LayerWindow};
 
 use super::{
     WaylandState,
     background_effect::BlurEffect,
+    blur_shapes::BlurShapes,
     layer::{self, Settings},
     surface::{Content, OpenWindow, Role},
 };
@@ -100,22 +101,104 @@ impl OpenWindow {
         region.destroy();
     }
 
-    // only a changed region is sent, it takes effect with the next commit like the rest
+    /*
+     * shapes go to the compositor as they are where it has them, and as a
+     * region of strips where it doesn't; a plain region goes as before
+     */
     pub fn update_blur_region(&mut self, window: &LayerWindow) {
-        if window.blur_region == self.blur_region {
+        let factor = self.scale_factor;
+
+        if let Some(shapes) = &window.blur_shapes {
+            if self.blur_shapes_manager.is_some() {
+                self.send_blur_shapes(shapes);
+
+                return;
+            }
+
+            self.send_blur_region(Some(crate::blur::strips(shapes, factor.get())));
+
+            return;
+        }
+
+        // the region applies again once the shapes are gone
+        if self.blur_shapes_object.take().is_some() {
+            self.blur_shapes = None;
+        }
+
+        let region = window.blur_region.as_ref().map(|areas| {
+            areas
+                .iter()
+                .map(|area| scaled_region(*area, factor))
+                .collect()
+        });
+
+        self.send_blur_region(region);
+    }
+
+    // only changed shapes are sent, or the same ones once the materials change
+    fn send_blur_shapes(&mut self, shapes: &[BlurShape]) {
+        let materials = crate::blur::materials_changed();
+
+        if self
+            .blur_shapes
+            .as_ref()
+            .is_some_and(|(sent, at)| sent == shapes && *at == materials)
+        {
+            return;
+        }
+
+        let Some(manager) = &self.blur_shapes_manager else {
+            return;
+        };
+
+        let object = self.blur_shapes_object.get_or_insert_with(|| BlurShapes {
+            shapes: manager.get_blur_shapes(self.role.wl_surface(), &self.qh, ()),
+        });
+
+        let factor = f64::from(self.scale_factor.get());
+
+        object.shapes.reset();
+
+        for shape in shapes {
+            let radius = f64::from(shape.radius) * factor;
+
+            object.shapes.add_rounded_rect(
+                f64::from(shape.x) * factor,
+                f64::from(shape.y) * factor,
+                f64::from(shape.width) * factor,
+                f64::from(shape.height) * factor,
+                radius,
+                radius,
+                radius,
+                radius,
+                f64::from(shape.alpha),
+                shape
+                    .material
+                    .and_then(crate::blur::material_id)
+                    .unwrap_or(0),
+                shape.tint.map_or(0, crate::blur::premultiplied),
+            );
+        }
+
+        self.blur_shapes = Some((shapes.to_vec(), materials));
+    }
+
+    // only a changed region is sent, it takes effect with the next commit like the rest
+    fn send_blur_region(&mut self, region: Option<Vec<InputArea>>) {
+        if region == self.blur_region {
             return;
         }
 
         // a window that never asks keeps the compositor's rules, without the protocol object
         if self.blur_effect.is_none() {
-            if window.blur_region.is_none() {
+            if region.is_none() {
                 return;
             }
 
             self.blur_effect = make_blur_effect(self);
         }
 
-        self.blur_region = window.blur_region.clone();
+        self.blur_region = region;
 
         let Some(effect) = &self.blur_effect else {
             return;
@@ -131,7 +214,6 @@ impl OpenWindow {
         let region = self.compositor.create_region(&self.qh, ());
 
         for area in areas {
-            let area = scaled_region(*area, self.scale_factor);
             region.add(area.x, area.y, area.width, area.height);
         }
 

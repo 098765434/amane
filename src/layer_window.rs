@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use crate::input::KeyHandler;
-use crate::{Full, Key, Widget};
+use crate::{BlurShape, Full, Key, Widget};
 
 pub struct LayerWindow {
     pub(crate) width: WindowSize,
@@ -22,6 +22,7 @@ pub struct LayerWindow {
     // none means the whole window takes the pointer
     pub(crate) input_region: Option<Vec<InputArea>>,
     pub(crate) blur_region: Option<Vec<InputArea>>,
+    pub(crate) blur_shapes: Option<Vec<BlurShape>>,
 
     pub(crate) root: Option<Box<dyn Widget>>,
 
@@ -197,6 +198,17 @@ impl LayerWindow {
         self
     }
 
+    /*
+     * rounded shapes the compositor blurs behind, each with its own fade and
+     * material; they take the place of a blur region, and where the
+     * compositor lacks them they become one (see BlurShape)
+     */
+    pub fn blur_shapes(mut self, shapes: Vec<BlurShape>) -> Self {
+        self.blur_shapes = Some(shapes);
+
+        self
+    }
+
     // keys only arrive while the window has keyboard focus, see Keyboard
     pub fn on_key(mut self, handler: impl Fn(Key) + 'static) -> Self {
         self.on_key = Some(Rc::new(handler));
@@ -239,6 +251,7 @@ impl LayerWindowNeedsHeight {
 
             input_region: None,
             blur_region: None,
+            blur_shapes: None,
 
             root: None,
 

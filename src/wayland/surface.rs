@@ -18,11 +18,12 @@ use wayland_client::{
 use crate::graphics::Gpu;
 use crate::input::{KeyHandler, Pointer};
 use crate::scale::ScaleFactor;
-use crate::{InputArea, LayerWindow, Monitor, Popup, Widget, Window};
+use crate::{BlurShape, InputArea, LayerWindow, Monitor, Popup, Widget, Window};
 
 use super::{
     WaylandState,
     background_effect::BlurEffect,
+    blur_shapes::{BlurShapes, protocol::niri_blur_shapes_manager_v1::NiriBlurShapesManagerV1},
     layer::{self, Settings},
     scale::Fractional,
 };
@@ -37,8 +38,11 @@ pub struct OpenWindow {
     // the input region last sent, so only a real change is sent again
     pub input_region: Option<Vec<InputArea>>,
 
-    // the blur region last sent, the same way
+    // the blur region last sent (in surface coordinates), the same way
     pub blur_region: Option<Vec<InputArea>>,
+
+    // the blur shapes last sent, with the materials they were sent against
+    pub blur_shapes: Option<(Vec<BlurShape>, u64)>,
 
     pub width: u32,
     pub height: u32,
@@ -68,6 +72,9 @@ pub struct OpenWindow {
     // made once a view asks for a blur region; dropped before the role too
     pub blur_effect: Option<BlurEffect>,
 
+    // made once a view asks for blur shapes where there are any; dropped before the role too
+    pub blur_shapes_object: Option<BlurShapes>,
+
     pub role: Role,
 
     // kept to make input regions, which come from the compositor
@@ -75,6 +82,9 @@ pub struct OpenWindow {
 
     // kept to ask for a blur region, none when the compositor lacks the protocol
     pub background_effect: Option<ExtBackgroundEffectManagerV1>,
+
+    // kept to ask for blur shapes, none when the compositor lacks them
+    pub blur_shapes_manager: Option<NiriBlurShapesManagerV1>,
 
     pub qh: QueueHandle<WaylandState>,
 }

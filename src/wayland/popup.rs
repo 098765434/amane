@@ -274,6 +274,7 @@ impl WaylandState {
             output: None,
             input_region: None,
             blur_region: None,
+            blur_shapes: None,
 
             width: 0,
             height: 0,
@@ -291,11 +292,13 @@ impl WaylandState {
             gpu,
             fractional,
             blur_effect: None,
+            blur_shapes_object: None,
 
             role,
 
             compositor: self.compositor.wl_compositor().clone(),
             background_effect: self.background_effect.clone(),
+            blur_shapes_manager: self.blur_shapes.clone(),
             qh: self.qh.clone(),
         };
 
