@@ -1,4 +1,5 @@
 mod background_effect;
+mod blur_shapes;
 mod compositor;
 mod dropped;
 mod idle;
@@ -99,6 +100,9 @@ struct WaylandState {
     // lets a window say where the compositor blurs behind it, none when it lacks ext-background-effect
     background_effect: Option<ExtBackgroundEffectManagerV1>,
 
+    // rounded, fading blur shapes in place of that region, none when the compositor lacks niri-blur-shapes
+    blur_shapes: Option<blur_shapes::protocol::niri_blur_shapes_manager_v1::NiriBlurShapesManagerV1>,
+
     // tells Idle when the user went away, none when the compositor lacks ext-idle-notify
     idle_notifier: Option<ExtIdleNotifierV1>,
     idle_notifications: Vec<ExtIdleNotificationV1>,
@@ -166,6 +170,16 @@ impl WaylandApp {
 
         let background_effect = globals.bind(&qh, 1..=1, ()).ok();
 
+        // AMANE_NO_BLUR_SHAPES=1 tries the blur region a compositor without shapes would get
+        let blur_shapes = if std::env::var_os("AMANE_NO_BLUR_SHAPES").is_some() {
+            None
+        } else {
+            globals
+                .bind(&qh, 1..=1, blur_shapes::Materials::default())
+                .ok()
+        };
+        crate::blur::set_shapes_available(blur_shapes.is_some());
+
         let idle_notifier = globals.bind(&qh, 1..=1, ()).ok();
 
         let data_device_manager = DataDeviceManagerState::bind(&globals, &qh).ok();
@@ -199,6 +213,7 @@ impl WaylandApp {
             viewporter,
 
             background_effect,
+            blur_shapes,
 
             idle_notifier,
             idle_notifications: Vec::new(),

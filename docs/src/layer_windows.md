@@ -132,6 +132,15 @@ By default, the whole window takes the mouse. To let clicks reach the windows un
 
 `InputArea` is in pixels, measured from the window's top-left corner. You can pass several.
 
+## Blur behind the window
+
+```rust,ignore
+.blur_region(vec![InputArea { x: 0, y: 0, width: 200, height: 40 }])   // the compositor blurs here
+.blur_shapes(vec![BlurShape::new(8.0, 8.0, 164.0, 74.0, 28.0)])        // or in these rounded shapes
+```
+
+`blur_region` asks the compositor to blur behind rectangles (`ext-background-effect`). `blur_shapes` asks for rounded rectangles, each of which can fade with `.alpha(..)` and name a compositor material with `.material(..)`. To follow a layer that moves, use `.scale_about(..)`, `.offset(..)` and `.fade(..)`. niri from the amane fork draws shapes exactly (`niri-blur-shapes-v1`). Elsewhere amane sends them as a region of strips that step in at the corners, and leaves out any shape less than half visible, since a region can't fade. `amane::blur_fades()` tells which of the two you got, and `amane::material_available(name)` whether the compositor offers a material. Leave both unset to let the compositor's own rules decide; an empty list blurs nowhere. See `examples/blur_shapes.rs`.
+
 ## Namespace
 
 ```rust,ignore
@@ -145,3 +154,4 @@ The namespace is a name the compositor can match window rules on, like niri's `l
 - **Layer shell:** the Wayland protocol (wlr-layer-shell) that layer windows use. Your compositor must support it.
 - **Anchor:** an edge a window is stuck to.
 - **Exclusive zone:** the compositor's name for reserved space.
+- **Blur shape:** a rounded rectangle the compositor blurs behind, with its own opacity.
