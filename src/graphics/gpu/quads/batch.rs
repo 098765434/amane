@@ -1,4 +1,4 @@
-use vello::wgpu::{Device, Queue};
+use vello::wgpu::{CommandEncoder, Device, Queue, Texture};
 
 use swash::FontRef;
 
@@ -55,11 +55,21 @@ impl Quads {
         );
     }
 
-    // x and y are where the letter's baseline starts, on a whole pixel
+    /*
+     * x and y are where the letter's baseline starts, on a whole pixel; a
+     * letter that finds the atlas full draws what's queued onto `canvas` first,
+     * so the atlas can start over within the frame: text that changes size
+     * every frame, like a card swelling open, fills it quickly. The frame's
+     * work so far is submitted before the atlas is written again, since a
+     * queue's texture writes land ahead of any encoder submitted after them
+     */
     #[allow(clippy::too_many_arguments)]
     pub fn letter(
         &mut self,
+        device: &Device,
         queue: &Queue,
+        encoder: &mut CommandEncoder,
+        canvas: &Texture,
         font: FontRef<'static>,
         id: u16,
         size: f32,
@@ -68,7 +78,22 @@ impl Quads {
         y: f32,
         clips: Clips,
     ) {
-        let Some(letter) = self.atlas.letter(queue, font, id, size) else {
+        let mut placed = self.atlas.letter(queue, font, id, size);
+
+        if placed.is_none() && self.atlas.is_full() {
+            self.draw(device, encoder, canvas);
+
+            let drawn =
+                std::mem::replace(encoder, device.create_command_encoder(&Default::default()));
+
+            queue.submit([drawn.finish()]);
+
+            self.atlas.empty();
+
+            placed = self.atlas.letter(queue, font, id, size);
+        }
+
+        let Some(letter) = placed else {
             return;
         };
 

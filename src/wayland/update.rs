@@ -135,6 +135,37 @@ impl OpenWindow {
         self.send_blur_region(region);
     }
 
+    // what was last sent of the blur region and shapes
+    pub fn blur_sent(&self) -> BlurSent {
+        BlurSent {
+            region: self.blur_region.clone(),
+            shapes: self.blur_shapes.as_ref().map(|(shapes, _)| shapes.clone()),
+        }
+    }
+
+    // sends `sent` again where it differs from what went out since, so the next commit keeps it
+    pub fn restore_blur(&mut self, sent: BlurSent) {
+        if sent.region != self.blur_region {
+            self.send_blur_region(sent.region);
+        }
+
+        let current = self.blur_shapes.as_ref().map(|(shapes, _)| shapes);
+
+        if sent.shapes.as_ref() == current {
+            return;
+        }
+
+        match sent.shapes {
+            Some(shapes) => self.send_blur_shapes(&shapes),
+
+            // there were no shapes, so the region applies again
+            None => {
+                self.blur_shapes_object = None;
+                self.blur_shapes = None;
+            }
+        }
+    }
+
     // only changed shapes are sent, or the same ones once the materials change
     fn send_blur_shapes(&mut self, shapes: &[BlurShape]) {
         let materials = crate::blur::materials_changed();
@@ -236,6 +267,13 @@ impl OpenWindow {
         // a frame callback asked for before hiding may never come
         self.frame_requested = false;
     }
+}
+
+// the blur a window last sent, to put back when a frame doesn't reach the screen
+#[derive(Clone, PartialEq)]
+pub struct BlurSent {
+    region: Option<Vec<InputArea>>,
+    shapes: Option<Vec<BlurShape>>,
 }
 
 // round outward so a fractional scale does not leave the edge of a clickable area out

@@ -21,6 +21,13 @@ pub struct Timing {
  * gap is the time since this window's last frame, so a drop shows as a
  * gap near 33 ms or more; view, draw and gpu are this frame's own steps
  */
+// a frame the gpu couldn't present, so nothing of it reached the screen
+pub fn skipped(name: &str) {
+    if *ENABLED {
+        eprintln!("skipped {name}");
+    }
+}
+
 pub fn log(name: &str, width: u32, height: u32, last: Option<Instant>, timing: &Timing) {
     if !*ENABLED {
         return;
