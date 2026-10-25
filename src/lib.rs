@@ -86,7 +86,7 @@ pub use popup::{
 pub use placement::{Align, Center, End, Justify, Padding, Size, Start};
 pub use process::{lines, output, spawn, spawn_activated};
 pub use services::{
-    AccessPoint, Action, Appearance, Apps, Audio, AudioDevice, AudioKind, Battery, BatteryState,
+    AccessPoint, Action, Appearance, Apps, Audio, Backdrop, AudioDevice, AudioKind, Battery, BatteryState,
     Bluetooth, BluetoothDevice, Brightness, Cpu, DesktopAction, DesktopApp, DeviceKind, Gestures, Idle, Link,
     Lock, Media, MediaPlayer, Memory, Network, Notification, Notifications, Overview, Palette, Pam,
     PamConfig, PamError, PamMessage, PamMessageKind, PamResult, PowerDevice, PowerProfile, Scheme,

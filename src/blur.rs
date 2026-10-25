@@ -19,6 +19,7 @@ pub struct BlurShape {
     pub(crate) alpha: f32,
     pub(crate) material: Option<&'static str>,
     pub(crate) tint: Option<Color>,
+    pub(crate) id: Option<u32>,
 }
 
 impl BlurShape {
@@ -32,6 +33,7 @@ impl BlurShape {
             alpha: 1.0,
             material: None,
             tint: None,
+            id: None,
         }
     }
 
@@ -52,6 +54,17 @@ impl BlurShape {
     // a colour the material lays over the blur, when it draws tints
     pub fn tint(mut self, color: Color) -> Self {
         self.tint = Some(color);
+
+        self
+    }
+
+    /*
+     * the shell's own name for the shape, the same from frame to frame, so
+     * what the compositor says about the backdrop behind it can be read back
+     * (Backdrop); unique across the program's windows
+     */
+    pub fn id(mut self, id: u32) -> Self {
+        self.id = Some(id);
 
         self
     }
@@ -104,6 +117,10 @@ impl BlurShape {
 
     pub fn opacity(&self) -> f32 {
         self.alpha
+    }
+
+    pub fn shape_id(&self) -> Option<u32> {
+        self.id
     }
 }
 

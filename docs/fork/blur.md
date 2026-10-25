@@ -44,6 +44,8 @@ it is vendored at `protocols/niri-blur-shapes-v1.xml`.
 | `.alpha(a)` | how much of the effect shows, 0–1 |
 | `.material(name)` / `.tint(color)` | a compositor material and the colour it lays on |
 | `.scale_about(s, origin)`, `.offset(dx, dy)`, `.fade(opacity)` | follow a layer that is scaled, moved or faded |
+| `.id(n)` | the program's own name for the shape, the same every frame, for `Backdrop` |
+| `Backdrop::read().luminance(n)` | how bright niri says the backdrop behind shape `n` is, 0–1, if it said |
 | `amane::blur_fades()` | whether the compositor draws shapes exactly (with fade) |
 | `amane::material_available(name)` | whether the compositor announced that material |
 
@@ -55,11 +57,20 @@ inwards. A region can't fade, so a shape less than half visible is left out.
 When they change, every window sends its shapes again so material ids stay
 correct. An unknown name draws plain blur.
 
+**Backdrop readings.** Version 2 of the protocol adds a `backdrop(index,
+luminance)` event, which niri sends for shapes whose material has
+`report-backdrop` on. amane binds up to version 2, remembers the ids of the
+shapes it last sent in order (`ShapeIds`, the object's user data), and puts
+each reading under its shape's id in the `Backdrop` service. Reading the
+service marks the view, so a new reading redraws it, and a reading that didn't
+change redraws nothing. A shape without an id gets no readings, and on a
+compositor that doesn't send them the service stays empty.
+
 **Arrives with its buffer.** A skipped frame doesn't send a new blur with the
 bare commit that requests the next frame; the last shown blur is put back, so
 blur never runs ahead of the pixels it sits behind (`389fc29`).
 
-(`src/blur.rs`, `src/wayland/blur_shapes.rs`, `src/wayland/update.rs`;
+(`src/blur.rs`, `src/services/backdrop.rs`, `src/wayland/blur_shapes.rs`, `src/wayland/update.rs`;
 example: `examples/blur_shapes.rs`.)
 
 ## Drag release hook

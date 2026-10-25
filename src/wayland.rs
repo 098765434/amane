@@ -229,7 +229,7 @@ impl WaylandApp {
             None
         } else {
             globals
-                .bind(&qh, 1..=1, blur_shapes::Materials::default())
+                .bind(&qh, 1..=2, blur_shapes::Materials::default())
                 .ok()
         };
         crate::blur::set_shapes_available(blur_shapes.is_some());
