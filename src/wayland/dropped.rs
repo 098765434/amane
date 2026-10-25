@@ -5,7 +5,7 @@ use smithay_client_toolkit::data_device_manager::{
     WritePipe,
     data_device::DataDeviceHandler,
     data_offer::{DataOfferHandler, DragOffer},
-    data_source::DataSourceHandler,
+    data_source::{DataSourceHandler, DragSource},
 };
 use wayland_client::{
     Connection, QueueHandle,
@@ -15,7 +15,12 @@ use wayland_client::{
     },
 };
 
-use super::WaylandState;
+use crate::clipboard::DragData;
+
+use super::{
+    WaylandState,
+    clipboard::{TEXT_TYPES, text_type, write_bytes},
+};
 
 // file managers offer dragged files as a list of file:// links
 const URI_LIST: &str = "text/uri-list";
@@ -34,17 +39,21 @@ impl DataDeviceHandler for WaylandState {
             return;
         };
 
-        let has_files = offer.with_mime_types(|types| types.iter().any(|kind| kind == URI_LIST));
+        let (has_files, text) = offered(&offer);
 
-        // anything but files is turned down, so the pointer shows it can't be dropped here
+        // text is taken anywhere, and whether it lands on a widget is seen when it is let go
         if !has_files {
-            offer.accept_mime_type(offer.serial, None);
+            offer.accept_mime_type(offer.serial, text.clone());
+
+            if text.is_some() {
+                offer.set_actions(DndAction::Copy, DndAction::Copy);
+            }
 
             return;
         }
 
         // a widget may want to know which files before they are let go, as a dock does
-        let files = self.read_files(&offer).unwrap_or_default();
+        let files = self.held_files(&offer).unwrap_or_default();
 
         self.files_held = Some((surface.clone(), files));
 
@@ -78,14 +87,17 @@ impl DataDeviceHandler for WaylandState {
             return;
         };
 
-        let files = self.read_files(&offer);
+        let (has_files, text) = offered(&offer);
+
+        let dropped = if has_files {
+            self.held_files(&offer).map(DragData::Files)
+        } else {
+            text.and_then(|kind| self.dropped_text(&offer, kind))
+                .map(DragData::Text)
+        };
 
         offer.finish();
         offer.destroy();
-
-        let Some(files) = files.filter(|files| !files.is_empty()) else {
-            return;
-        };
 
         let surface = offer.surface.clone();
 
@@ -96,7 +108,15 @@ impl DataDeviceHandler for WaylandState {
         let x = offer.x as f32;
         let y = offer.y as f32;
 
-        if window.pointer.drop_files(x, y, files) {
+        let handled = match dropped {
+            Some(DragData::Files(files)) if !files.is_empty() => {
+                window.pointer.drop_files(x, y, files)
+            }
+            Some(DragData::Text(text)) => window.pointer.drop_text(x, y, text),
+            _ => false,
+        };
+
+        if handled {
             self.request_frame_on(&surface);
         }
     }
@@ -123,7 +143,7 @@ impl DataOfferHandler for WaylandState {
     }
 }
 
-// amane never offers data of its own
+// text amane copied, or what it is dragging out to another program
 impl DataSourceHandler for WaylandState {
     fn accept_mime(
         &mut self,
@@ -138,17 +158,55 @@ impl DataSourceHandler for WaylandState {
         &mut self,
         _: &Connection,
         _: &QueueHandle<Self>,
-        _: &WlDataSource,
-        _: String,
-        _: WritePipe,
+        source: &WlDataSource,
+        kind: String,
+        pipe: WritePipe,
     ) {
+        if let Some((copied, text)) = &self.copied.clipboard
+            && copied.inner() == source
+        {
+            write_bytes(pipe, text.clone().into_bytes());
+
+            return;
+        }
+
+        if let Some((dragged, data)) = &self.dragging_out
+            && dragged.inner() == source
+        {
+            let bytes = match data {
+                DragData::Files(files) if kind == URI_LIST => uri_list(files),
+                DragData::Files(files) => paths(files),
+                DragData::Text(text) => text.clone(),
+            };
+
+            write_bytes(pipe, bytes.into_bytes());
+        }
     }
 
-    fn cancelled(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &WlDataSource) {}
+    // another selection took its place, or the drag was dropped nowhere
+    fn cancelled(&mut self, _: &Connection, _: &QueueHandle<Self>, source: &WlDataSource) {
+        if let Some((copied, _)) = &self.copied.clipboard
+            && copied.inner() == source
+        {
+            self.copied.clipboard = None;
+        }
+
+        if let Some((dragged, _)) = &self.dragging_out
+            && dragged.inner() == source
+        {
+            self.dragging_out = None;
+        }
+    }
 
     fn dnd_dropped(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &WlDataSource) {}
 
-    fn dnd_finished(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &WlDataSource) {}
+    fn dnd_finished(&mut self, _: &Connection, _: &QueueHandle<Self>, source: &WlDataSource) {
+        if let Some((dragged, _)) = &self.dragging_out
+            && dragged.inner() == source
+        {
+            self.dragging_out = None;
+        }
+    }
 
     fn action(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &WlDataSource, _: DndAction) {}
 }
@@ -156,6 +214,62 @@ impl DataSourceHandler for WaylandState {
 impl WaylandState {
     fn drag_offer(&self) -> Option<DragOffer> {
         self.data_device.as_ref()?.data().drag_offer()
+    }
+
+    /*
+     * starts dragging data out of the window the left button went down on; the compositor
+     * takes over the pointer from here until it is let go
+     */
+    pub fn start_drag_out(&mut self, surface: &WlSurface, data: DragData) {
+        let (Some(manager), Some(device), Some(serial)) = (
+            &self.data_device_manager,
+            &self.data_device,
+            self.last_press_serial,
+        ) else {
+            return;
+        };
+
+        let types: Vec<&str> = match &data {
+            DragData::Files(_) => vec![URI_LIST, TEXT_TYPES[0], TEXT_TYPES[2]],
+            DragData::Text(_) => TEXT_TYPES.to_vec(),
+        };
+
+        let source: DragSource =
+            manager.create_drag_and_drop_source(&self.qh, types, DndAction::Copy);
+
+        source.start_drag(device, surface, None, serial);
+
+        self.dragging_out = Some((source, data));
+    }
+
+    // the files held over a window, from amane's own drag without reading a pipe to itself
+    fn held_files(&self, offer: &DragOffer) -> Option<Vec<PathBuf>> {
+        if let Some((_, data)) = &self.dragging_out {
+            return match data {
+                DragData::Files(files) => Some(files.clone()),
+                DragData::Text(_) => None,
+            };
+        }
+
+        self.read_files(offer)
+    }
+
+    // the text let go over a window, the same way
+    fn dropped_text(&self, offer: &DragOffer, kind: String) -> Option<String> {
+        if let Some((_, DragData::Text(text))) = &self.dragging_out {
+            return Some(text.clone());
+        }
+
+        let mut pipe = offer.receive(kind).ok()?;
+
+        let _ = self.connection.flush();
+
+        // ponytail: blocks the event loop like read_files, text is written at once too
+        let mut text = String::new();
+
+        pipe.read_to_string(&mut text).ok()?;
+
+        Some(text)
     }
 
     // the files offered, none when the other program wouldn't say
@@ -206,6 +320,49 @@ impl WaylandState {
             self.request_frame_on(&surface);
         }
     }
+}
+
+// whether a drag offers files, and the best kind of text it offers
+fn offered(offer: &DragOffer) -> (bool, Option<String>) {
+    offer.with_mime_types(|types| (types.iter().any(|kind| kind == URI_LIST), text_type(types)))
+}
+
+// files as other programs take them, one file:// link per line
+fn uri_list(files: &[PathBuf]) -> String {
+    let mut list = String::new();
+
+    for file in files {
+        list.push_str("file://");
+        list.push_str(&encode(&file.to_string_lossy()));
+        list.push_str("\r\n");
+    }
+
+    list
+}
+
+// files as text, for a program that only takes text
+fn paths(files: &[PathBuf]) -> String {
+    let lines: Vec<String> = files
+        .iter()
+        .map(|file| file.to_string_lossy().into_owned())
+        .collect();
+
+    lines.join("\n")
+}
+
+// the letters a link can't hold as they are become %20 and the like
+fn encode(path: &str) -> String {
+    let mut encoded = String::new();
+
+    for byte in path.bytes() {
+        if byte.is_ascii_alphanumeric() || b"/-._~".contains(&byte) {
+            encoded.push(byte as char);
+        } else {
+            encoded.push_str(&format!("%{byte:02X}"));
+        }
+    }
+
+    encoded
 }
 
 // one link per line, lines starting with # are comments
@@ -280,5 +437,15 @@ mod tests {
                 PathBuf::from("/tmp/a%2")
             ]
         );
+    }
+
+    #[test]
+    fn dragged_files_come_back_the_same() {
+        let files = vec![
+            PathBuf::from("/home/me/My Clip.mov"),
+            PathBuf::from("/tmp/100%/ü.txt"),
+        ];
+
+        assert_eq!(parse(&uri_list(&files)), files);
     }
 }

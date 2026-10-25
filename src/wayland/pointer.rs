@@ -55,6 +55,10 @@ impl WaylandState {
             _ => {}
         }
 
+        if let PointerEventKind::Press { serial, .. } = &event.kind {
+            self.last_press_serial = Some(*serial);
+        }
+
         // every event names the surface it happened on
         let Some(window) = self.window(&event.surface) else {
             return false;
@@ -69,6 +73,16 @@ impl WaylandState {
                 crate::input::set_pointer_position(x as f32, y as f32);
 
                 let hovered = pointer.move_to(x as f32, y as f32);
+
+                // a widget that can be dragged out hands over its data once the pointer moved far enough
+                if let Some(data) = pointer.take_drag_out() {
+                    let surface = event.surface.clone();
+
+                    self.start_drag_out(&surface, data);
+
+                    return true;
+                }
+
                 let dragged = pointer.drag();
                 let moved = pointer.report_motion();
 
@@ -95,6 +109,8 @@ impl WaylandState {
                     return false;
                 }
 
+                pointer.arm_drag_out();
+
                 pointer.start_drag()
             }
 
@@ -103,6 +119,8 @@ impl WaylandState {
                 let Some(button) = to_button(*button) else {
                     return false;
                 };
+
+                pointer.disarm_drag_out();
 
                 // the drop comes before the click, so a widget can tell one from the other
                 let dropped = button == Button::Left && pointer.stop_drag();

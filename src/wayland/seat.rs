@@ -42,6 +42,10 @@ impl SeatHandler for WaylandState {
                 if let Some(manager) = &self.data_device_manager {
                     self.data_device = Some(manager.get_data_device(qh, &seat));
                 }
+
+                if let Some(manager) = &self.primary_manager {
+                    self.primary_device = Some(manager.get_selection_device(qh, &seat));
+                }
             }
 
             Capability::Keyboard => {
@@ -79,6 +83,7 @@ impl SeatHandler for WaylandState {
                 }
 
                 self.data_device = None;
+                self.primary_device = None;
             }
 
             Capability::Keyboard => {

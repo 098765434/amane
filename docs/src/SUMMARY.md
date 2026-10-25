@@ -17,6 +17,7 @@
 - [Scaling](scaling.md)
 - [State and Services](services.md)
 - [Input](input.md)
+- [Clipboard and Drag and Drop](clipboard.md)
 - [Animation](animation.md)
 
 # Widgets

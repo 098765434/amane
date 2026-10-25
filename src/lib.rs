@@ -46,10 +46,12 @@ mod style;
 mod timing;
 mod wayland;
 mod widgets;
+mod clipboard;
 mod window;
 
 pub use animation::{Animation, Blend, Easing, request_frame};
 pub use changes::mark_all;
+pub use clipboard::{Clipboard, DragData, PrimarySelection};
 pub use app::App;
 pub use blur::{BlurShape, blur_fades, material_available};
 pub use dbus::{Argument, Bus, Method, Signal, Value};

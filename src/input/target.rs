@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use crate::graphics::{Area, Transform};
-use crate::{Button, Cursor, Key, Point, Scroll};
+use crate::{Button, Cursor, DragData, Key, Point, Scroll};
 
 /*
  * shared, so the hit areas kept after a redraw
@@ -25,6 +25,9 @@ pub struct KeyHandlers {
 }
 pub type PointHandler = Rc<dyn Fn(Point)>;
 pub type DropHandler = Rc<dyn Fn(Vec<PathBuf>)>;
+pub type TextDropHandler = Rc<dyn Fn(String)>;
+// what to hand another program when the widget is dragged out to it
+pub type DragOutHandler = Rc<dyn Fn() -> DragData>;
 // the point files are held over, none once they leave; true when they can be let go there
 pub type FilesOverHandler = Rc<dyn Fn(Option<Point>, &[PathBuf]) -> bool>;
 
@@ -39,6 +42,8 @@ pub struct Handlers {
     pub motion: Option<PointHandler>,
     pub drop: Option<DropHandler>,
     pub files_over: Option<FilesOverHandler>,
+    pub text_drop: Option<TextDropHandler>,
+    pub drag_out: Option<DragOutHandler>,
 
     // not a handler, but it belongs to the same spot the pointer is over
     pub cursor: Option<Cursor>,

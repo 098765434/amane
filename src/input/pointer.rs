@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::{Button, Cursor, Scroll};
+use crate::{Button, Cursor, DragData, Scroll};
 
 use super::Target;
 
@@ -19,7 +19,13 @@ pub struct Pointer {
 
     // the target files from another program are held over
     files_over: Option<usize>,
+
+    // the target the left button went down on that can be dragged out, and where
+    drag_out: Option<(usize, f32, f32)>,
 }
+
+// how far the pointer moves with the button down before it counts as dragging out
+const DRAG_OUT_DISTANCE: f32 = 8.0;
 
 impl Pointer {
     // the hit areas of a new frame replace the last frame's
@@ -61,6 +67,7 @@ impl Pointer {
     pub fn leave(&mut self) -> bool {
         // a button let go outside the window is not a click
         self.pressed = None;
+        self.drag_out = None;
 
         // the release will not reach this window, so the drag ends here
         let released = self.end_drag();
@@ -175,6 +182,37 @@ impl Pointer {
         true
     }
 
+    // drag out
+
+    // the left button went down; a target that can be dragged out waits for the pointer to move
+    pub fn arm_drag_out(&mut self) {
+        self.drag_out = self
+            .find_topmost(|target| target.handlers.drag_out.is_some())
+            .map(|index| (index, self.x, self.y));
+    }
+
+    // what to drag out, once the pointer has moved far enough with the button down
+    pub fn take_drag_out(&mut self) -> Option<DragData> {
+        let (index, x, y) = self.drag_out?;
+
+        if (self.x - x).hypot(self.y - y) < DRAG_OUT_DISTANCE {
+            return None;
+        }
+
+        self.drag_out = None;
+
+        // the compositor takes the pointer over, so the press won't end in a click
+        self.pressed = None;
+
+        let handler = self.targets.get(index)?.handlers.drag_out.as_ref()?;
+
+        Some(handler())
+    }
+
+    pub fn disarm_drag_out(&mut self) {
+        self.drag_out = None;
+    }
+
     // drag
 
     pub fn start_drag(&mut self) -> bool {
@@ -286,6 +324,24 @@ impl Pointer {
         };
 
         handler(None, files);
+
+        true
+    }
+
+    // text dragged in from another program let go at (x, y); returns whether a handler ran
+    pub fn drop_text(&mut self, x: f32, y: f32, text: String) -> bool {
+        self.x = x;
+        self.y = y;
+
+        let Some(index) = self.find_topmost(|target| target.handlers.text_drop.is_some()) else {
+            return false;
+        };
+
+        let Some(drop) = &self.targets[index].handlers.text_drop else {
+            return false;
+        };
+
+        drop(text);
 
         true
     }

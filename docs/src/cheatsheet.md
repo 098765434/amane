@@ -63,6 +63,9 @@ use amane::*;
 | `.on_key(handler)` | handles keys, `Fn(Key)` |
 | `.on_shortcut(handler)` | chords with Ctrl/Alt/Super, before a focused text input, `Fn(Key) -> bool` |
 | `.on_key_release(handler)` | keys going up, `Fn(Key)` |
+| `Clipboard::copy(text)` / `Clipboard::paste(then)` | the Ctrl+C/Ctrl+V clipboard; `then` runs on another thread |
+| `PrimarySelection::copy` / `::paste` | the middle-click selection |
+| `Rectangle::on_text_drop(handler)` / `.drag_out(data)` | text dragged in; dragging `DragData` out |
 | `.on_close(handler)` | asked when the user closes it, `Fn() -> bool`; `false` keeps it open |
 | `.child(widget)` | the window's content |
 | `open_window("name", view)` | opens a normal window later. Does nothing if that name is open. |
