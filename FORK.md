@@ -183,7 +183,7 @@ notification by itself; the server now advertises `persistence`.
 | Blur behind the bar + activation-token launching (`xdg-activation-v1`) + `write_niri_rules` | [`docs/fork/spec-write-own-layer-rules.md`](docs/fork/spec-write-own-layer-rules.md) (untracked) | draft; the blur part shipped as [blur regions](#blur), while activation tokens and writing layer rules are not started |
 | Presence and appearance | [`docs/fork/spec-presence-appearance.md`](docs/fork/spec-presence-appearance.md) (untracked) | draft spec, since implemented as [Idle](#idle) and [Appearance](#appearance) |
 | Dock support: `WindowInfo::column` (niri's `WindowLayoutsChanged`), `Windows::move_to` (to a workspace without the focus, then `MoveColumnToIndex` by id, which needs the niri fork), `Rectangle::on_files_over` (files held over a widget, read on enter, accept or refuse per spot), `DesktopApp::{mime_types, opens, commands_with, launch_with}` with a shared-mime-info lookup (`services/apps/mime.rs`) | `ocbk` | done with tests |
-| App windows: `app_id`, live title and min/max/maximized/fullscreen, `window_state()`, `on_close`, dialogs, `open_window_with`, `keep_alive` | [`docs/fork/app-windows.md`](docs/fork/app-windows.md), branch `app-windows` | phase 1 done and tested live on niri, later phases planned |
+| App windows: `app_id`, live title and min/max/maximized/fullscreen, `window_state()`, `on_close`, dialogs, `open_window_with`, `keep_alive` | [`docs/fork/app-windows.md`](docs/fork/app-windows.md), branch `app-windows` | phases 1 (windows) and 2 (popups over windows, `open_popup`) done and tested live on niri, later phases planned |
 
 The local `power` branch is already merged into `ocbk` and can be deleted.
 

@@ -9,7 +9,33 @@ use wayland_client::{
 use crate::Key;
 use crate::input::focus;
 
-use super::WaylandState;
+use super::{WaylandState, surface::Role};
+
+impl WaylandState {
+    /*
+     * the newest open popup that grabbed the input, while the focus is on a window
+     * that isn't a popup; one the compositor focused itself keeps the keys
+     */
+    fn grabbing_popup(&self, focused: &WlSurface) -> Option<WlSurface> {
+        let on_popup = self.windows.iter().any(|window| {
+            matches!(window.role, Role::Popup { .. }) && window.role.wl_surface() == focused
+        });
+
+        if on_popup {
+            return None;
+        }
+
+        self.windows
+            .iter()
+            .rev()
+            .find_map(|window| match &window.role {
+                Role::Popup {
+                    grab: true, popup, ..
+                } => Some(popup.wl_surface().clone()),
+                _ => None,
+            })
+    }
+}
 
 impl KeyboardHandler for WaylandState {
     // keys only say which keyboard they came from, so the focused window is kept here
@@ -52,9 +78,12 @@ impl KeyboardHandler for WaylandState {
         event: KeyEvent,
     ) {
         self.last_input_serial = Some(serial);
-        let Some(surface) = self.keyboard_focus.clone() else {
+        let Some(focused) = self.keyboard_focus.clone() else {
             return;
         };
+
+        // a compositor may keep the focus on the window under a menu, which still wants the keys
+        let surface = self.grabbing_popup(&focused).unwrap_or(focused);
 
         let key = to_key(&event);
 

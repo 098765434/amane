@@ -1,6 +1,7 @@
 use amane::{
-    App, Center, Color, Column, Key, Pointer, Rectangle, Service, Text, Window, children,
-    close_window, current_window, minimize_window, open_window, open_window_with, window_size,
+    App, Button, Center, Color, Column, ConstraintAdjustment, Gravity, Key, Point, Pointer, Popup,
+    PopupAnchor, Rectangle, Service, Text, Window, children, close_window, current_window,
+    minimize_window, open_popup, open_window, open_window_with, pointer_position, window_size,
     window_state,
 };
 
@@ -10,6 +11,7 @@ struct Editor {
     saved: u32,
     maximized: bool,
     documents: u32,
+    menu_open: bool,
 }
 
 impl Service for Editor {
@@ -19,6 +21,7 @@ impl Service for Editor {
             saved: 0,
             maximized: false,
             documents: 0,
+            menu_open: false,
         }
     }
 
@@ -68,9 +71,14 @@ fn main_window() -> Window {
                 .height(amane::Parent)
                 .fill(background)
                 .align_child(Center, Center)
+                .on_click(|button| {
+                    if button == Button::Right {
+                        open_menu();
+                    }
+                })
                 .child(
                     Column::new(children![
-                        label(format!("{width}x{height}")),
+                        label(format!("{width}x{height}, right click for a menu (c)")),
                         label(format!(
                             "focused {} maximized {} tiled {} decorated {}",
                             state.focused, state.maximized, state.tiled, state.server_decorated
@@ -93,6 +101,7 @@ fn shortcut(key: Key) {
         Key::Character('s') => save(),
         Key::Character('m') => toggle_maximized(),
         Key::Character('n') => new_document(),
+        Key::Character('c') => open_menu(),
         _ => {}
     }
 }
@@ -123,6 +132,71 @@ fn new_document() {
     };
 
     open_window_with(format!("document {number}"), move || document(number));
+}
+
+// a context menu where the pointer is, over the main window
+fn open_menu() {
+    let at = pointer_position();
+
+    Editor::write().menu_open = true;
+
+    open_popup(move || menu(at));
+}
+
+fn menu(at: Point) -> Popup {
+    let open = Editor::read().menu_open;
+
+    Popup::new("menu")
+        .size(200, 120)
+        .anchor_rect(at.x as i32, at.y as i32, 1, 1)
+        .parent_window("main")
+        .anchor(PopupAnchor::TopLeft)
+        .gravity(Gravity::BottomRight)
+        .constraint_adjustment(ConstraintAdjustment::FLIP_X | ConstraintAdjustment::FLIP_Y)
+        .grab()
+        .visible(open)
+        .on_dismiss(close_menu)
+        .on_key(|key| {
+            if key == Key::Escape {
+                close_menu();
+            }
+        })
+        .child(
+            Rectangle::new()
+                .width(amane::Parent)
+                .height(amane::Parent)
+                .fill("#1e1e2e")
+                .radius(8.0)
+                .align_child(Center, Center)
+                .child(
+                    Column::new(children![
+                        menu_item("edit", edit),
+                        menu_item("new document", new_document),
+                        menu_item("minimize", || minimize_window("main")),
+                    ])
+                    .gap(4.0),
+                ),
+        )
+}
+
+fn menu_item(text: &str, action: impl Fn() + 'static) -> Rectangle {
+    Rectangle::new()
+        .width(180.0)
+        .height(30.0)
+        .fill("#313244")
+        .radius(6.0)
+        .cursor(Pointer)
+        .align_child(Center, Center)
+        .on_click(move |_| {
+            close_menu();
+
+            action();
+        })
+        .child(label(String::from(text)))
+}
+
+fn close_menu() {
+    Editor::write().menu_open = false;
 }
 
 // one view, many windows, each knowing its own number

@@ -66,6 +66,8 @@ impl WaylandState {
 
         match &event.kind {
             PointerEventKind::Enter { .. } | PointerEventKind::Motion { .. } => {
+                crate::input::set_pointer_position(x as f32, y as f32);
+
                 let hovered = pointer.move_to(x as f32, y as f32);
                 let dragged = pointer.drag();
                 let moved = pointer.report_motion();
