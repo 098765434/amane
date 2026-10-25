@@ -32,7 +32,10 @@ use smithay_client_toolkit::{
     data_device_manager::{DataDeviceManagerState, data_device::DataDevice},
     delegate_dispatch2, delegate_registry,
     output::OutputState,
-    reexports::{calloop::EventLoop, calloop_wayland_source::WaylandSource},
+    reexports::{
+        calloop::{EventLoop, LoopHandle},
+        calloop_wayland_source::WaylandSource,
+    },
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
     seat::{SeatState, pointer::ThemedPointer},
@@ -125,6 +128,9 @@ struct WaylandState {
     // kept so they can be released when the mouse or keyboard is unplugged
     pointer_device: Option<ThemedPointer<()>>,
     keyboard_device: Option<WlKeyboard>,
+
+    // repeats held keys on a timer, set once the event loop exists
+    loop_handle: Option<LoopHandle<'static, WaylandState>>,
 
     // files dragged in from other programs, none when the compositor lacks it
     data_device_manager: Option<DataDeviceManagerState>,
@@ -244,6 +250,7 @@ impl WaylandApp {
             pointer_device: None,
             cursor_shown: None,
             keyboard_device: None,
+            loop_handle: None,
 
             data_device_manager,
             data_device: None,
@@ -283,6 +290,8 @@ impl WaylandApp {
         }
 
         wake::insert(&event_loop.handle());
+
+        state.loop_handle = Some(event_loop.handle());
 
         Self { state, event_loop }
     }

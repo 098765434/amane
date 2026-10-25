@@ -30,7 +30,17 @@ pub fn has(id: &'static str) -> bool {
 // returns whether a text input took the key
 pub fn send(key: Key) -> bool {
     // a text input has no use for these, so they go on to the window's on_key
-    if matches!(key, Key::Up | Key::Down | Key::Tab | Key::Other) {
+    if matches!(
+        key,
+        Key::Up
+            | Key::Down
+            | Key::Tab
+            | Key::PageUp
+            | Key::PageDown
+            | Key::Insert
+            | Key::F(_)
+            | Key::Other
+    ) {
         return false;
     }
 

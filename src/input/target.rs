@@ -12,6 +12,17 @@ pub type ClickHandler = Rc<dyn Fn(Button)>;
 pub type HoverHandler = Rc<dyn Fn(bool)>;
 pub type ScrollHandler = Rc<dyn Fn(Scroll)>;
 pub type KeyHandler = Rc<dyn Fn(Key)>;
+
+// true when the shortcut was used, so a focused text input doesn't type it too
+pub type ShortcutHandler = Rc<dyn Fn(Key) -> bool>;
+
+// what a window does with keys, rebuilt with every view like the pointer targets
+#[derive(Clone, Default)]
+pub struct KeyHandlers {
+    pub press: Option<KeyHandler>,
+    pub release: Option<KeyHandler>,
+    pub shortcut: Option<ShortcutHandler>,
+}
 pub type PointHandler = Rc<dyn Fn(Point)>;
 pub type DropHandler = Rc<dyn Fn(Vec<PathBuf>)>;
 // the point files are held over, none once they leave; true when they can be let go there

@@ -244,15 +244,23 @@ fn key_pressed(key: Key) {
 
 - `Character(char)`: a key that types something, already shifted, like `Character('A')`
 - `Enter`, `Escape`, `Tab`, `Backspace`, `Space`
-- `Up`, `Down`, `Left`, `Right`, `Home`, `End`
+- `Up`, `Down`, `Left`, `Right`, `Home`, `End`, `PageUp`, `PageDown`
+- `Delete`, `Insert`
+- `F(n)`: a function key, `F(1)` to `F(24)`
 - `Other`: any key Amane has no name for yet
+
+Keypad keys arrive as the key they stand for, so keypad `4` with Num Lock off is `Left`.
+
+A held key repeats at the rate the compositor asks for, so holding `Backspace` keeps deleting. Each repeat calls `on_key` again.
+
+`on_key_release` runs when a key goes up, for things that last while a key is held, like peeking at something while `Alt` is down. Releases skip text inputs.
 
 ### When a text input has focus
 
 A focused `TextInput` takes keys before the window does, because typing should type:
 
 - Letters, `Space`, `Backspace`, `Enter`, `Left`, `Right`, `Home`, and `End` go to the input only.
-- `Up`, `Down`, `Tab`, and `Other` skip the input and go to the window's `on_key`. That's how arrow keys can move through a list while you type in a search box.
+- `Up`, `Down`, `Tab`, `PageUp`, `PageDown`, `Insert`, the `F` keys and `Other` skip the input and go to the window's `on_key`. That's how arrow keys can move through a list while you type in a search box.
 - `Escape` takes focus away from the input, and then also goes to the window, which may want to close.
 
 ### Modifier keys
@@ -279,6 +287,28 @@ fn key_pressed(key: Key) {
 ```
 
 A `Ctrl`+letter chord arrives as `Character(letter)` with `modifiers().ctrl` set (not as `Other`). `Modifiers::command()` is a shortcut for "ctrl, alt, or super is held" — i.e. this key is a command, not text. A focused `TextInput` already ignores command chords instead of typing them.
+
+### Shortcuts
+
+A focused text input takes keys before `on_key`, so `on_key` alone can't make Ctrl+S save while you type. `on_shortcut` runs first, for every key pressed with `Ctrl`, `Alt` or `Super` held. Return `true` for a chord it used, so the input doesn't see it too:
+
+```rust,ignore
+Window::new().on_shortcut(|key| {
+    if !modifiers().ctrl {
+        return false;
+    }
+
+    match key {
+        Key::Character('s') => save(),
+        Key::Character('w') => close_window("main"),
+        _ => return false,
+    }
+
+    true
+})
+```
+
+Chords it returns `false` for go on as before: to the text input, then to `on_key`. Windows, layer windows and popups all have it.
 
 ## Terms
 

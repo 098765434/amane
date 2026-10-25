@@ -1,8 +1,8 @@
 use amane::{
     App, Button, Center, Color, Column, ConstraintAdjustment, Gravity, Key, Point, Pointer, Popup,
-    PopupAnchor, Rectangle, Service, Text, Window, children, close_window, current_window,
-    minimize_window, open_popup, open_window, open_window_with, pointer_position, window_size,
-    window_state,
+    PopupAnchor, Rectangle, Service, Text, TextInput, Window, children, close_window,
+    current_window, minimize_window, open_popup, open_window, open_window_with, pointer_position,
+    window_size, window_state,
 };
 
 // an app on its own, beside the shell, with the window features a regular app has
@@ -12,6 +12,8 @@ struct Editor {
     maximized: bool,
     documents: u32,
     menu_open: bool,
+    notes: String,
+    released: String,
 }
 
 impl Service for Editor {
@@ -22,6 +24,8 @@ impl Service for Editor {
             maximized: false,
             documents: 0,
             menu_open: false,
+            notes: String::new(),
+            released: String::new(),
         }
     }
 
@@ -52,7 +56,8 @@ fn main_window() -> Window {
         .size(520.0, 360.0)
         .min_size(360.0, 260.0)
         .maximized(editor.maximized)
-        .on_key(shortcut)
+        .on_shortcut(shortcut)
+        .on_key_release(|key| Editor::write().released = format!("{key:?}"))
         .on_close(|| {
             let editor = Editor::read();
 
@@ -78,32 +83,48 @@ fn main_window() -> Window {
                 })
                 .child(
                     Column::new(children![
-                        label(format!("{width}x{height}, right click for a menu (c)")),
+                        label(format!("{width}x{height}, right click for a menu (Ctrl+K)")),
                         label(format!(
                             "focused {} maximized {} tiled {} decorated {}",
                             state.focused, state.maximized, state.tiled, state.server_decorated
                         )),
                         label(format!("{} edits, {} saved", editor.edits, editor.saved)),
-                        button("edit (e)", |_| edit()),
-                        button("save (s)", |_| save()),
-                        button("toggle maximized (m)", |_| toggle_maximized()),
+                        label(format!(
+                            "notes: {:?}, last key up: {}",
+                            editor.notes, editor.released
+                        )),
+                        TextInput::new("notes")
+                            .width(240.0)
+                            .placeholder("type, hold Backspace")
+                            .focused()
+                            .on_change(|text| Editor::write().notes = text),
+                        button("edit (Ctrl+E)", |_| edit()),
+                        button("save (Ctrl+S)", |_| save()),
+                        button("toggle maximized (Ctrl+M)", |_| toggle_maximized()),
                         button("minimize", |_| minimize_window("main")),
-                        button("new document (n)", |_| new_document()),
+                        button("new document (Ctrl+N)", |_| new_document()),
                     ])
                     .gap(8.0),
                 ),
         )
 }
 
-fn shortcut(key: Key) {
+// runs before the text field, so these work while typing
+fn shortcut(key: Key) -> bool {
+    if !amane::modifiers().ctrl {
+        return false;
+    }
+
     match key {
         Key::Character('e') => edit(),
         Key::Character('s') => save(),
         Key::Character('m') => toggle_maximized(),
         Key::Character('n') => new_document(),
-        Key::Character('c') => open_menu(),
-        _ => {}
+        Key::Character('k') => open_menu(),
+        _ => return false,
     }
+
+    true
 }
 
 fn edit() {

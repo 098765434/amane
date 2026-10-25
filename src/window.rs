@@ -3,7 +3,7 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use crate::changes;
-use crate::input::KeyHandler;
+use crate::input::KeyHandlers;
 use crate::{Key, Widget};
 
 // a regular desktop window with a title bar, like a settings app, next to the layer windows
@@ -32,7 +32,7 @@ pub struct Window {
 
     pub(crate) root: Option<Box<dyn Widget>>,
 
-    pub(crate) on_key: Option<KeyHandler>,
+    pub(crate) keys: KeyHandlers,
 
     pub(crate) on_close: Option<CloseHandler>,
 }
@@ -62,7 +62,7 @@ impl Window {
 
             root: None,
 
-            on_key: None,
+            keys: KeyHandlers::default(),
 
             on_close: None,
         }
@@ -150,7 +150,23 @@ impl Window {
     }
 
     pub fn on_key(mut self, handler: impl Fn(Key) + 'static) -> Self {
-        self.on_key = Some(Rc::new(handler));
+        self.keys.press = Some(Rc::new(handler));
+
+        self
+    }
+
+    pub fn on_key_release(mut self, handler: impl Fn(Key) + 'static) -> Self {
+        self.keys.release = Some(Rc::new(handler));
+
+        self
+    }
+
+    /*
+     * runs first for keys pressed with ctrl, alt or super held, before a focused text
+     * input; return true for a chord it used, like Ctrl+S, so the input doesn't see it
+     */
+    pub fn on_shortcut(mut self, handler: impl Fn(Key) -> bool + 'static) -> Self {
+        self.keys.shortcut = Some(Rc::new(handler));
 
         self
     }

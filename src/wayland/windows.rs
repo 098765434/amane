@@ -6,7 +6,7 @@ use wayland_client::{
 };
 
 use crate::graphics::Gpu;
-use crate::input::Pointer;
+use crate::input::{KeyHandlers, Pointer};
 use crate::{changes, frame};
 
 use super::{
@@ -85,7 +85,7 @@ impl WaylandState {
             reads: HashSet::new(),
 
             pointer: Pointer::default(),
-            on_key: None,
+            keys: KeyHandlers::default(),
             on_close: None,
 
             gpu,

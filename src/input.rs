@@ -5,7 +5,7 @@ mod target;
 
 pub use modifiers::Modifiers;
 pub use pointer::Pointer;
-pub use target::{Handlers, KeyHandler, Target, clip};
+pub use target::{Handlers, KeyHandler, KeyHandlers, Target, clip};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Button {
@@ -44,6 +44,17 @@ pub enum Key {
     Home,
 
     End,
+
+    Delete,
+
+    Insert,
+
+    PageUp,
+
+    PageDown,
+
+    // a function key, F(1) to F(24)
+    F(u8),
 
     // a key amane has no name for yet
     Other,

@@ -16,7 +16,7 @@ use wayland_client::{
 };
 
 use crate::graphics::Gpu;
-use crate::input::{KeyHandler, Pointer};
+use crate::input::{KeyHandlers, Pointer};
 use crate::scale::ScaleFactor;
 use crate::popup::PopupView;
 use crate::window::{CloseHandler, WindowView};
@@ -64,7 +64,7 @@ pub struct OpenWindow {
 
     // both come from the last drawn view, so input matches what is on screen
     pub pointer: Pointer,
-    pub on_key: Option<KeyHandler>,
+    pub keys: KeyHandlers,
 
     // a normal window's, from the last drawn view, asked before the user closes it
     pub on_close: Option<CloseHandler>,
@@ -155,7 +155,7 @@ pub enum View {
     Popup(PopupView),
 }
 
-pub type Parts = (Option<Box<dyn Widget>>, Option<KeyHandler>, Option<CloseHandler>);
+pub type Parts = (Option<Box<dyn Widget>>, KeyHandlers, Option<CloseHandler>);
 
 // what a view gave back
 pub enum Content {
@@ -255,9 +255,9 @@ impl Content {
     // the widgets and the handlers, drawn and used the same way by every kind of window
     pub fn into_parts(self) -> Parts {
         match self {
-            Content::Layer(window) => (window.root, window.on_key, None),
-            Content::Normal(window) => (window.root, window.on_key, window.on_close),
-            Content::Popup(popup) => (popup.root, popup.on_key, None),
+            Content::Layer(window) => (window.root, window.keys, None),
+            Content::Normal(window) => (window.root, window.keys, window.on_close),
+            Content::Popup(popup) => (popup.root, popup.keys, None),
         }
     }
 }
