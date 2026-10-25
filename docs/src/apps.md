@@ -60,6 +60,8 @@ fn view() -> LayerWindow {
 | `exec()` | its command line, without the `%f`-style placeholders |
 | `icon()` | its icon's name in the icon theme, like `"firefox"`, or `None` |
 | `icon_path()` | the icon's image file, a PNG when the theme has one, or `None` |
+| `categories()` | its freedesktop `Categories`, like `["Network", "WebBrowser"]` |
+| `keywords()` | its `Keywords`, extra search terms the author added |
 | `launch()` | starts the program, without waiting for it |
 
 `Apps::find_icon(name)` looks up an icon by its name in the icon theme (or takes a full path as it is) and gives its image file, or `None`. Use it for something with no `.desktop` file, like a window whose app_id names an icon:

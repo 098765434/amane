@@ -38,6 +38,13 @@ A single feature commit on top of `fork-base`:
   `pixels()`, so a handler can follow fingers and settle when they lift.
   (`src/input.rs`, `src/wayland/pointer.rs`.) See [docs/src/input.md](docs/src/input.md).
 - **`Apps::find_icon`** — the icon-theme lookup, public, for windows without a `.desktop` file.
+- **`DesktopApp::categories()` / `keywords()`** — the entry's freedesktop `Categories` and
+  `Keywords`, for filtering and searching apps. (`src/services/apps/`.) See
+  [docs/src/apps.md](docs/src/apps.md).
+- **Keyboard modifiers** — `modifiers()` reports Shift/Ctrl/Alt/Super held now, and a Ctrl+letter
+  chord arrives as `Key::Character(letter)` instead of `Other`; a focused `TextInput` ignores
+  command chords. (`src/input/modifiers.rs`, `src/wayland/keyboard.rs`.) See
+  [docs/src/input.md](docs/src/input.md).
 
 - **`Battery` via UPower + `PowerProfile` service** — peripheral batteries, warning level, time
   estimates and AC state from UPower (sysfs kept as the fallback), and power-profiles-daemon's

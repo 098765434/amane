@@ -141,10 +141,10 @@ fn character(event: &KeyEvent) -> Key {
     // the normal case: the key typed one printable character
     if let Some(text) = &event.utf8 {
         let mut letters = text.chars();
-        if let (Some(letter), None) = (letters.next(), letters.next()) {
-            if !letter.is_control() {
-                return Key::Character(letter);
-            }
+        if let (Some(letter), None) = (letters.next(), letters.next())
+            && !letter.is_control()
+        {
+            return Key::Character(letter);
         }
     }
 

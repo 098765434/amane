@@ -240,6 +240,31 @@ A focused `TextInput` takes keys before the window does, because typing should t
 - `Up`, `Down`, `Tab`, and `Other` skip the input and go to the window's `on_key`. That's how arrow keys can move through a list while you type in a search box.
 - `Escape` takes focus away from the input, and then also goes to the window, which may want to close.
 
+### Modifier keys
+
+`modifiers()` reports the keys held right now, for telling a command chord apart from typed text:
+
+```rust,ignore
+use amane::{Key, modifiers};
+
+fn key_pressed(key: Key) {
+    let mods = modifiers();            // { ctrl, shift, alt, logo }
+
+    if mods.ctrl {
+        if let Key::Character('a') = key {
+            select_all();              // Ctrl+A
+        }
+        return;                        // don't type the chord
+    }
+
+    if let Key::Left = key {
+        move_caret(mods.shift);        // Shift+Left extends a selection
+    }
+}
+```
+
+A `Ctrl`+letter chord arrives as `Character(letter)` with `modifiers().ctrl` set (not as `Other`). `Modifiers::command()` is a shortcut for "ctrl, alt, or super is held" — i.e. this key is a command, not text. A focused `TextInput` already ignores command chords instead of typing them.
+
 ## Terms
 
 - **Handler:** a function Amane calls when an event happens.
