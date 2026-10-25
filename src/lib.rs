@@ -73,7 +73,7 @@ pub use process::{lines, output, spawn};
 pub use services::{
     AccessPoint, Action, Appearance, Apps, Audio, AudioDevice, AudioKind, Battery, BatteryState,
     Bluetooth, BluetoothDevice, Brightness, Cpu, DesktopApp, DeviceKind, Gestures, Idle, Link,
-    Lock, Media, MediaPlayer, Memory, Network, Notification, Notifications, Palette, Pam,
+    Lock, Media, MediaPlayer, Memory, Network, Notification, Notifications, Overview, Palette, Pam,
     PamConfig, PamError, PamMessage, PamMessageKind, PamResult, PowerDevice, PowerProfile, Scheme,
     Service, Timeout, Urgency, WarningLevel, WindowInfo, Windows, Workspace, Workspaces,
 };
