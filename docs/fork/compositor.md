@@ -3,7 +3,7 @@
 Amane talks to the running Wayland compositor over its native IPC to
 surface live **workspaces** and **windows**, and to send **control
 actions** back. The backend is picked at runtime from the environment
-([src/compositor.rs](../src/compositor.rs)); niri is the fully implemented
+([src/compositor.rs](../../src/compositor.rs)); niri is the fully implemented
 one, with partial support for hyprland, sway, and mango.
 
 Everything here is exposed as a `Service` (read with `::read()` inside a
@@ -49,7 +49,7 @@ overview is up. It tracks the `OverviewOpenedOrClosed` event and is always
 `false` on backends without overview support.
 
 > Named `WindowInfo`, not `Window`, because the crate root already exports
-> [`Window`](../src/window.rs) for the xdg-toplevel *surface role* a shell
+> [`Window`](../../src/window.rs) for the xdg-toplevel *surface role* a shell
 > opens itself.
 
 ### `Overview` (fork addition, niri only)
@@ -115,12 +115,12 @@ so a slow socket never stalls drawing (like `Workspaces::focus`):
 
 `Windows::spawn(cmd)` asks the *compositor* to launch a command, so it is
 tracked like any keybinding-launched program; use the crate-level
-[`spawn`](../src/process.rs) when the shell should own the child itself.
+[`spawn`](../../src/process.rs) when the shell should own the child itself.
 
 ## How it works
 
 Each `Service` owns its thread and a blocking `listen()` loop
-([src/services.rs](../src/services.rs)). `Workspaces` and `Windows` each
+([src/services.rs](../../src/services.rs)). `Workspaces` and `Windows` each
 open their **own** niri `EventStream` connection (niri allows multiple) and
 keep only the slice they need:
 
@@ -131,7 +131,7 @@ keep only the slice they need:
   (niri only; a no-op on other backends).
 
 All parse the same niri event set
-([src/compositor/niri.rs](../src/compositor/niri.rs)) —
+([src/compositor/niri.rs](../../src/compositor/niri.rs)) —
 `WorkspacesChanged`, `WorkspaceActivated`, `WorkspaceUrgencyChanged`,
 `WindowsChanged`, `WindowOpenedOrChanged`, `WindowClosed`,
 `WindowFocusChanged`, `OverviewOpenedOrClosed`, and the fork's
@@ -157,7 +157,7 @@ stream.
 
 On a backend without window support `Windows::read().list()` is empty and
 the control methods are no-ops; the per-backend `listen_windows`/`act`
-stubs (e.g. [hyprland.rs](../src/compositor/hyprland.rs)) are where that
+stubs (e.g. [hyprland.rs](../../src/compositor/hyprland.rs)) are where that
 support would be added.
 
 ## niri version note

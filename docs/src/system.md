@@ -144,7 +144,7 @@ let idle = Idle::read();
 let dimmed = idle.crossed(Duration::from_secs(120)) && !idle.inhibited();
 ```
 
-See [docs/idle.md](../idle.md) for how it works.
+See [docs/fork/idle.md](../fork/idle.md) for how it works.
 
 ## Appearance
 
@@ -157,4 +157,4 @@ The desktop's light/dark preference and accent colour, from the XDG Settings por
 | `prefers_dark()` | `true` when the scheme is `Dark` |
 | `accent()` | the accent `Color`, or `None` when the desktop has none |
 
-See [docs/appearance.md](../appearance.md) for how it works.
+See [docs/fork/appearance.md](../fork/appearance.md) for how it works.

@@ -7,18 +7,18 @@
 //! Fork additions (so far):
 //! - [`Popup`] — xdg-popup surface role with layer-shell and nested
 //!   parenting, `xdg_positioner` configuration, grab semantics, and
-//!   per-popup dismiss callbacks. See [`docs/popups.md`](../docs/popups.md).
+//!   per-popup dismiss callbacks. See [`docs/fork/popups.md`](../docs/fork/popups.md).
 //! - [`Windows`] — a service exposing the compositor's open windows
 //!   ([`WindowInfo`]: focused window, title, app-id) plus typed control
 //!   actions (focus/close/fullscreen/move, column nav, spawn, screenshot,
 //!   toggle overview). niri-complete. See
-//!   [`docs/compositor.md`](../docs/compositor.md).
+//!   [`docs/fork/compositor.md`](../docs/fork/compositor.md).
 //! - [`Idle`] — idle levels from the compositor's ext-idle-notify, and
 //!   app inhibits through a served `org.freedesktop.ScreenSaver`. See
-//!   [`docs/idle.md`](../docs/idle.md).
+//!   [`docs/fork/idle.md`](../docs/fork/idle.md).
 //! - [`Appearance`] — the desktop's light/dark preference and accent colour
 //!   from the XDG Settings portal. See
-//!   [`docs/appearance.md`](../docs/appearance.md).
+//!   [`docs/fork/appearance.md`](../docs/fork/appearance.md).
 
 #[cfg(target_env = "gnu")] // skip glibc tuning if there is no glibc
 mod allocator;

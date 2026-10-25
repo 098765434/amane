@@ -3,7 +3,7 @@
 Upstream's `Audio` service only follows the *default* output and input. The fork adds the list of
 devices, what kind each one is, and switching the default, so a shell can offer a sound menu and
 show a headphones icon while headphones are in use. Everything else in
-[the Audio page](src/audio.md) is unchanged.
+[the Audio page](../src/audio.md) is unchanged.
 
 ```rust
 use amane::{Audio, AudioKind, Service};
