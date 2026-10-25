@@ -110,7 +110,7 @@ Behaviour change: an example started without its own app-id beside the running s
 
 Not done: the file dialog's parent window (xdg-foreign export), and touch input.
 
-Live-tested on niri: a notification reached the shell's notification server with the right arguments and showed as a toast; the file dialog opened through `xdg-desktop-portal-gnome` with its title and filters. A pick through the dialog was not confirmed: while scripted input was driving the dialog, the session's lock screen came up and the keystrokes went to it, so testing stopped there.
+Live-tested on niri: a notification reached the shell's notification server with the right arguments and showed as a toast; the file dialog opened through `xdg-desktop-portal-gnome` with its title and filters, and a file picked in it came back to the callback as its path.
 
 ## Planned
 
