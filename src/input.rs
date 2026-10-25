@@ -5,7 +5,7 @@ mod target;
 
 pub use modifiers::Modifiers;
 pub use pointer::Pointer;
-pub use target::{Handlers, KeyHandler, KeyHandlers, Target, clip};
+pub use target::{Handlers, KeyHandlers, Target, clip};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Button {

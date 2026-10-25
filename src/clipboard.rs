@@ -19,8 +19,9 @@ impl Clipboard {
     }
 
     /*
-     * reads the clipboard and calls `then` with its text, on another thread once the
-     * program that copied it has answered; not at all when there is no text on it
+     * reads the clipboard and calls `then` with its text, once the program that copied it
+     * has answered; it runs on the event loop like a handler, and not at all when there is
+     * no text on it
      */
     pub fn paste(then: impl FnOnce(String) + Send + 'static) {
         request(Request::Paste(Board::Clipboard, Box::new(then)));
@@ -61,6 +62,9 @@ pub(crate) enum Request {
 
 // done by the event loop when it wakes, which holds what the compositor needs
 pub(crate) static REQUESTS: Mutex<Vec<Request>> = Mutex::new(Vec::new());
+
+// pasted text read on another thread, handed to its callback back on the event loop
+pub(crate) static PASTED: Mutex<Vec<(Then, String)>> = Mutex::new(Vec::new());
 
 fn request(request: Request) {
     REQUESTS

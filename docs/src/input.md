@@ -259,7 +259,7 @@ A held key repeats at the rate the compositor asks for, so holding `Backspace` k
 
 A focused `TextInput` takes keys before the window does, because typing should type:
 
-- Letters, `Space`, `Backspace`, `Enter`, `Left`, `Right`, `Home`, and `End` go to the input only.
+- Text keys and the editing keys go to the input only ([Text Input](text_input.md#keys)). A chord the input has no use for, like `Ctrl+Q`, goes on to the window.
 - `Up`, `Down`, `Tab`, `PageUp`, `PageDown`, `Insert`, the `F` keys and `Other` skip the input and go to the window's `on_key`. That's how arrow keys can move through a list while you type in a search box.
 - `Escape` takes focus away from the input, and then also goes to the window, which may want to close.
 

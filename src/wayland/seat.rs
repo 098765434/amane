@@ -63,6 +63,10 @@ impl SeatHandler for WaylandState {
                 .expect("failed to get keyboard");
 
                 self.keyboard_device = Some(keyboard);
+
+                if let Some(manager) = &self.text_input_manager {
+                    self.input_method = Some(super::text_input::InputMethod::new(manager, &seat, qh));
+                }
             }
 
             _ => {}
@@ -90,6 +94,8 @@ impl SeatHandler for WaylandState {
                 if let Some(keyboard) = self.keyboard_device.take() {
                     keyboard.release();
                 }
+
+                self.input_method = None;
             }
 
             _ => {}

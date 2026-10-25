@@ -23,7 +23,7 @@ fn shortcut(key: Key) -> bool {
 ```
 
 - `Clipboard::copy(text)` puts text on the clipboard. It has to come from input, like a key or a click, or the compositor may turn it down. Amane keeps the text and sends it to whatever program pastes it, until something else is copied.
-- `Clipboard::paste(then)` reads the clipboard and calls `then` with its text. The program that copied it may take a moment to answer, so `then` runs on another thread once it has. Write what you need into a Service there, and the windows that read it redraw. When there's no text on the clipboard, `then` isn't called.
+- `Clipboard::paste(then)` reads the clipboard and calls `then` with its text. The program that copied it may take a moment to answer, so `then` runs later, once it has, on the event loop like any handler. Write what you need into a Service there, and the windows that read it redraw. When there's no text on the clipboard, `then` isn't called.
 
 `PrimarySelection::copy` and `PrimarySelection::paste` work the same way for the primary selection, where the compositor supports it. Copy the selected text to it whenever the selection changes, and paste it on a middle click.
 

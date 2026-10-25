@@ -7,7 +7,7 @@ mod scroll_area;
 mod shape;
 mod stack;
 mod text;
-mod text_input;
+pub(crate) mod text_input;
 
 use crate::Size;
 use crate::graphics::{Area, Renderer};

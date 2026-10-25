@@ -18,7 +18,8 @@ use smithay_client_toolkit::reexports::protocols::wp::primary_selection::zv1::cl
 };
 use wayland_client::{Connection, QueueHandle};
 
-use crate::clipboard::{Board, REQUESTS, Request, Then};
+use crate::changes;
+use crate::clipboard::{Board, PASTED, REQUESTS, Request, Then};
 
 use super::WaylandState;
 
@@ -52,6 +53,14 @@ impl WaylandState {
                 Request::Copy(board, text) => self.copy(board, text),
                 Request::Paste(board, then) => self.paste(board, then),
             }
+        }
+
+        let mut pasted = PASTED.lock().unwrap_or_else(PoisonError::into_inner);
+
+        let pasted = mem::take(&mut *pasted);
+
+        for (then, text) in pasted {
+            then(text);
         }
     }
 
@@ -144,16 +153,25 @@ pub fn text_type(types: &[String]) -> Option<String> {
         .map(|kind| String::from(*kind))
 }
 
-// reads on its own thread, so a slow program never holds up a frame
-pub fn read_text(pipe: ReadPipe, then: impl FnOnce(String) + Send + 'static) {
+// reads on its own thread, so a slow program never holds up a frame, and hands the text back
+pub fn read_text(pipe: ReadPipe, then: Then) {
     let mut file = File::from(OwnedFd::from(pipe));
 
     thread::spawn(move || {
         let mut bytes = Vec::new();
 
-        if file.read_to_end(&mut bytes).is_ok() {
-            then(String::from_utf8_lossy(&bytes).into_owned());
+        if file.read_to_end(&mut bytes).is_err() {
+            return;
         }
+
+        let text = String::from_utf8_lossy(&bytes).into_owned();
+
+        PASTED
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push((then, text));
+
+        changes::wake();
     });
 }
 

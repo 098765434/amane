@@ -11,6 +11,7 @@ mod output;
 mod pointer;
 mod popup;
 mod clipboard;
+mod text_input;
 mod redraw;
 mod scale;
 mod seat;
@@ -150,6 +151,10 @@ struct WaylandState {
     // what amane put on the clipboards, sent to whoever pastes it
     copied: clipboard::Copied,
 
+    // types what a keyboard can't, none when the compositor lacks text-input-v3
+    text_input_manager: Option<smithay_client_toolkit::reexports::protocols::wp::text_input::zv3::client::zwp_text_input_manager_v3::ZwpTextInputManagerV3>,
+    input_method: Option<text_input::InputMethod>,
+
     // what is being dragged out to another program
     dragging_out: Option<(DragSource, crate::DragData)>,
 
@@ -221,6 +226,8 @@ impl WaylandApp {
 
         let primary_manager = PrimarySelectionManagerState::bind(&globals, &qh).ok();
 
+        let text_input_manager = globals.bind(&qh, 1..=1, ()).ok();
+
         // windows per monitor are opened once the compositor describes each monitor
         let mut state = WaylandState {
             windows: Vec::new(),
@@ -278,6 +285,8 @@ impl WaylandApp {
             primary_manager,
             primary_device: None,
             copied: clipboard::Copied::default(),
+            text_input_manager,
+            input_method: None,
             dragging_out: None,
             last_press_serial: None,
 
@@ -329,6 +338,8 @@ impl WaylandApp {
 
             // Reconcile popup slots (open/close) after each dispatch tick.
             self.state.reconcile_popups();
+
+            self.state.sync_input_method();
         }
     }
 }
