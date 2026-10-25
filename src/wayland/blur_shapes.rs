@@ -31,6 +31,10 @@ pub struct BlurShapes {
     pub shapes: NiriBlurShapesV1,
 }
 
+// the ids of the shapes last sent, in order, to tell which a backdrop reading is for
+#[derive(Default)]
+pub struct ShapeIds(pub std::sync::Mutex<Vec<Option<u32>>>);
+
 // has to go before the surface it belongs to; the window's blur region applies again
 impl Drop for BlurShapes {
     fn drop(&mut self) {
@@ -65,15 +69,26 @@ impl Dispatch<NiriBlurShapesManagerV1, Materials> for WaylandState {
     }
 }
 
-// shapes never send events, but wayland-client still needs somewhere to send them
-impl Dispatch<NiriBlurShapesV1, ()> for WaylandState {
+// how bright the backdrop is behind a shape (version 2), for the shape with that id
+impl Dispatch<NiriBlurShapesV1, ShapeIds> for WaylandState {
     fn event(
         _: &mut Self,
         _: &NiriBlurShapesV1,
-        _: niri_blur_shapes_v1::Event,
-        _: &(),
+        event: niri_blur_shapes_v1::Event,
+        ids: &ShapeIds,
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
+        let niri_blur_shapes_v1::Event::Backdrop { index, luminance } = event;
+
+        let id = {
+            let ids = ids.0.lock().unwrap_or_else(|e| e.into_inner());
+
+            ids.get(index as usize).copied().flatten()
+        };
+
+        if let Some(id) = id {
+            crate::services::backdrop::report(id, luminance as f32);
+        }
     }
 }

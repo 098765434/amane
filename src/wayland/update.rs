@@ -1,5 +1,5 @@
 use wayland_client::{
-    Connection, Dispatch, QueueHandle,
+    Connection, Dispatch, Proxy, QueueHandle,
     protocol::wl_region::{self, WlRegion},
 };
 
@@ -9,7 +9,7 @@ use crate::{BlurShape, InputArea, LayerWindow};
 use super::{
     WaylandState,
     background_effect::BlurEffect,
-    blur_shapes::BlurShapes,
+    blur_shapes::{BlurShapes, ShapeIds},
     layer::{self, Settings},
     surface::{Content, OpenWindow, Role},
 };
@@ -188,7 +188,7 @@ impl OpenWindow {
         };
 
         let object = self.blur_shapes_object.get_or_insert_with(|| BlurShapes {
-            shapes: manager.get_blur_shapes(self.role.wl_surface(), &self.qh, ()),
+            shapes: manager.get_blur_shapes(self.role.wl_surface(), &self.qh, ShapeIds::default()),
         });
 
         let factor = f64::from(self.scale_factor.get());
@@ -214,6 +214,11 @@ impl OpenWindow {
                     .unwrap_or(0),
                 shape.tint.map_or(0, crate::blur::premultiplied),
             );
+        }
+
+        if let Some(ids) = object.shapes.data::<ShapeIds>() {
+            *ids.0.lock().unwrap_or_else(|e| e.into_inner()) =
+                shapes.iter().map(BlurShape::shape_id).collect();
         }
 
         self.blur_shapes = Some((shapes.to_vec(), materials));
