@@ -28,10 +28,10 @@ series on top of upstream; everything else is stock.
 | [`Gestures` / `Overview` services](#compositor-services) | feature (niri fork only) | `19d012d`, `14c6994` | [compositor](docs/fork/compositor.md) | no — needs the niri fork's IPC |
 | [Battery via UPower + `PowerProfile`](#battery-and-power-profiles) | feature | `dd6f110` | [battery](docs/fork/battery.md), [power-profile](docs/fork/power-profile.md) | yes |
 | [`Idle` service](#idle) | feature | `2953df9` | [idle](docs/fork/idle.md) | yes |
-| [`Appearance` service](#appearance) | feature | `317943e` | [appearance](docs/fork/appearance.md) | yes |
+| [`Appearance` service](#appearance) | feature | `317943e`, `b1187e6` | [appearance](docs/fork/appearance.md) | yes |
 | [Audio devices](#audio-devices) | feature + fix | `dedcda4` | [audio](docs/fork/audio.md) | yes |
 | [Notification timeout and hints](#notifications) | feature | `7a16b39` | [notifications](docs/fork/notifications.md) | yes |
-| [Blur regions and blur shapes](#blur) | feature | `db581d0`, `bcc53ac` | [blur](docs/fork/blur.md) | regions yes; shapes need the niri fork |
+| [Blur regions and blur shapes](#blur) | feature | `db581d0`, `bcc53ac`, `2ea1d46` | [blur](docs/fork/blur.md) | regions yes; shapes need the niri fork |
 | [Drag release hook, drag cursor](#blur) | feature + fix | `db581d0`, `2e9f8e0` | [blur](docs/fork/blur.md#drag-release-hook) | yes |
 | [Spring easing, retargeting](#animation) | feature | `ba43071`, `289f191` | this file only (not in [animation](docs/src/animation.md) yet) | yes |
 | [Scroll source and finger lift](#input) | feature | `7f48e10` | [input](docs/src/input.md) | yes |
@@ -88,11 +88,12 @@ are honoured. `Bus` gains `Method::sender()`.
 
 ### Appearance
 
-The desktop's light/dark preference (`Scheme`) and accent colour, read from the XDG Settings
-portal and updated live from `SettingChanged`. Read-only.
+The desktop's light/dark preference (`Scheme`), accent colour, and high-contrast and
+reduced-motion preferences, read from the XDG Settings portal and updated live from
+`SettingChanged`. Read-only.
 
 - **Files:** `src/services/appearance.rs`; example `examples/appearance.rs`.
-- **Review it:** `git show 317943e`
+- **Review it:** `git show 317943e b1187e6`
 
 ### Audio devices
 
@@ -120,13 +121,15 @@ notification by itself; the server now advertises `persistence`.
 - `LayerWindow::blur_shapes` sends rounded, fading shapes with a material and tint over the niri
   fork's `niri-blur-shapes-v1`. On other compositors it falls back to a stepped region.
 - `blur_fades()` and `material_available()` let views adapt.
+- `BlurShape::id` and the `Backdrop` service carry niri's readings of how bright the backdrop is
+  behind each shape (version 2 of the protocol).
 - `Rectangle::on_release` fires when a drag that started on the rectangle ends, and the dragged
   target keeps the cursor shape until the drop.
 
-- **Files:** `src/blur.rs`, `src/wayland/{background_effect,blur_shapes,update}.rs`,
+- **Files:** `src/blur.rs`, `src/services/backdrop.rs`, `src/wayland/{background_effect,blur_shapes,update}.rs`,
   `src/layer_window.rs`, `src/input/pointer.rs`, `src/widgets/rectangle/targets.rs`,
   `protocols/niri-blur-shapes-v1.xml`; example `examples/blur_shapes.rs`.
-- **Review it:** `git show db581d0 bcc53ac 2e9f8e0`
+- **Review it:** `git show db581d0 bcc53ac 2e9f8e0 2ea1d46`
 
 ### Animation
 
