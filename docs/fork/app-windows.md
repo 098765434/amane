@@ -62,11 +62,30 @@ Data is written and pasted text read on their own threads (`src/wayland/clipboar
 
 Live-tested on niri with `wl-copy`/`wl-paste` in both directions for both selections. Drag-out and text drops are not live-tested, because no pointer automation tool is available; the uri-list encoding has a round-trip test. The shell's `text_edit.rs` still uses `wl-copy`/`wl-paste` until it pins an amane rev with this in it.
 
+## Phase 5: text input (done)
+
+| Addition | Notes |
+|---|---|
+| Selection | Shift with any movement, mouse drag, Ctrl+A; drawn behind the text (`selection_color`) |
+| Mouse | a press places the cursor (Shift extends), a drag selects, a middle click pastes the primary selection there |
+| Editing keys | Delete, word movement and deletion with Ctrl, Ctrl+Home/End |
+| Clipboard | Ctrl+C/X/V; selections go to the primary selection; a password never leaves the input |
+| Undo/redo | Ctrl+Z, Ctrl+Shift+Z/Ctrl+Y; typing is grouped a word at a time; 200 steps per input |
+| `multiline(true)` | hard line breaks, Up/Down keep the column; no soft wrapping yet |
+| Scrolling | a one-line input scrolls to keep the cursor in sight |
+| IME | `zwp_text_input_v3` (`src/wayland/text_input.rs`): enabled while an input has focus and the window has the keyboard; surrounding text, cursor rectangle and content type (password, multiline) are sent on change; preedit drawn underlined |
+| `TextInput::text(id)` | reads an input's text |
+
+Other changes:
+- The focused input's handler returns whether it used a key, so chords it doesn't know (Ctrl+Q) reach the window.
+- `Clipboard::paste` callbacks now run on the event loop rather than the reader thread.
+
+The editing model is `src/widgets/text_input/field.rs`, with unit tests. Live-tested on niri: typing, selection drawing, Shift+Home, cut and paste via the system clipboard, undo, Ctrl+Backspace, multiline Up/Down, one-line scrolling. Mouse selection and the IME are not live-tested, because no pointer automation tool or input method is installed; the IME's byte/letter conversions have unit tests.
+
 ## Planned
 
-1. `TextInput`: selection, mouse caret placement, word movement, undo, multiline, IME (`text-input-v3`).
-2. Separate app processes: an IPC socket per app-id, single instance with activation, `ipc::call` between apps, `xdg-activation`.
-3. Platform helpers: a `Config<T>` file service, a file chooser through the portal (with xdg-foreign for the parent), a notification send helper, double click and side buttons.
-4. In amane-shell: an `amane-kit` widget crate, then the settings app.
+1. Separate app processes: an IPC socket per app-id, single instance with activation, `ipc::call` between apps, `xdg-activation`.
+2. Platform helpers: a `Config<T>` file service, a file chooser through the portal (with xdg-foreign for the parent), a notification send helper, double click and side buttons.
+3. In amane-shell: an `amane-kit` widget crate, then the settings app.
 
 Out of scope for now: client-side decorations, running without layer-shell, accessibility.
