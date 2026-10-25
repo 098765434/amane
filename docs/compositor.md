@@ -52,6 +52,21 @@ overview is up. It tracks the `OverviewOpenedOrClosed` event and is always
 > [`Window`](../src/window.rs) for the xdg-toplevel *surface role* a shell
 > opens itself.
 
+### `Overview` (fork addition, niri only)
+
+Just the overview's open/close progress, the same value as
+`Gestures::read().overview_progress()`:
+
+```rust
+let progress = Overview::read().progress(); // 0.0 closed .. 1.0 fully open
+```
+
+Read this one when the overview is all a view follows. `Gestures` changes
+every time a view scrolls or a workspace switches, and every window that
+reads it is drawn again each time; `Overview` stays quiet unless the
+progress itself moves. It listens on its own stream, like the other
+services. Under stock niri it stays at `0.0`.
+
 ### `Gestures` (fork addition, niri only)
 
 Live, **per-frame** gesture values from niri, so a shell can animate in
@@ -133,7 +148,7 @@ stream.
 
 ## Backend support
 
-| | Workspaces | `focus_workspace` | Windows | actions | Gestures |
+| | Workspaces | `focus_workspace` | Windows | actions | Gestures, Overview |
 | --- | --- | --- | --- | --- | --- |
 | niri | ✅ | ✅ | ✅ | ✅ | ✅ |
 | hyprland | ✅ | ✅ | — | — | — |
