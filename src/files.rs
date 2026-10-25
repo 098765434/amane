@@ -29,7 +29,12 @@ pub fn watch_file(path: &str) -> FileChanges {
 
     let inotify = Inotify::init().expect("failed to start watching files");
 
-    let mask = WatchMask::MODIFY | WatchMask::MOVED_TO | WatchMask::CREATE;
+    // a file deleted or moved away has changed too, to nothing
+    let mask = WatchMask::MODIFY
+        | WatchMask::MOVED_TO
+        | WatchMask::CREATE
+        | WatchMask::DELETE
+        | WatchMask::MOVED_FROM;
 
     inotify
         .watches()

@@ -112,8 +112,11 @@ Not done: the file dialog's parent window (xdg-foreign export), and touch input.
 
 Live-tested on niri: a notification reached the shell's notification server with the right arguments and showed as a toast; the file dialog opened through `xdg-desktop-portal-gnome` with its title and filters, and a file picked in it came back to the callback as its path.
 
-## Planned
+## Phases 8 and 9: in amane-shell (done, branch `kit`)
 
-1. In amane-shell: an `amane-kit` widget crate, then the settings app.
+- **amane-kit:** the shell's controls, design tokens and theme moved into a `kit/` workspace crate. The shell re-exports them under their old paths. New pieces for apps: `Checkbox`, `Radio`, `Dropdown`, `app_window`, `standard_shortcut`, `text_field`/`field_box`, `sidebar`, `Dialog`, and `examples/gallery.rs`.
+- **Shell Settings (`amane-settings`):** an Appearance page (mode, accent, density, text size) that writes `~/.config/amane-shell/appearance.json` through `Config`. The kit's theme reads that file, so the shell follows it live.
+
+These need this branch in the shell's pinned amane rev.
 
 Out of scope for now: client-side decorations, running without layer-shell, accessibility.
