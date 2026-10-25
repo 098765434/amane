@@ -124,6 +124,11 @@ impl TextInput {
         fields::get(id).text
     }
 
+    // whether the input takes the keys right now, to draw it as focused
+    pub fn has_focus(id: &'static str) -> bool {
+        focus::has(id)
+    }
+
     // runs after every change to the text, with the whole new text
     pub fn on_change(mut self, handler: impl Fn(String) + 'static) -> Self {
         self.on_change = Some(Rc::new(handler));
