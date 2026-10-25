@@ -16,6 +16,11 @@ pub enum Button {
 
     // pressing down on the scroll wheel
     Middle,
+
+    // the side buttons many mice have, for going back and forward like a browser
+    Back,
+
+    Forward,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -81,6 +86,22 @@ pub fn pointer_position() -> Point {
 
 pub(crate) fn set_pointer_position(x: f32, y: f32) {
     POSITION.set(Point { x, y });
+}
+
+thread_local! {
+    static CLICKS: std::cell::Cell<u32> = const { std::cell::Cell::new(1) };
+}
+
+/*
+ * how many quick clicks in a row the click being handled is: 1, 2 for a double click,
+ * 3 for a triple click; read it in on_click or on_drag
+ */
+pub fn click_count() -> u32 {
+    CLICKS.get()
+}
+
+pub(crate) fn set_click_count(count: u32) {
+    CLICKS.set(count);
 }
 
 // how many pixels a compositor usually reports for one wheel step

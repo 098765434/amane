@@ -1,7 +1,7 @@
 mod background_effect;
 mod blur_shapes;
 mod compositor;
-mod dropped;
+pub(crate) mod dropped;
 mod idle;
 mod keyboard;
 mod layer;
@@ -172,6 +172,9 @@ struct WaylandState {
     // a drag out has to name the press that started it
     last_press_serial: Option<u32>,
 
+    // the press before, so quick presses count as a double or triple click
+    last_press: Option<pointer::LastPress>,
+
     // what the pointer was last set to on one of the windows, none after it leaves
     cursor_shown: Option<Cursor>,
 
@@ -304,6 +307,7 @@ impl WaylandApp {
             input_method: None,
             dragging_out: None,
             last_press_serial: None,
+            last_press: None,
 
             qh,
 

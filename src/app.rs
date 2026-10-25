@@ -140,6 +140,9 @@ impl App {
 
         let app_id = self.app_id.unwrap_or_else(|| String::from("amane"));
 
+        // notifications go out under the app's name
+        let _ = crate::notify::APP_NAME.set(app_id.clone());
+
         // a copy already running takes this launch over, so only one runs
         if !self.ipc_disabled && hand_over(&app_id) {
             return;

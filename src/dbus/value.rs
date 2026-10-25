@@ -27,6 +27,9 @@ static NOTHING: Value = Value::Nothing;
 pub enum Argument {
     Bool(bool),
 
+    // one byte, like a notification's urgency hint
+    Byte(u8),
+
     Int(i32),
 
     Unsigned(u32),

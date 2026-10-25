@@ -1,8 +1,8 @@
 use amane::{
-    App, Button, Center, Clipboard, Color, Column, ConstraintAdjustment, DragData, Gravity, Key,
-    Point, Pointer, Popup, PopupAnchor, PrimarySelection, Rectangle, Service, Text, TextInput,
-    Window, children, close_window, current_window, minimize_window, open_popup, open_window,
-    open_window_with, pointer_position, spawn_activated, window_size, window_state,
+    App, Button, Center, Clipboard, Color, Column, ConstraintAdjustment, DragData, FileDialog,
+    Gravity, Key, Notify, Point, Pointer, Popup, PopupAnchor, PrimarySelection, Rectangle, Service,
+    Text, TextInput, Window, children, close_window, current_window, minimize_window, open_popup,
+    open_window, open_window_with, pointer_position, spawn_activated, window_size, window_state,
 };
 
 // an app on its own, beside the shell, with the window features a regular app has
@@ -145,6 +145,10 @@ fn shortcut(key: Key) -> bool {
         Key::Character('m') => toggle_maximized(),
         Key::Character('n') => new_document(),
         Key::Character('k') => open_menu(),
+        Key::Character('o') => FileDialog::open("Open a file")
+            .filter("Text", &["*.txt", "*.md"])
+            .filter("Everything", &["*"])
+            .show(|files| Editor::write().pasted = format!("{files:?}")),
         Key::Character('l') => spawn_activated(&format!("{} launched-again", program())),
         Key::Character('c') => Clipboard::copy(Editor::read().notes.clone()),
         Key::Character('v') => Clipboard::paste(|text| Editor::write().pasted = text),
@@ -164,6 +168,11 @@ fn save() {
     let mut editor = Editor::write();
 
     editor.saved = editor.edits;
+
+    Notify::new("Saved")
+        .body(&format!("{} edits", editor.edits))
+        .icon("document-save")
+        .send();
 }
 
 fn toggle_maximized() {

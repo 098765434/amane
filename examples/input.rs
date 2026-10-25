@@ -67,6 +67,7 @@ fn counter_clicked(button: Button) {
         Button::Left => counter.count += 1,
         Button::Right => counter.count -= 1,
         Button::Middle => counter.count = 0,
+        Button::Back | Button::Forward => {}
     }
 }
 

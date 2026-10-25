@@ -63,8 +63,6 @@ pub(crate) enum Request {
 // done by the event loop when it wakes, which holds what the compositor needs
 pub(crate) static REQUESTS: Mutex<Vec<Request>> = Mutex::new(Vec::new());
 
-// pasted text read on another thread, handed to its callback back on the event loop
-pub(crate) static PASTED: Mutex<Vec<(Then, String)>> = Mutex::new(Vec::new());
 
 fn request(request: Request) {
     REQUESTS

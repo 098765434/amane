@@ -47,11 +47,19 @@ mod timing;
 mod wayland;
 mod widgets;
 mod clipboard;
+mod config;
+mod notify;
+mod portal;
 mod window;
 
 pub use animation::{Animation, Blend, Easing, request_frame};
 pub use changes::mark_all;
 pub use clipboard::{Clipboard, DragData, PrimarySelection};
+pub use config::{Config, Settings};
+pub use notify::Notify;
+pub use portal::FileDialog;
+// for deriving Settings without depending on serde yourself: #[serde(crate = "amane::serde")]
+pub use serde;
 pub use app::App;
 pub use blur::{BlurShape, blur_fades, material_available};
 pub use dbus::{Argument, Bus, Method, Signal, Value};
@@ -64,7 +72,9 @@ pub use input::cursor_names::{
     ResizeTopRight, ResizeVertical, Text, Wait,
 };
 pub use input::modifiers::get as modifiers;
-pub use input::{Button, Cursor, Key, Modifiers, Point, Scroll, ScrollSource, pointer_position};
+pub use input::{
+    Button, Cursor, Key, Modifiers, Point, Scroll, ScrollSource, click_count, pointer_position,
+};
 pub use ipc::{IpcCall, call as ipc_call, ipc_socket, ipc_socket_for};
 pub use layer_window::{
     Horizontal, InputArea, Keyboard, Layer, LayerWindow, Margin, Vertical, WindowSize, Zone,

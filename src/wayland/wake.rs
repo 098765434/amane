@@ -23,6 +23,11 @@ pub fn insert(handle: &LoopHandle<'static, WaylandState>) {
 
             state.handle_spawn_requests();
 
+            // what other threads handed back, like pasted text, runs like a handler
+            for job in crate::changes::take_later() {
+                job();
+            }
+
             state.request_changed_frames();
         })
         .expect("failed to insert wake ping");

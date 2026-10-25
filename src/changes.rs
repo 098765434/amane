@@ -47,6 +47,25 @@ pub fn mark_all() {
     ping();
 }
 
+// work handed back from another thread, run on the event loop like a handler
+type Job = Box<dyn FnOnce() + Send>;
+
+static LATER: Mutex<Vec<Job>> = Mutex::new(Vec::new());
+
+// runs `job` on the event loop at its next wake, like a paste or a picked file arriving
+pub(crate) fn later(job: impl FnOnce() + Send + 'static) {
+    LATER
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .push(Box::new(job));
+
+    ping();
+}
+
+pub(crate) fn take_later() -> Vec<Job> {
+    std::mem::take(&mut *LATER.lock().unwrap_or_else(PoisonError::into_inner))
+}
+
 // whether an event loop is running to be woken
 pub fn has_loop() -> bool {
     WAKE.get().is_some()

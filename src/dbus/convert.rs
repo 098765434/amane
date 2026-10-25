@@ -83,6 +83,7 @@ pub fn body(arguments: &[Argument]) -> Structure<'static> {
 fn variant(argument: &Argument) -> Variant<'static> {
     match argument {
         Argument::Bool(value) => Variant::Bool(*value),
+        Argument::Byte(value) => Variant::U8(*value),
         Argument::Int(number) => Variant::I32(*number),
         Argument::Unsigned(number) => Variant::U32(*number),
         Argument::Long(number) => Variant::I64(*number),

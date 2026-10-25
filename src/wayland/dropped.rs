@@ -366,7 +366,7 @@ fn encode(path: &str) -> String {
 }
 
 // one link per line, lines starting with # are comments
-fn parse(list: &str) -> Vec<PathBuf> {
+pub(crate) fn parse(list: &str) -> Vec<PathBuf> {
     let mut files = Vec::new();
 
     for line in list.lines() {
