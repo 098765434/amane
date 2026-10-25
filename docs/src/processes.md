@@ -151,6 +151,6 @@ fn view() -> LayerWindow {
 
 Try `echo hello > /tmp/amane-note` while the bar runs.
 
-`watch_file` gives an item each time the file is written, created, or replaced. Editors usually save by writing a new file and renaming it over the old one, which would end a watch on the file itself, so Amane watches the folder and picks out your file's changes. The file doesn't have to exist yet when you start watching, but its folder does.
+`watch_file` gives an item each time the file is written, created, replaced, deleted or moved away. Editors usually save by writing a new file and renaming it over the old one, which would end a watch on the file itself, so Amane watches the folder and picks out your file's changes. The file doesn't have to exist yet when you start watching, but its folder does.
 
 Reading the file is up to you, in the loop, as above.
