@@ -55,12 +55,22 @@ use amane::*;
 | `Window::new()` | a normal app window |
 | `.title("Settings")` | window title, `"amane"` by default |
 | `.size(480.0, 320.0)` | size it opens at, 640 by 480 by default |
-| `.resizable(true)` | lets the user resize it, `false` by default |
+| `.app_id("amane-settings")` | what the compositor and docks know it by, `App::app_id` by default |
+| `.resizable(true)` | lets the user resize it, `true` by default |
+| `.min_size(w, h)` / `.max_size(w, h)` | limits for the user's resizing |
+| `.maximized(true)` / `.fullscreen(true)` | asks the compositor, again only when the answer changes |
+| `.parent("name")` / `.modal(true)` | a dialog over another normal window |
 | `.on_key(handler)` | handles keys, `Fn(Key)` |
+| `.on_close(handler)` | asked when the user closes it, `Fn() -> bool`; `false` keeps it open |
 | `.child(widget)` | the window's content |
 | `open_window("name", view)` | opens a normal window later. Does nothing if that name is open. |
-| `close_window("name")` | closes it |
+| `open_window_with(name, closure)` | the same, with a view that carries its own data |
+| `close_window("name")` | closes it, without asking `on_close` |
+| `minimize_window("name")` | asks the compositor to minimize it |
 | `window_size()` | the real size of the window being drawn, `(f32, f32)` |
+| `window_state()` | `focused`, `maximized`, `fullscreen`, `tiled`, `resizing`, `server_decorated` |
+| `current_window()` | the name of the normal window being drawn |
+| `App::app_id("id")` / `App::keep_alive()` | the app's default app-id; keep running with no windows |
 
 ## Sizes
 

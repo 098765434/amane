@@ -59,7 +59,7 @@ A frame is `OpenWindow::redraw` in `src/wayland/redraw.rs`, and it goes through 
 
 First it runs the view. `frame::run_view` clears the list of Services read so far, tells `window_size()` how big the window is, runs your view, and returns the new `LayerWindow` together with the set of Services the view read.
 
-Then `update_surface` (in `src/wayland/update.rs`) compares the window settings the view asked for (size, anchor, layer, margin, keyboard mode, exclusive zone, visibility, input region) with the ones it last sent, and only sends what changed. Hiding a window takes its buffer away and sets its size to 0. If the window is hidden or not configured yet, the frame stops here.
+Then `update_surface` (in `src/wayland/update.rs`) compares the window settings the view asked for (size, anchor, layer, margin, keyboard mode, exclusive zone, visibility, input region) with the ones it last sent, and only sends what changed. A normal window does the same with its own settings (title, min and max size, maximized, fullscreen) in `OpenWindow::update_normal` (`src/wayland/normal.rs`). Hiding a window takes its buffer away and sets its size to 0. If the window is hidden or not configured yet, the frame stops here.
 
 Next, `frame::build` lays the tree out in the window and asks every widget to draw into a `Renderer`. Nothing is drawn yet at this point. The renderer only records a list of `Command`s. Some widgets read Services while drawing too (an image that is still decoding does this), so those reads are added to the window's list. After drawing, `build` collects the input targets, which replace the last frame's targets in the window's `Pointer`. The view's `on_key` replaces the old one the same way.
 
@@ -77,7 +77,7 @@ The compositor can cause one directly. A configure resizes the window and redraw
 
 A Service can change. When a view calls `SomeService::read()`, the Service's `TypeId` is noted. When a `Write` guard is dropped, it calls `changes::mark`, which records which Service changed and pings the event loop. The wake callback then calls `request_changed_frames`, which only redraws the windows whose last frame read that Service (it checks with `is_disjoint`). A write that turned out to change nothing can be marked `quiet`, and then it wakes nobody.
 
-Some things affect every window. `open_window`, `close_window` and `Lock::start` call `changes::mark_all`, and the wake callback opens, closes or locks whatever was asked for before redrawing. An IPC call also redraws every window, because a handler can change anything.
+Some things affect every window. `open_window`, `close_window`, `minimize_window` and `Lock::start` call `changes::mark_all`, and the wake callback opens, closes or locks whatever was asked for before redrawing. Window requests wait in one queue (`window::REQUESTS`), so an open followed by a close happens in that order. An IPC call also redraws every window, because a handler can change anything.
 
 Input redraws only the window it happened in. When a pointer or key handler runs, that window asks for a frame. If the handler wrote a Service, that write wakes the Service's readers in other windows on its own, so hovering over your bar never redraws every window on every monitor.
 

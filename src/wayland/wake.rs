@@ -15,9 +15,7 @@ pub fn insert(handle: &LoopHandle<'static, WaylandState>) {
 
             state.update_idle_if_asked();
 
-            state.open_requested();
-
-            state.close_requested();
+            state.handle_window_requests();
 
             state.request_changed_frames();
         })

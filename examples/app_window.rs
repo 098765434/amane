@@ -1,0 +1,195 @@
+use amane::{
+    App, Center, Color, Column, Key, Pointer, Rectangle, Service, Text, Window, children,
+    close_window, current_window, minimize_window, open_window, open_window_with, window_size,
+    window_state,
+};
+
+// an app on its own, beside the shell, with the window features a regular app has
+struct Editor {
+    edits: u32,
+    saved: u32,
+    maximized: bool,
+    documents: u32,
+}
+
+impl Service for Editor {
+    fn new() -> Self {
+        Self {
+            edits: 0,
+            saved: 0,
+            maximized: false,
+            documents: 0,
+        }
+    }
+
+    // only input changes it
+    fn listen() {}
+}
+
+fn main() {
+    App::new()
+        .app_id("amane-example")
+        .without_ipc()
+        .normal_window("main", main_window)
+        .run();
+}
+
+fn main_window() -> Window {
+    let editor = Editor::read();
+    let state = window_state();
+    let (width, height) = window_size();
+
+    let unsaved = editor.edits != editor.saved;
+
+    // an unfocused window greys out, like most apps do
+    let background = if state.focused { "#313244" } else { "#24273a" };
+
+    Window::new()
+        .title(&format!("amane example{}", if unsaved { " •" } else { "" }))
+        .size(520.0, 360.0)
+        .min_size(360.0, 260.0)
+        .maximized(editor.maximized)
+        .on_key(shortcut)
+        .on_close(|| {
+            let editor = Editor::read();
+
+            // the first close only warns while there are unsaved edits
+            if editor.edits != editor.saved {
+                open_window("unsaved", unsaved_dialog);
+
+                return false;
+            }
+
+            true
+        })
+        .child(
+            Rectangle::new()
+                .width(amane::Parent)
+                .height(amane::Parent)
+                .fill(background)
+                .align_child(Center, Center)
+                .child(
+                    Column::new(children![
+                        label(format!("{width}x{height}")),
+                        label(format!(
+                            "focused {} maximized {} tiled {} decorated {}",
+                            state.focused, state.maximized, state.tiled, state.server_decorated
+                        )),
+                        label(format!("{} edits, {} saved", editor.edits, editor.saved)),
+                        button("edit (e)", |_| edit()),
+                        button("save (s)", |_| save()),
+                        button("toggle maximized (m)", |_| toggle_maximized()),
+                        button("minimize", |_| minimize_window("main")),
+                        button("new document (n)", |_| new_document()),
+                    ])
+                    .gap(8.0),
+                ),
+        )
+}
+
+fn shortcut(key: Key) {
+    match key {
+        Key::Character('e') => edit(),
+        Key::Character('s') => save(),
+        Key::Character('m') => toggle_maximized(),
+        Key::Character('n') => new_document(),
+        _ => {}
+    }
+}
+
+fn edit() {
+    Editor::write().edits += 1;
+}
+
+fn save() {
+    let mut editor = Editor::write();
+
+    editor.saved = editor.edits;
+}
+
+fn toggle_maximized() {
+    let mut editor = Editor::write();
+
+    editor.maximized = !editor.maximized;
+}
+
+fn new_document() {
+    let number = {
+        let mut editor = Editor::write();
+
+        editor.documents += 1;
+
+        editor.documents
+    };
+
+    open_window_with(format!("document {number}"), move || document(number));
+}
+
+// one view, many windows, each knowing its own number
+fn document(number: u32) -> Window {
+    let me = current_window();
+
+    Window::new()
+        .title(&format!("document {number}"))
+        .size(300.0, 160.0)
+        .child(
+            Rectangle::new()
+                .width(amane::Parent)
+                .height(amane::Parent)
+                .fill("#1e1e2e")
+                .align_child(Center, Center)
+                .child(
+                    Column::new(children![
+                        label(format!("I am {me}")),
+                        button("close", move |_| close_window(&me)),
+                    ])
+                    .gap(8.0),
+                ),
+        )
+}
+
+// over the main window, keeping the user out of it until answered
+fn unsaved_dialog() -> Window {
+    Window::new()
+        .title("unsaved changes")
+        .size(300.0, 140.0)
+        .resizable(false)
+        .parent("main")
+        .modal(true)
+        .child(
+            Rectangle::new()
+                .width(amane::Parent)
+                .height(amane::Parent)
+                .fill("#45475a")
+                .align_child(Center, Center)
+                .child(
+                    Column::new(children![
+                        label(String::from("there are unsaved edits")),
+                        button("save and close", |_| {
+                            save();
+
+                            close_window("unsaved");
+                            close_window("main");
+                        }),
+                        button("keep editing", |_| close_window("unsaved")),
+                    ])
+                    .gap(8.0),
+                ),
+        )
+}
+
+fn label(text: String) -> Text {
+    Text::new(text).size(15.0).color(Color::WHITE)
+}
+
+fn button(text: &str, on_click: impl Fn(amane::Button) + 'static) -> Rectangle {
+    Rectangle::new()
+        .width(240.0)
+        .height(30.0)
+        .fill("#585b70")
+        .radius(6.0)
+        .cursor(Pointer)
+        .align_child(Center, Center)
+        .on_click(on_click)
+        .child(label(String::from(text)))
+}

@@ -86,6 +86,7 @@ impl WaylandState {
 
             pointer: Pointer::default(),
             on_key: None,
+            on_close: None,
 
             gpu,
 
@@ -148,7 +149,7 @@ impl WaylandState {
             .retain(|window| window.role.wl_surface() != surface);
 
         // windows made per monitor come back when a monitor is plugged in again
-        if self.windows.is_empty() && self.per_monitor.is_empty() {
+        if self.windows.is_empty() && self.per_monitor.is_empty() && !self.keep_alive {
             self.running = false;
         }
     }

@@ -99,12 +99,95 @@ fn settings() -> Window {
 }
 ```
 
-- `title` defaults to `"amane"`.
+- `title` defaults to `"amane"`. It can change while the window is open, for example to mark unsaved changes.
+- `app_id` is what the compositor, docks and window rules know the app by, like `"amane-settings"`. It's read once, when the window opens. Without it the window takes `App::app_id`, and without that `"amane"`.
 - `size` is the size it opens at, 640 by 480 by default. The compositor may give it another size, and a tiling compositor usually does.
-- `resizable` lets the user resize it. It's `false` by default.
+- `resizable` lets the user resize it. It's `true` by default.
+- `min_size` and `max_size` limit how small or big the user can make it. A tiling compositor may still give a tiled window less.
 - `on_key` works the same as on a layer window. A normal window gets keyboard focus like any app, so it needs no `Keyboard` setting.
 
 The name, `"settings"` here, tells windows apart. It's used to close the window later.
+
+Everything except `app_id` and `size` is read again on every frame, and only what changed is sent to the compositor, the same as for layer windows.
+
+### Maximized and fullscreen
+
+`.maximized(true)` and `.fullscreen(true)` ask the compositor to maximize the window or make it fullscreen. The request is only sent again when the view's answer changes, so the user can still unmaximize it from the compositor without the view fighting back. Leave them unset to let the user decide.
+
+`minimize_window(name)` asks the compositor to hide the window until the user brings it back. Not every compositor can; niri can't, and does nothing.
+
+### What the compositor says
+
+Inside a view, `window_state()` tells you what the compositor last said about the window:
+
+```rust,ignore
+let state = window_state();
+
+// grey the window out while another one has focus, like most apps do
+let background = if state.focused { "#313244" } else { "#24273a" };
+```
+
+| Field | Meaning |
+|---|---|
+| `focused` | the window the user is working in |
+| `maximized`, `fullscreen` | as the compositor has it, which may differ from what the view asked |
+| `tiled` | placed edge to edge with other windows |
+| `resizing` | the user is dragging its edges right now |
+| `server_decorated` | the compositor draws its title bar. When `false`, the window has none, and Amane doesn't draw one |
+
+In a layer window or a popup, all of them are `false`. A change redraws the window.
+
+### Asking before closing
+
+`on_close` runs when the user closes the window from the compositor, like with a keybind or the title bar. Return `false` to keep it open, for example to ask about unsaved changes first:
+
+```rust,ignore
+Window::new().on_close(|| {
+    if Document::read().unsaved {
+        open_window("unsaved", unsaved_dialog);
+
+        return false;
+    }
+
+    true
+})
+```
+
+`close_window` doesn't ask, so a dialog's "Discard" button can close the window for real.
+
+### Dialogs
+
+`.parent(name)` shows a window over the open window with that name, the way a dialog belongs to its app. `.modal(true)` also keeps the user out of the parent until the dialog closes, where the compositor supports it (`xdg-dialog`). Both are read once, when the window opens.
+
+```rust,ignore
+fn unsaved_dialog() -> Window {
+    Window::new()
+        .title("Unsaved changes")
+        .size(300.0, 140.0)
+        .resizable(false)
+        .parent("main")
+        .modal(true)
+        .child(...)
+}
+```
+
+### An app of its own
+
+A normal window doesn't need a bar or the shell. An app that runs next to the shell sets its app-id and leaves the IPC socket to the shell:
+
+```rust,ignore
+fn main() {
+    App::new()
+        .app_id("amane-settings")
+        .without_ipc()
+        .normal_window("main", main_window)
+        .run();
+}
+```
+
+The app exits when its last window closes. `App::keep_alive()` keeps it running anyway, for an app that only opens windows when asked.
+
+See `examples/app_window.rs` for all of this in one app.
 
 ## Opening and closing windows later
 
@@ -143,7 +226,25 @@ fn settings() -> Window {
 - `close_window(name)` closes it. Closing a window that isn't open does nothing.
 - The user can also close a normal window from its title bar or with their compositor's keybind.
 
-Both work from anywhere: input handlers, IPC handlers, or a Service's thread.
+They all work from anywhere: input handlers, IPC handlers, or a Service's thread.
+
+### Many windows from one view
+
+A view given to `open_window` is a plain function, so every window it opens shows the same thing. `open_window_with` takes a closure instead, so each window can carry its own data, like the document it shows:
+
+```rust,ignore
+open_window_with(format!("document {path}"), move || document(&path));
+```
+
+The name still tells windows apart, so give each one its own. Inside a view, `current_window()` gives the name of the window being drawn. Move it into a handler to close the window from inside it:
+
+```rust,ignore
+fn document(path: &str) -> Window {
+    let me = current_window();
+
+    Window::new().child(close_button().on_click(move |_| close_window(&me)))
+}
+```
 
 `open_window` only opens normal windows. To show and hide a layer window, like a popup or a launcher, keep it open and use `.visible(...)` ([Layer Windows](layer_windows.md)).
 

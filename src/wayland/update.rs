@@ -26,7 +26,12 @@ fn make_blur_effect(window: &OpenWindow) -> Option<BlurEffect> {
 impl OpenWindow {
     // settings changed by input or services reach the compositor before anything is drawn
     pub fn update_surface(&mut self, content: &Content) {
-        // a normal window's title and size are only read when it opens
+        if let Content::Normal(window) = content {
+            self.update_normal(window);
+
+            return;
+        }
+
         let Content::Layer(window) = content else {
             return;
         };
