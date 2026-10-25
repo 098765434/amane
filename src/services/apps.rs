@@ -56,6 +56,11 @@ impl Apps {
     pub fn list(&self) -> &[DesktopApp] {
         &self.list
     }
+
+    // an icon file for `icon`, a theme icon name or a full path, for an app with no desktop entry
+    pub fn find_icon(icon: &str) -> Option<PathBuf> {
+        find_icon(icon)
+    }
 }
 
 // an icon name from the user's theme, or a full path as it is; walks the themes the first time
