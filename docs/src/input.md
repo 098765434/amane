@@ -59,6 +59,37 @@ A `Point` has `x` and `y`, measured in pixels from the rectangle's top-left corn
 
 A `Scroll` is measured in lines, so a mouse wheel and a touchpad move things by the same amount. Positive `y` means scrolling down, and positive `x` means scrolling right.
 
+A `Scroll` also says where it came from, for things that should move differently under fingers than under a wheel:
+
+| Field or method | Gives |
+|---|---|
+| `source` | a `ScrollSource`: `Wheel` (a wheel that clicks in steps, and anything the compositor doesn't name), `Finger` (a touchpad), `Continuous` (like a trackpoint) or `Tilt` (a wheel pushed sideways) |
+| `stop` | `true` when the fingers lift off the touchpad. `x` and `y` are usually `0` then |
+| `pixels()` | `(x, y)` in pixels instead of lines, to follow fingers one to one |
+
+A carousel that follows the fingers and settles on a page when they lift:
+
+```rust,ignore
+use amane::{Scroll, ScrollSource};
+
+fn scrolled(scroll: Scroll) {
+    match scroll.source {
+        ScrollSource::Finger | ScrollSource::Continuous => {
+            move_by(scroll.pixels().1);
+
+            if scroll.stop {
+                settle_on_nearest_page();
+            }
+        }
+
+        // a wheel steps a page a notch
+        ScrollSource::Wheel | ScrollSource::Tilt => step(scroll.y.signum()),
+    }
+}
+```
+
+Not every compositor sends `stop`, so something that waits for it should also give up a moment after the last movement.
+
 ## Passing values into handlers
 
 A handler can be a function, like `clicked` above, or a closure. A closure can carry values from the view into the handler:

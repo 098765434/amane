@@ -127,7 +127,7 @@ use amane::*;
 |---|---|
 | `.on_click(\|button\| ...)` | `Button::Left`, `Right`, `Middle` |
 | `.on_hover(\|inside\| ...)` | `true` on enter, `false` on leave |
-| `.on_scroll(\|scroll\| ...)` | `Scroll { x, y }` in lines, positive `y` is down |
+| `.on_scroll(\|scroll\| ...)` | `Scroll { x, y, source, stop }`: `x`, `y` in lines, positive `y` is down; `source` is `Wheel`, `Finger`, `Continuous` or `Tilt`; `stop` when the fingers lift; `pixels()` |
 | `.on_move(\|point\| ...)` | `Point { x, y }` from the top-left corner |
 | `.on_drag(\|point\| ...)` | `Point`, from a left press until release |
 | `.cursor(Pointer)` | `Default`, `Pointer`, `Text`, `Grab`, `Grabbing`, `Move`, `NotAllowed`, `Wait`, `Crosshair`, `Resize...` |

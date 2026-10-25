@@ -62,6 +62,12 @@ fn view() -> LayerWindow {
 | `icon_path()` | the icon's image file, a PNG when the theme has one, or `None` |
 | `launch()` | starts the program, without waiting for it |
 
+`Apps::find_icon(name)` looks up an icon by its name in the icon theme (or takes a full path as it is) and gives its image file, or `None`. Use it for something with no `.desktop` file, like a window whose app_id names an icon:
+
+```rust,ignore
+let icon = Apps::find_icon("org.gnome.Nautilus");
+```
+
 ## First load and rescans
 
 Finding icons means walking every icon theme on your system, which takes a few seconds. So `list()` is empty at first, and fills in once the first scan is done. The window redraws by itself when it does.

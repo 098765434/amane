@@ -31,6 +31,13 @@ A single feature commit on top of `fork-base`:
   column, and workspace-switch progress, for compositor-synced animation.
   (`src/services/gestures.rs`.) Requires the niri gesture-IPC fork
   ([098765434/niri](https://github.com/098765434/niri)).
+- **`Overview` service** (niri only) — the overview progress alone, so a view that follows the
+  overview isn't drawn again on every view scroll. (`src/services/overview.rs`.)
+- **Scroll source and finger lift** — `Scroll` carries `source` (`ScrollSource::Wheel`,
+  `Finger`, `Continuous`, `Tilt`) and `stop` from `wl_pointer`'s `axis_source`/`axis_stop`, plus
+  `pixels()`, so a handler can follow fingers and settle when they lift.
+  (`src/input.rs`, `src/wayland/pointer.rs`.) See [docs/src/input.md](docs/src/input.md).
+- **`Apps::find_icon`** — the icon-theme lookup, public, for windows without a `.desktop` file.
 
 - **`Battery` via UPower + `PowerProfile` service** — peripheral batteries, warning level, time
   estimates and AC state from UPower (sysfs kept as the fallback), and power-profiles-daemon's
