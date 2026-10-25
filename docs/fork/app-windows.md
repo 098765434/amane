@@ -24,14 +24,25 @@ Fixes along the way:
 
 Not done: toplevel window geometry is not set, because without client-side decorations it would be the whole surface anyway.
 
+## Phase 2: popups over app windows (done)
+
+| Addition | Notes |
+|---|---|
+| `Popup::parent_window(name)` | parents a popup to a normal window's `xdg_surface` |
+| `open_popup(closure)` | a slot opened from a handler and dropped once its popup has closed; a namespace that is already open is replaced |
+| `pointer_position()` | where the pointer last was in its window, for anchoring a context menu |
+| Popups close before their window | `WaylandState::close` closes a normal or layer window's popups first (xdg-shell forbids the reverse) |
+| Keys to a grabbing popup | when the compositor keeps the focus on the window under a menu, keys go to the newest grabbing popup |
+
+The popup docs are [popups.md](popups.md). Reading the configure's `position` (to know a popup was flipped) was planned but left out, because nothing needs it yet.
+
 ## Planned
 
-1. Popups, menus and tooltips parented to normal windows, and popups opened at runtime.
-2. Keyboard: key repeat, more keys (Delete, PageUp/PageDown, F-keys), key release, and shortcuts that still fire while a `TextInput` has focus.
-3. Clipboard and primary selection, text drops, dragging out.
-4. `TextInput`: selection, mouse caret placement, word movement, undo, multiline, IME (`text-input-v3`).
-5. Separate app processes: an IPC socket per app-id, single instance with activation, `ipc::call` between apps, `xdg-activation`.
-6. Platform helpers: a `Config<T>` file service, a file chooser through the portal (with xdg-foreign for the parent), a notification send helper, double click and side buttons.
-7. In amane-shell: an `amane-kit` widget crate, then the settings app.
+1. Keyboard: key repeat, more keys (Delete, PageUp/PageDown, F-keys), key release, and shortcuts that still fire while a `TextInput` has focus.
+2. Clipboard and primary selection, text drops, dragging out.
+3. `TextInput`: selection, mouse caret placement, word movement, undo, multiline, IME (`text-input-v3`).
+4. Separate app processes: an IPC socket per app-id, single instance with activation, `ipc::call` between apps, `xdg-activation`.
+5. Platform helpers: a `Config<T>` file service, a file chooser through the portal (with xdg-foreign for the parent), a notification send helper, double click and side buttons.
+6. In amane-shell: an `amane-kit` widget crate, then the settings app.
 
 Out of scope for now: client-side decorations, running without layer-shell, accessibility.

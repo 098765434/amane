@@ -59,7 +59,7 @@ struct WaylandState {
     windows: Vec<OpenWindow>,
 
     // popup slots: their views are polled each tick to open/close surfaces
-    popup_views: Vec<fn() -> Popup>,
+    popup_views: Vec<popup::PopupSlot>,
 
     // on_dismiss callbacks keyed by popup namespace
     popup_dismiss_handlers: Vec<(&'static str, std::rc::Rc<dyn Fn()>)>,
@@ -200,7 +200,10 @@ impl WaylandApp {
         let mut state = WaylandState {
             windows: Vec::new(),
 
-            popup_views,
+            popup_views: popup_views
+                .into_iter()
+                .map(popup::PopupSlot::registered)
+                .collect(),
             popup_dismiss_handlers: Vec::new(),
             dismissed: Vec::new(),
             last_grab_serial: std::collections::HashMap::new(),

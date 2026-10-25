@@ -18,6 +18,7 @@ use wayland_client::{
 use crate::graphics::Gpu;
 use crate::input::{KeyHandler, Pointer};
 use crate::scale::ScaleFactor;
+use crate::popup::PopupView;
 use crate::window::{CloseHandler, WindowView};
 use crate::{BlurShape, InputArea, LayerWindow, Monitor, Popup, Widget, Window, WindowState};
 
@@ -131,6 +132,12 @@ pub enum Role {
         // the parent surface's namespace, so descendants can be torn down
         // child-first (xdg-shell requires reverse-creation-order destroy)
         parent: Option<&'static str>,
+
+        // the normal window it opened over, so closing that window closes it first
+        window: Option<String>,
+
+        // a grabbing popup, like a menu, takes the keys while it is open
+        grab: bool,
     },
 }
 
@@ -145,7 +152,7 @@ pub enum View {
     Normal(String, WindowView),
 
     // an xdg-popup; the view returns a Popup with .visible(bool) each frame
-    Popup(fn() -> Popup),
+    Popup(PopupView),
 }
 
 pub type Parts = (Option<Box<dyn Widget>>, Option<KeyHandler>, Option<CloseHandler>);

@@ -156,6 +156,56 @@ blur/corner mask can be mis-sized or absent.
   them. Grabs nest natively per the xdg-popup protocol. The fork
   records each popup's parent namespace so it can tear a nested stack
   down in the right order (see below).
+- Normal window parent: `.parent_window("<window name>")` opens the
+  popup over the open normal window with that name, like a menu or a
+  tooltip inside an app. It wins over `.parent(...)`. The popup is
+  skipped while no such window is open.
+
+When a normal or layer window closes, its popups (and their
+descendants) are closed first, since xdg-shell forbids destroying a
+parent before its popups.
+
+## Opening popups from a handler
+
+`App::popup` registers slots up front. An app can also open one when
+it needs it, like a context menu on a right click, with `open_popup`.
+Its view is a closure, so it can carry where it was asked for:
+
+```rust,ignore
+fn on_right_click() {
+    let at = pointer_position();
+
+    Menu::write().open = true;
+
+    open_popup(move || menu(at));
+}
+
+fn menu(at: Point) -> Popup {
+    Popup::new("menu")
+        .size(200, 120)
+        .anchor_rect(at.x as i32, at.y as i32, 1, 1)
+        .parent_window("main")
+        .grab()
+        .visible(Menu::read().open)
+        .on_dismiss(|| Menu::write().open = false)
+        .child(...)
+}
+```
+
+- The slot lasts until its popup closes, through `.visible(false)`,
+  a click outside, or its parent closing. Then it's dropped.
+- Opening a popup with the namespace of an open one replaces it.
+- `pointer_position()` is where the pointer last was, measured from
+  the top-left corner of the window it was on, in the same units as
+  `anchor_rect`.
+
+## Keys while a menu is open
+
+A compositor may keep the keyboard focus on the window under a
+grabbing popup (niri does for normal windows). While it does, keys go
+to the newest open grabbing popup's `on_key` instead, so Escape still
+closes a menu. When the compositor focuses a popup itself, that popup
+keeps the keys as before.
 
 ## Dismissal flow
 

@@ -1,9 +1,11 @@
 use std::collections::HashSet;
+use std::mem;
+use std::sync::{Arc, PoisonError};
 
 use smithay_client_toolkit::shell::{
     WaylandSurface,
     xdg::{
-        XdgPositioner,
+        XdgPositioner, XdgSurface,
         popup::{Popup as SctkPopup, PopupConfigure, PopupHandler},
     },
 };
@@ -14,15 +16,62 @@ use wayland_client::{Connection, QueueHandle};
 
 use crate::graphics::Gpu;
 use crate::input::Pointer;
-use crate::popup::{Anchor, ConstraintAdjustment, Gravity};
 use crate::Popup;
+use crate::popup::{Anchor, ConstraintAdjustment, Gravity, OPENING, PopupView};
 
 use super::{
     WaylandState,
     surface::{OpenWindow, Role, View},
 };
 
+// a popup view the event loop polls, from App::popup or from open_popup
+pub struct PopupSlot {
+    view: PopupView,
+
+    // from open_popup: the slot goes once its popup has closed
+    transient: bool,
+
+    // seen open at least once, so a transient slot knows its popup has come and gone
+    opened: bool,
+}
+
+impl PopupSlot {
+    pub fn registered(view: fn() -> Popup) -> Self {
+        Self {
+            view: Arc::new(view),
+            transient: false,
+            opened: false,
+        }
+    }
+}
+
 impl WaylandState {
+    // the popups open_popup asked for; one with the namespace of an open popup replaces it
+    pub fn handle_popup_requests(&mut self) {
+        let mut queue = OPENING.lock().unwrap_or_else(PoisonError::into_inner);
+
+        let opening = mem::take(&mut *queue);
+
+        drop(queue);
+
+        for view in opening {
+            let namespace = view().namespace;
+
+            self.popup_views
+                .retain(|slot| !(slot.transient && (slot.view)().namespace == namespace));
+
+            self.close_popup_cascade(namespace);
+
+            self.dismissed.retain(|dismissed| *dismissed != namespace);
+
+            self.popup_views.push(PopupSlot {
+                view,
+                transient: true,
+                opened: false,
+            });
+        }
+    }
+
     /// Called every event-loop tick to reconcile popup slots: open the ones
     /// whose latest view said `.visible(true)` and no live surface exists,
     /// close the ones whose latest view said `.visible(false)`.
@@ -33,13 +82,33 @@ impl WaylandState {
 
         // Make a stable snapshot of the view fns before iterating (so a view
         // closure that mutates runtime doesn't invalidate indices).
-        let views = self.popup_views.clone();
+        let views: Vec<PopupView> = self.popup_views.iter().map(|slot| slot.view.clone()).collect();
 
         for view_fn in views {
             let popup = view_fn();
             let is_live = self.windows.iter().any(|w| {
                 matches!(&w.role, Role::Popup { namespace, .. } if *namespace == popup.namespace)
             });
+
+            let Some(slot) = self
+                .popup_views
+                .iter_mut()
+                .find(|slot| Arc::ptr_eq(&slot.view, &view_fn))
+            else {
+                continue;
+            };
+
+            slot.opened |= is_live;
+
+            // a transient popup that has closed, or that its view no longer wants, is done
+            if slot.transient && !is_live && (slot.opened || !popup.visible) {
+                self.popup_views
+                    .retain(|slot| !Arc::ptr_eq(&slot.view, &view_fn));
+
+                self.dismissed.retain(|ns| *ns != popup.namespace);
+
+                continue;
+            }
 
             match (popup.visible, is_live) {
                 (true, false) => {
@@ -77,7 +146,7 @@ impl WaylandState {
     /// `done()` can trigger a parent's teardown while a child is still live
     /// (e.g. outside-click dismiss with a submenu open), so we gather the
     /// whole descendant subtree and drop it deepest-first.
-    fn close_popup_cascade(&mut self, namespace: &'static str) {
+    pub fn close_popup_cascade(&mut self, namespace: &'static str) {
         // BFS from `namespace` over the parent links; `order` ends up
         // breadth-first (shallowest first), so we drop it in reverse.
         let mut order: Vec<&'static str> = vec![namespace];
@@ -117,10 +186,10 @@ impl WaylandState {
         }
     }
 
-    fn open_popup(&mut self, view_fn: fn() -> Popup, popup: Popup) {
-        // Find a parent xdg_surface. First try the requested namespace; if
-        // None, fall back to any live Role::Layer window.
-        let parent_surface = self.find_parent_xdg_surface(popup.parent);
+    fn open_popup(&mut self, view_fn: PopupView, popup: Popup) {
+        // Find a parent xdg_surface. First try the requested normal window, then
+        // the requested namespace; if None, fall back to any live Role::Layer window.
+        let parent_surface = self.find_parent_xdg_surface(popup.parent, popup.parent_window.as_deref());
 
         let Some(parent) = parent_surface else {
             if std::env::var_os("AMANE_DEBUG").is_some() {
@@ -163,7 +232,9 @@ impl WaylandState {
         // layer_surface.get_popup) or Some(xdg_surface) (nested popup).
         let (parent_arg, layer_parent) = match parent {
             ParentSurface::Layer(layer_surface) => (None, Some(layer_surface)),
-            ParentSurface::Popup(parent_xdg) => (Some(parent_xdg), None),
+            ParentSurface::Popup(parent_xdg) | ParentSurface::Normal(parent_xdg) => {
+                (Some(parent_xdg), None)
+            }
         };
 
         let sctk_popup = match SctkPopup::from_surface(
@@ -266,6 +337,8 @@ impl WaylandState {
             popup: sctk_popup,
             namespace,
             parent: popup.parent,
+            window: popup.parent_window,
+            grab: popup.grab,
         };
 
         let window = OpenWindow {
@@ -306,7 +379,20 @@ impl WaylandState {
         self.windows.push(window);
     }
 
-    fn find_parent_xdg_surface(&self, requested: Option<&'static str>) -> Option<ParentSurface> {
+    fn find_parent_xdg_surface(
+        &self,
+        requested: Option<&'static str>,
+        window: Option<&str>,
+    ) -> Option<ParentSurface> {
+        if let Some(key) = window {
+            return self.windows.iter().find_map(|w| match &w.role {
+                Role::Normal { window, .. } if w.view.shows(key) => {
+                    Some(ParentSurface::Normal(window.xdg_surface().clone()))
+                }
+                _ => None,
+            });
+        }
+
         if let Some(ns) = requested {
             for w in &self.windows {
                 match &w.role {
@@ -338,6 +424,7 @@ impl WaylandState {
 enum ParentSurface {
     Layer(WlSurface),
     Popup(xdg_surface::XdgSurface),
+    Normal(xdg_surface::XdgSurface),
 }
 
 impl PopupHandler for WaylandState {

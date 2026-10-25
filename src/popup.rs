@@ -9,7 +9,9 @@
 //! `.visible(true)` tells it to (re)create one on the next frame.
 
 use std::rc::Rc;
+use std::sync::{Arc, Mutex, PoisonError};
 
+use crate::changes;
 use crate::input::KeyHandler;
 use crate::{Key, Widget};
 
@@ -84,6 +86,9 @@ pub struct Popup {
     // the parent surface; None = parent to the first registered LayerWindow
     pub(crate) parent: Option<&'static str>,
 
+    // a normal window to open over instead, by its name
+    pub(crate) parent_window: Option<String>,
+
     pub(crate) size: (u32, u32),
     pub(crate) anchor_rect: AnchorRect,
     pub(crate) anchor: Anchor,
@@ -116,6 +121,12 @@ impl Popup {
 
     pub fn parent(mut self, parent: &'static str) -> Self {
         self.parent = Some(parent);
+        self
+    }
+
+    // opens over the normal window with this name, like a menu inside an app
+    pub fn parent_window(mut self, name: &str) -> Self {
+        self.parent_window = Some(String::from(name));
         self
     }
 
@@ -179,6 +190,7 @@ impl PopupNeedsAnchorRect {
         Popup {
             namespace: self.namespace,
             parent: None,
+            parent_window: None,
             size: self.size,
             anchor_rect: AnchorRect {
                 x,
@@ -197,4 +209,24 @@ impl PopupNeedsAnchorRect {
             on_dismiss: None,
         }
     }
+}
+
+// a popup view that can carry its own data, like where a context menu was asked for
+pub(crate) type PopupView = Arc<dyn Fn() -> Popup + Send + Sync>;
+
+// popups asked for from handlers, given a slot by the event loop when it wakes
+pub(crate) static OPENING: Mutex<Vec<PopupView>> = Mutex::new(Vec::new());
+
+/*
+ * opens a popup from a handler, like a context menu on a right click; its slot lasts
+ * until the popup closes, by .visible(false), a click outside or its parent closing.
+ * Opening one with the namespace of a popup that is open replaces it
+ */
+pub fn open_popup(view: impl Fn() -> Popup + Send + Sync + 'static) {
+    OPENING
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .push(Arc::new(view));
+
+    changes::mark_all();
 }

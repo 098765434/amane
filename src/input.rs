@@ -56,6 +56,22 @@ pub struct Point {
     pub y: f32,
 }
 
+thread_local! {
+    static POSITION: std::cell::Cell<Point> = const { std::cell::Cell::new(Point { x: 0.0, y: 0.0 }) };
+}
+
+/*
+ * where the pointer last was, measured from the top-left corner of the window it was on,
+ * in the units of Popup::anchor_rect; anchor a context menu here from a click handler
+ */
+pub fn pointer_position() -> Point {
+    POSITION.get()
+}
+
+pub(crate) fn set_pointer_position(x: f32, y: f32) {
+    POSITION.set(Point { x, y });
+}
+
 // how many pixels a compositor usually reports for one wheel step
 pub const PIXELS_PER_LINE: f32 = 15.0;
 

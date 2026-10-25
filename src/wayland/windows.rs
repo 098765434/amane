@@ -144,7 +144,51 @@ impl WaylandState {
         }
     }
 
+    // the popups opened straight over this normal or layer window
+    fn popups_over(&self, surface: &WlSurface) -> Vec<&'static str> {
+        let Some(closing) = self
+            .windows
+            .iter()
+            .find(|window| window.role.wl_surface() == surface)
+        else {
+            return Vec::new();
+        };
+
+        let mut popups = Vec::new();
+
+        for window in &self.windows {
+            let Role::Popup {
+                namespace,
+                parent,
+                window: parent_window,
+                ..
+            } = &window.role
+            else {
+                continue;
+            };
+
+            let over = match (&closing.role, &closing.view) {
+                (Role::Normal { .. }, View::Normal(key, _)) => parent_window.as_ref() == Some(key),
+                (Role::Layer { settings, .. }, _) => {
+                    parent_window.is_none() && *parent == Some(settings.namespace)
+                }
+                _ => false,
+            };
+
+            if over {
+                popups.push(*namespace);
+            }
+        }
+
+        popups
+    }
+
     pub fn close(&mut self, surface: &WlSurface) {
+        // xdg-shell wants a window's popups gone before the window itself
+        for namespace in self.popups_over(surface) {
+            self.close_popup_cascade(namespace);
+        }
+
         self.windows
             .retain(|window| window.role.wl_surface() != surface);
 

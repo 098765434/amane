@@ -17,6 +17,8 @@ pub fn insert(handle: &LoopHandle<'static, WaylandState>) {
 
             state.handle_window_requests();
 
+            state.handle_popup_requests();
+
             state.request_changed_frames();
         })
         .expect("failed to insert wake ping");

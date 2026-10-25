@@ -62,13 +62,15 @@ pub use input::cursor_names::{
     ResizeTopRight, ResizeVertical, Text, Wait,
 };
 pub use input::modifiers::get as modifiers;
-pub use input::{Button, Cursor, Key, Modifiers, Point, Scroll, ScrollSource};
+pub use input::{Button, Cursor, Key, Modifiers, Point, Scroll, ScrollSource, pointer_position};
 pub use ipc::{IpcCall, ipc_socket};
 pub use layer_window::{
     Horizontal, InputArea, Keyboard, Layer, LayerWindow, Margin, Vertical, WindowSize, Zone,
 };
 pub use monitor::Monitor;
-pub use popup::{Anchor as PopupAnchor, AnchorRect, ConstraintAdjustment, Gravity, Popup};
+pub use popup::{
+    Anchor as PopupAnchor, AnchorRect, ConstraintAdjustment, Gravity, Popup, open_popup,
+};
 pub use placement::{Align, Center, End, Justify, Padding, Size, Start};
 pub use process::{lines, output, spawn};
 pub use services::{
