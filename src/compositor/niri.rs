@@ -26,6 +26,9 @@ pub enum Event {
 
     WindowClosed { id: u64 },
 
+    // windows moved in the layout: each one's id and new column, if tiled
+    WindowLayouts(Vec<(u64, Option<(usize, usize)>)>),
+
     // focus moved; id is None when no window is focused (e.g. a layer
     // surface took it). All other windows are no longer focused.
     WindowFocus { id: Option<u64> },
@@ -112,6 +115,12 @@ pub fn listen(mut on_change: impl FnMut(Vec<Workspace>)) {
             continue;
         };
 
+        // windows move in the layout on every frame of a resize, and no
+        // workspace changes for it
+        if matches!(event, Event::WindowLayouts(_)) {
+            continue;
+        }
+
         state.apply(event);
 
         on_change(state.list.clone());
@@ -179,6 +188,22 @@ fn apply_window(windows: &mut HashMap<u64, WindowInfo>, overview: &mut bool, eve
         Event::WindowClosed { id } => {
             windows.remove(&id);
             true
+        }
+
+        // sizes change on every frame of a resize, so only a move counts
+        Event::WindowLayouts(changes) => {
+            let mut moved = false;
+
+            for (id, column) in changes {
+                if let Some(window) = windows.get_mut(&id)
+                    && window.column != column
+                {
+                    window.column = column;
+                    moved = true;
+                }
+            }
+
+            moved
         }
 
         Event::WindowFocus { id } => {
@@ -265,14 +290,22 @@ pub fn act(action: Action) {
         Action::ToggleFloating(id) => {
             json!({ "Action": { "ToggleWindowFloating": { "id": id } } })
         }
-        Action::MoveWindowToWorkspace { window, workspace } => json!({
+        Action::MoveWindowToWorkspace {
+            window,
+            workspace,
+            focus,
+        } => json!({
             "Action": {
                 "MoveWindowToWorkspace": {
                     "window_id": window,
                     "reference": { "Id": workspace },
-                    "focus": true
+                    "focus": focus
                 }
             }
+        }),
+        // the window_id from the niri fork; upstream niri moves the focused column
+        Action::MoveColumnToIndex { window, index } => json!({
+            "Action": { "MoveColumnToIndex": { "window_id": window, "index": index } }
         }),
         Action::FocusColumnLeft => json!({ "Action": { "FocusColumnLeft": {} } }),
         Action::FocusColumnRight => json!({ "Action": { "FocusColumnRight": {} } }),
@@ -303,6 +336,7 @@ fn parse(line: &str) -> Option<Event> {
         "WindowsChanged" => windows_changed(body),
         "WindowOpenedOrChanged" => window_changed(body),
         "WindowClosed" => window_closed(body),
+        "WindowLayoutsChanged" => window_layouts(body),
         "WindowFocusChanged" => window_focus(body),
         "OverviewOpenedOrClosed" => overview_changed(body),
         "OverviewProgress" => overview_progress(body),
@@ -362,6 +396,24 @@ fn window_closed(body: &Value) -> Option<Event> {
     Some(Event::WindowClosed { id })
 }
 
+fn window_layouts(body: &Value) -> Option<Event> {
+    let mut changes = Vec::new();
+
+    // each change is an [id, layout] pair
+    for change in body["changes"].as_array()? {
+        changes.push((change[0].as_u64()?, column(&change[1])));
+    }
+
+    Some(Event::WindowLayouts(changes))
+}
+
+// a window layout's [column, tile] pair, null while floating
+fn column(layout: &Value) -> Option<(usize, usize)> {
+    let pos = &layout["pos_in_scrolling_layout"];
+
+    Some((pos[0].as_u64()? as usize, pos[1].as_u64()? as usize))
+}
+
 fn window_focus(body: &Value) -> Option<Event> {
     // null when no window is focused
     Some(Event::WindowFocus {
@@ -382,6 +434,9 @@ fn parse_window(window: &Value) -> Option<WindowInfo> {
 
         // null while the window is on no workspace
         workspace: window["workspace_id"].as_i64(),
+
+        // older niri sends no layout
+        column: column(&window["layout"]),
     })
 }
 
@@ -459,7 +514,8 @@ impl State {
             | Event::Overview { .. }
             | Event::OverviewProgress { .. }
             | Event::ViewOffset { .. }
-            | Event::WorkspaceSwitch { .. } => {}
+            | Event::WorkspaceSwitch { .. }
+            | Event::WindowLayouts(_) => {}
         }
 
         self.count_windows();
@@ -539,6 +595,15 @@ mod tests {
         assert!(window.focused);
         assert!(!window.floating);
         assert_eq!(window.workspace, None);
+        assert_eq!(window.column, None);
+
+        let line = r#"{"WindowLayoutsChanged":{"changes":[[7,{"pos_in_scrolling_layout":[2,1],"tile_size":[800.0,600.0]}],[8,{"pos_in_scrolling_layout":null}]]}}"#;
+
+        let Some(Event::WindowLayouts(changes)) = parse(line) else {
+            panic!("failed to parse window layouts");
+        };
+
+        assert_eq!(changes, [(7, Some((2, 1))), (8, None)]);
 
         // focus changes arrive as their own event, with the newly focused id
         assert!(matches!(

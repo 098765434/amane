@@ -130,6 +130,9 @@ use amane::*;
 | `.on_scroll(\|scroll\| ...)` | `Scroll { x, y, source, stop }`: `x`, `y` in lines, positive `y` is down; `source` is `Wheel`, `Finger`, `Continuous` or `Tilt`; `stop` when the fingers lift; `pixels()` |
 | `.on_move(\|point\| ...)` | `Point { x, y }` from the top-left corner |
 | `.on_drag(\|point\| ...)` | `Point`, from a left press until release |
+| `.on_release(\|point\| ...)` | `Point`, once when a drag's button is let go (before `on_click`) |
+| `.on_drop(\|files\| ...)` | the `Vec<PathBuf>` dragged in from another program |
+| `.on_files_over(\|at, files\| ...)` | `Option<Point>` and the held files; answer `true` if they can be let go there |
 | `.cursor(Pointer)` | `Default`, `Pointer`, `Text`, `Grab`, `Grabbing`, `Move`, `NotAllowed`, `Wait`, `Crosshair`, `Resize...` |
 | `modifiers()` | the keys held now: `ctrl`, `shift`, `alt`, `logo`; `command()` for Ctrl, Alt or Super. `Ctrl`+letter reaches `on_key` as `Character(letter)` |
 
@@ -247,7 +250,7 @@ use amane::*;
 | `Media` | `players`, `active`, `title`, `artist`, `art_url`, `playing`, `position`, `length` | `play_pause`, `next`, `previous` |
 | `Notifications` | `list`, `running` | `click`, `invoke`, `dismiss`, `clear` |
 | `Workspaces` | `list` | `focus` |
-| `Apps` | `list` (each `DesktopApp` has `name`, `exec`, `icon_path`, `description`, `categories`, `keywords`) | `launch` on each `DesktopApp` |
+| `Apps` | `list` (each `DesktopApp` has `name`, `exec`, `icon_path`, `description`, `categories`, `keywords`, `mime_types`, `opens(file)`, `commands_with(files)`) | `launch`, `launch_with(files)` on each `DesktopApp` |
 | `Appearance` | `present`, `scheme`, `prefers_dark`, `accent` | |
 | `Palette` | `colors`, `dominant`, `accent`, `background`, `foreground`, `on_accent`, `light` | `open` |
 | [`Pam`](pam.md) | `active`, `messages`, `prompt`, `result` | `start`, `respond`, `abort` |

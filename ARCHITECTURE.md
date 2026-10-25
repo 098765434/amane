@@ -123,7 +123,7 @@ The handlers are `Rc`s, so they outlive the tree they came from. That tree is lo
 
 The compositor tells Amane which window has keyboard focus. Keys go to the focused `TextInput` first (`src/input/focus.rs`), and only one text input in the whole shell can have focus at a time. Up, Down, Tab and keys Amane has no name for skip the text input. Escape goes to both, so the input loses focus and the window can still close itself. Anything the text input doesn't take goes to the window's `on_key`.
 
-Files dragged in from a file manager are handled in `src/wayland/dropped.rs` and go to the target's `on_drop`.
+Files dragged in from a file manager are handled in `src/wayland/dropped.rs`. When the drag comes in, the list of files is read straight away, and every move goes to the target's `on_files_over`, whose answer accepts or refuses the drop at that spot (with no such target, the window takes files anywhere). Letting go tells that target the files have gone, then hands them to the target's `on_drop`.
 
 ## Services
 

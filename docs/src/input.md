@@ -54,8 +54,23 @@ All of these are methods on `Rectangle`:
 | `on_scroll` | for each wheel step or touchpad movement | a `Scroll` with `x` and `y` |
 | `on_move` | on every movement while the pointer is over it | a `Point` |
 | `on_drag` | on a left press, and on every movement until release | a `Point` |
+| `on_release` | once, when the left button is let go after a drag that started on it, wherever the pointer is then | a `Point` |
+| `on_drop` | when files dragged in from another program are let go over it | the files, a `Vec<PathBuf>` |
+| `on_files_over` | while files from another program are held over it, and once more when they leave or are let go | an `Option<Point>` (`None` once they've gone) and the files; it answers `true` when they can be let go there |
 
 A `Point` has `x` and `y`, measured in pixels from the rectangle's top-left corner. During `on_drag`, the point keeps coming even after the pointer leaves the rectangle, so it can be negative or bigger than the rectangle. Clamp it.
+
+`on_release` comes before `on_click`, so a widget that is both clicked and dragged can tell a drag's end from a click and ignore the click.
+
+## Files from other programs
+
+Files dragged in from a file manager go to the innermost `on_drop` under the pointer. While they're held, `on_files_over` hears where they are and which files they are (Amane reads the list as the drag comes in), and its answer shows in the pointer: `false` and the drag shows it can't be let go there. A window with no `on_files_over` under the files takes them anywhere.
+
+```rust,ignore
+Rectangle::new()
+    .on_files_over(|at, files| at.is_some() && files.iter().all(|file| file.extension() == Some("md".as_ref())))
+    .on_drop(|files| open(files))
+```
 
 A `Scroll` is measured in lines, so a mouse wheel and a touchpad move things by the same amount. Positive `y` means scrolling down, and positive `x` means scrolling right.
 

@@ -26,9 +26,9 @@ impl DataDeviceHandler for WaylandState {
         _: &Connection,
         _: &QueueHandle<Self>,
         _: &WlDataDevice,
-        _: f64,
-        _: f64,
-        _: &WlSurface,
+        x: f64,
+        y: f64,
+        surface: &WlSurface,
     ) {
         let Some(offer) = self.drag_offer() else {
             return;
@@ -43,51 +43,49 @@ impl DataDeviceHandler for WaylandState {
             return;
         }
 
-        offer.accept_mime_type(offer.serial, Some(String::from(URI_LIST)));
-        offer.set_actions(DndAction::Copy, DndAction::Copy);
+        // a widget may want to know which files before they are let go, as a dock does
+        let files = self.read_files(&offer).unwrap_or_default();
+
+        self.files_held = Some((surface.clone(), files));
+
+        self.files_moved(x, y);
     }
 
-    fn leave(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &WlDataDevice) {}
+    fn leave(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &WlDataDevice) {
+        let Some((surface, files)) = self.files_held.take() else {
+            return;
+        };
 
-    fn motion(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &WlDataDevice, _: f64, _: f64) {}
+        let Some(window) = self.window(&surface) else {
+            return;
+        };
+
+        if window.pointer.files_left(&files) {
+            self.request_frame_on(&surface);
+        }
+    }
+
+    fn motion(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &WlDataDevice, x: f64, y: f64) {
+        self.files_moved(x, y);
+    }
 
     fn selection(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &WlDataDevice) {}
 
     fn drop_performed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &WlDataDevice) {
+        self.files_held = None;
+
         let Some(offer) = self.drag_offer() else {
             return;
         };
 
-        let Ok(mut pipe) = offer.receive(String::from(URI_LIST)) else {
-            offer.destroy();
-
-            return;
-        };
-
-        // the receive request has to reach the other program before it can write anything
-        let _ = self.connection.flush();
-
-        /*
-         * ponytail: blocks the event loop until the other program has written
-         * the list, which is instant for file managers; read it on the loop if
-         * a slow source ever stalls a frame
-         */
-        let mut list = String::new();
-
-        let read = pipe.read_to_string(&mut list);
+        let files = self.read_files(&offer);
 
         offer.finish();
         offer.destroy();
 
-        if read.is_err() {
+        let Some(files) = files.filter(|files| !files.is_empty()) else {
             return;
-        }
-
-        let files = parse(&list);
-
-        if files.is_empty() {
-            return;
-        }
+        };
 
         let surface = offer.surface.clone();
 
@@ -158,6 +156,55 @@ impl DataSourceHandler for WaylandState {
 impl WaylandState {
     fn drag_offer(&self) -> Option<DragOffer> {
         self.data_device.as_ref()?.data().drag_offer()
+    }
+
+    // the files offered, none when the other program wouldn't say
+    fn read_files(&self, offer: &DragOffer) -> Option<Vec<PathBuf>> {
+        let mut pipe = offer.receive(String::from(URI_LIST)).ok()?;
+
+        // the receive request has to reach the other program before it can write anything
+        let _ = self.connection.flush();
+
+        /*
+         * ponytail: blocks the event loop until the other program has written
+         * the list, which is instant for file managers; read it on the loop if
+         * a slow source ever stalls a frame
+         */
+        let mut list = String::new();
+
+        pipe.read_to_string(&mut list).ok()?;
+
+        Some(parse(&list))
+    }
+
+    // the held files moved to (x, y): the widget under them says whether they can be let go there
+    fn files_moved(&mut self, x: f64, y: f64) {
+        let Some((surface, files)) = self.files_held.clone() else {
+            return;
+        };
+
+        let Some(offer) = self.drag_offer() else {
+            return;
+        };
+
+        let Some(window) = self.window(&surface) else {
+            return;
+        };
+
+        // a window that doesn't ask takes files anywhere, as before widgets could say
+        let answer = window.pointer.files_over(x as f32, y as f32, &files);
+
+        if answer == Some(false) {
+            offer.accept_mime_type(offer.serial, None);
+            offer.set_actions(DndAction::empty(), DndAction::empty());
+        } else {
+            offer.accept_mime_type(offer.serial, Some(String::from(URI_LIST)));
+            offer.set_actions(DndAction::Copy, DndAction::Copy);
+        }
+
+        if answer.is_some() {
+            self.request_frame_on(&surface);
+        }
     }
 }
 

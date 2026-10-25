@@ -2,6 +2,7 @@ mod data_dirs;
 mod desktop_app;
 mod exec;
 mod icons;
+mod mime;
 mod parse;
 mod walk;
 

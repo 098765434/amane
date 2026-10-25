@@ -63,7 +63,11 @@ fn view() -> LayerWindow {
 | `categories()` | its freedesktop `Categories`, like `["Network", "WebBrowser"]` |
 | `keywords()` | its `Keywords`, extra search terms the author added |
 | `actions()` | its desktop actions, other ways to start it like "New Private Window" (see below) |
+| `mime_types()` | the kinds of file it says it opens (its `MimeType`), like `["text/markdown", "text/plain"]` |
+| `opens(file)` | whether it opens `file`, by the kind of file its name says it is |
+| `commands_with(files)` | the command lines that open `files` with it (see below) |
 | `launch()` | starts the program, without waiting for it |
+| `launch_with(files)` | starts it on `files`, without waiting |
 
 Each `DesktopAction` is one of the `[Desktop Action …]` sections the entry's `Actions` lists, in
 that order; one without a `Name` or `Exec` is left out. It has `name()`, `exec()` (without the
@@ -72,6 +76,20 @@ placeholders), `icon()` (its own icon's name, or `None` to use the app's) and `l
 ```rust,ignore
 for action in app.actions() {
     println!("{}: {}", action.name(), action.exec());
+}
+```
+
+## Opening files
+
+`opens(file)` finds the file's kind from its name in the shared MIME database (`mime/globs2` in the XDG data dirs; a folder is `inode/directory`), and says yes when the app lists that kind or one it comes from (`mime/subclasses`; every `text/…` kind is `text/plain` too). An app with no `MimeType` opens nothing.
+
+`commands_with(files)` fills the files into the entry's `Exec`: `%F` and `%U` take them all, as paths and as `file://` links, while `%f` and `%u` take one, so there's a command per file. Every file is quoted for the shell. An `Exec` with none of them opens no files, and you get the plain command. `launch_with(files)` runs them. To have the compositor run them instead, hand each to `Windows::spawn(vec!["sh", "-c", command])`.
+
+```rust,ignore
+let file = PathBuf::from("/home/me/notes.md");
+
+if app.opens(&file) {
+    app.launch_with(&[file]);
 }
 ```
 

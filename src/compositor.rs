@@ -22,7 +22,10 @@ pub(crate) enum Action {
     CloseWindow(u64),
     FullscreenWindow(u64),
     ToggleFloating(u64),
-    MoveWindowToWorkspace { window: u64, workspace: i64 },
+    // focus: whether the focus follows the window there
+    MoveWindowToWorkspace { window: u64, workspace: i64, focus: bool },
+    // the window's column to `index` on its workspace, from 1, the focus staying put
+    MoveColumnToIndex { window: u64, index: usize },
     FocusColumnLeft,
     FocusColumnRight,
     Spawn(Vec<String>),

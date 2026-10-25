@@ -38,7 +38,8 @@ fn parse(text: &str, icons: &HashMap<String, PathBuf>) -> Option<DesktopApp> {
     }
 
     let name = fields.get("Name")?.to_string();
-    let exec = exec::strip_field_codes(fields.get("Exec")?);
+    let exec_codes = fields.get("Exec")?.to_string();
+    let exec = exec::strip_field_codes(&exec_codes);
 
     let icon = fields.get("Icon").map(|icon| icon.to_string());
 
@@ -51,6 +52,7 @@ fn parse(text: &str, icons: &HashMap<String, PathBuf>) -> Option<DesktopApp> {
 
     let categories = list_field(fields.get("Categories"));
     let keywords = list_field(fields.get("Keywords"));
+    let mime_types = list_field(fields.get("MimeType"));
 
     let actions = list_field(fields.get("Actions"))
         .iter()
@@ -60,6 +62,8 @@ fn parse(text: &str, icons: &HashMap<String, PathBuf>) -> Option<DesktopApp> {
     Some(DesktopApp {
         name,
         exec,
+        exec_codes,
+        mime_types,
         icon,
         icon_path,
         description,

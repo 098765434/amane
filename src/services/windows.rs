@@ -81,7 +81,24 @@ impl Windows {
             compositor::act(Action::MoveWindowToWorkspace {
                 window: id,
                 workspace,
+                focus: true,
             })
+        });
+    }
+
+    // moves the window to `workspace` (none: stays on its own) and its column to
+    // `index` there, from 1, without the focus going with it, as a drag in a dock does
+    pub fn move_to(id: u64, workspace: Option<i64>, index: usize) {
+        worker::run(move || {
+            if let Some(workspace) = workspace {
+                compositor::act(Action::MoveWindowToWorkspace {
+                    window: id,
+                    workspace,
+                    focus: false,
+                });
+            }
+
+            compositor::act(Action::MoveColumnToIndex { window: id, index });
         });
     }
 
