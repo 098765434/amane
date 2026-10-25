@@ -47,6 +47,11 @@ pub fn mark_all() {
     ping();
 }
 
+// whether an event loop is running to be woken
+pub fn has_loop() -> bool {
+    WAKE.get().is_some()
+}
+
 // wakes the event loop for work that draws nothing, like a copy
 pub fn wake() {
     ping();

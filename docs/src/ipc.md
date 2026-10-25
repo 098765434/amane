@@ -61,7 +61,7 @@ It prints `opened`, and the launcher appears. Run it again to close it.
 ## How a call reaches your shell
 
 - `App::ipc(name, handler)` registers a handler under a name. Call it once per name.
-- Your shell listens on a socket, `$XDG_RUNTIME_DIR/amane.sock`.
+- Your shell listens on a socket, `$XDG_RUNTIME_DIR/amane.sock`. Other apps have their own ([One copy at a time](#one-copy-at-a-time)).
 - `amane ipc call <name> [arguments...]` connects to that socket, sends the name and arguments, and prints the reply.
 - The handler gets the arguments and returns a `String`. Whatever it returns is printed by `amane ipc call`.
 - The handler writes to a Service, so every window that reads it redraws ([State and Services](services.md)).
@@ -116,10 +116,52 @@ Sway:
 bindsym $mod+space exec amane ipc call toggle-launcher
 ```
 
-## One shell at a time
+## One copy at a time
 
-There's one IPC socket per session, so only one Amane app can listen for calls at a time. Starting a second listener stops it right away with `failed to listen: amane is already running`. `amane run` checks first and says so in your terminal, and `amane restart` stops the running shell before starting the new one. `amane dev` restarts its own shell without hitting this, but it can't stop a shell started some other way. Stop your everyday shell (the one from `amane run`) before running `amane dev`.
+Each app listens on its own socket, named after its app-id ([`App::app_id`](windows.md#an-app-of-its-own)):
 
-For a standalone window that does not need IPC, use `App::new().without_ipc()`. It can run alongside your shell and leaves the shell's socket alone. IPC is enabled by default; `without_ipc()` disables the listener even if handlers have been registered.
+| App-id | Socket in `$XDG_RUNTIME_DIR` |
+|---|---|
+| `amane`, the default and the shell's | `amane.sock` |
+| `amane-settings` | `amane-settings.sock` |
+| `org.example.Notes` | `amane-org.example.Notes.sock` |
+
+So the shell and your apps listen side by side, and only one copy of each runs. Starting an app whose socket already answers doesn't start a second copy: the new launch hands its arguments to the running copy and exits, printing `amane: <app id> is already running, it takes this launch`. The running copy then:
+
+- runs `App::on_activate(handler)` with the new launch's arguments, like a file to open, or
+- without `on_activate`, brings its window to the front, opening it again if it was closed (an app kept running by `App::keep_alive`).
+
+When the launch came from a launcher with an activation token, the running copy's window takes the focus with it ([Launching apps](processes.md#launching-apps)). From a terminal there's no token, and the compositor decides.
+
+```rust,ignore
+fn main() {
+    App::new()
+        .app_id("amane-notes")
+        .normal_window("main", main_window)
+        .on_activate(|files| {
+            for file in files {
+                let file = file.clone();
+
+                open_window_with(file.clone(), move || note(&file));
+            }
+        })
+        .run();
+}
+```
+
+`amane run` checks for a running shell first and says so in your terminal, and `amane restart` stops the running shell before starting the new one. `amane dev` restarts its own shell, but it can't stop a shell started some other way. Stop your everyday shell (the one from `amane run`) before running `amane dev`.
+
+For a window that should run as many copies as it's started, use `App::new().without_ipc()`. It listens on no socket, so `on_activate` and IPC handlers aren't used.
 
 If `amane ipc call` says `amane is not running`, no shell is listening for IPC in this session.
+
+## Calling another app
+
+`amane ipc call --app <app id> <name> [arguments...]` calls a handler in the app with that app-id instead of the shell. From Rust, `amane::ipc_call(app_id, name, arguments)` does the same and returns the reply, so an app can ask the shell to do something:
+
+```rust,ignore
+// a settings app telling the shell to look at its settings again
+let _ = amane::ipc_call("amane", "reload", &[]);
+```
+
+`ipc_call` waits for the reply, which an Amane app gives within a second. It returns an error when that app isn't running.

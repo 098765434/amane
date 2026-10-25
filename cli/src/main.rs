@@ -51,7 +51,7 @@ fn main() -> ExitCode {
 
         ["clean", "--yes"] => clean::run(true),
 
-        ["ipc", "call", name, ..] => call::run(name, &arguments[3..]),
+        ["ipc", "call", _, ..] => call::run(&arguments[2..]),
 
         _ => usage(),
     }
@@ -83,6 +83,7 @@ fn usage() -> ExitCode {
     );
     eprintln!("  amane clean --yes                    the same, without asking first");
     eprintln!("  amane ipc call <name> [arguments...] call a handler in the running shell");
+    eprintln!("  amane ipc call --app <id> <name> ...  the same, in the running app with that app-id");
 
     ExitCode::FAILURE
 }

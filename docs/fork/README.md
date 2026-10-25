@@ -14,7 +14,7 @@ the overview of the whole fork, with every commit, is [FORK.md](../../FORK.md).
 | [audio.md](audio.md) | Audio device lists and switching | implemented |
 | [notifications.md](notifications.md) | Notification timeout, hints, expire | implemented |
 | [blur.md](blur.md) | Blur regions, blur shapes, drag release hook | implemented |
-| [app-windows.md](app-windows.md) | Normal windows for real apps: app-id, live settings, state, close veto, dialogs | phases 1–5 implemented, rest planned |
+| [app-windows.md](app-windows.md) | Normal windows for real apps: app-id, live settings, state, close veto, dialogs | phases 1–6 implemented, rest planned |
 | [optimization-plan.md](optimization-plan.md) | Resource optimization | planned |
 | [spec-write-own-layer-rules.md](spec-write-own-layer-rules.md) | Blur behind the bar, activation tokens, layer rules | draft (untracked); blur part shipped |
 | [spec-presence-appearance.md](spec-presence-appearance.md) | Idle and appearance design | draft (untracked); implemented |

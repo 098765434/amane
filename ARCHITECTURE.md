@@ -43,11 +43,13 @@ I came to this after writing a Quickshell config. My volume slider was jaggy bec
 
 Then the windows open. Per-monitor windows wait until the compositor has described each monitor. A layer window runs its view once at 0 by 0 before its surface even exists, because it needs the settings the view asks for (size, anchor, layer and so on) to create the surface. Nothing is drawn yet. Drawing starts when the compositor sends the first configure.
 
-Finally `WaylandApp::run` starts the event loop. It runs until the last window closes, unless you have per-monitor windows, because those come back when a monitor is plugged in again. Apps listen on the session's IPC socket by default; `App::without_ipc` leaves it unused so a standalone app can run beside the shell.
+One check comes before all of this: when the app's IPC socket already answers, `run()` hands the launch to that running copy (`hand_over` in `src/app.rs`) and returns, so only one copy of each app-id runs.
+
+Finally `WaylandApp::run` starts the event loop. It runs until the last window closes, unless you have per-monitor windows, because those come back when a monitor is plugged in again. Apps listen on their app-id's IPC socket by default; `App::without_ipc` leaves it unused, for an app that runs as many copies as it's started.
 
 ## The event loop
 
-Everything that touches Wayland or draws runs on one thread, inside one calloop event loop. The loop has three sources: the Wayland queue (messages from the compositor, like configures, frame callbacks and pointer and key events), the IPC socket (`amane ipc call <name>` from a terminal), and a wake ping that other threads use to say something changed.
+Everything that touches Wayland or draws runs on one thread, inside one calloop event loop. The loop has three sources: the Wayland queue (messages from the compositor, like configures, frame callbacks and pointer and key events), the IPC socket (`amane ipc call <name>` from a terminal, or another app's `ipc_call`; one socket per app-id, see `ipc_socket_for`), and a wake ping that other threads use to say something changed.
 
 The loop sleeps until one of them is ready, then runs that source's callback with `&mut WaylandState`. For the Wayland queue, SCTK turns each compositor message into a call on a handler trait, like `LayerShellHandler::configure` or `CompositorHandler::frame`. Those are wired up with `delegate_dispatch2!` at the bottom of `src/wayland.rs`.
 

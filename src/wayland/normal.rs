@@ -301,6 +301,9 @@ impl WindowHandler for WaylandState {
         }
 
         window.resize(width, height);
+
+        // a token waiting for this window to show can focus it now
+        self.use_token();
     }
 }
 

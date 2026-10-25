@@ -2,7 +2,7 @@ use amane::{
     App, Button, Center, Clipboard, Color, Column, ConstraintAdjustment, DragData, Gravity, Key,
     Point, Pointer, Popup, PopupAnchor, PrimarySelection, Rectangle, Service, Text, TextInput,
     Window, children, close_window, current_window, minimize_window, open_popup, open_window,
-    open_window_with, pointer_position, window_size, window_state,
+    open_window_with, pointer_position, spawn_activated, window_size, window_state,
 };
 
 // an app on its own, beside the shell, with the window features a regular app has
@@ -36,10 +36,18 @@ impl Service for Editor {
 }
 
 fn main() {
+    // one copy runs: launching it again hands the arguments to this one
     App::new()
         .app_id("amane-example")
-        .without_ipc()
         .normal_window("main", main_window)
+        .ipc("edits", |_| Editor::read().edits.to_string())
+        .on_activate(|arguments| {
+            for name in arguments {
+                let name = name.clone();
+
+                open_window_with(name.clone(), move || document(&name));
+            }
+        })
         .run();
 }
 
@@ -137,6 +145,7 @@ fn shortcut(key: Key) -> bool {
         Key::Character('m') => toggle_maximized(),
         Key::Character('n') => new_document(),
         Key::Character('k') => open_menu(),
+        Key::Character('l') => spawn_activated(&format!("{} launched-again", program())),
         Key::Character('c') => Clipboard::copy(Editor::read().notes.clone()),
         Key::Character('v') => Clipboard::paste(|text| Editor::write().pasted = text),
         Key::Character('p') => PrimarySelection::copy(Editor::read().notes.clone()),
@@ -172,7 +181,16 @@ fn new_document() {
         editor.documents
     };
 
-    open_window_with(format!("document {number}"), move || document(number));
+    let name = format!("document {number}");
+
+    open_window_with(name.clone(), move || document(&name));
+}
+
+// this program, to launch it again
+fn program() -> String {
+    std::env::current_exe()
+        .map(|path| path.display().to_string())
+        .unwrap_or_default()
 }
 
 // a context menu where the pointer is, over the main window
@@ -240,27 +258,24 @@ fn close_menu() {
     Editor::write().menu_open = false;
 }
 
-// one view, many windows, each knowing its own number
-fn document(number: u32) -> Window {
+// one view, many windows, each knowing its own name
+fn document(name: &str) -> Window {
     let me = current_window();
 
-    Window::new()
-        .title(&format!("document {number}"))
-        .size(300.0, 160.0)
-        .child(
-            Rectangle::new()
-                .width(amane::Parent)
-                .height(amane::Parent)
-                .fill("#1e1e2e")
-                .align_child(Center, Center)
-                .child(
-                    Column::new(children![
-                        label(format!("I am {me}")),
-                        button("close", move |_| close_window(&me)),
-                    ])
-                    .gap(8.0),
-                ),
-        )
+    Window::new().title(name).size(300.0, 160.0).child(
+        Rectangle::new()
+            .width(amane::Parent)
+            .height(amane::Parent)
+            .fill("#1e1e2e")
+            .align_child(Center, Center)
+            .child(
+                Column::new(children![
+                    label(format!("I am {me}")),
+                    button("close", move |_| close_window(&me)),
+                ])
+                .gap(8.0),
+            ),
+    )
 }
 
 // over the main window, keeping the user out of it until answered

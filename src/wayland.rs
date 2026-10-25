@@ -10,6 +10,7 @@ mod normal;
 mod output;
 mod pointer;
 mod popup;
+mod activation;
 mod clipboard;
 mod text_input;
 mod redraw;
@@ -45,6 +46,7 @@ use smithay_client_toolkit::{
     registry_handlers,
     seat::{SeatState, pointer::ThemedPointer},
     session_lock::{SessionLock, SessionLockState},
+    activation::ActivationState,
     shell::{wlr_layer::LayerShell, xdg::XdgShell},
     shm::{Shm, ShmHandler},
 };
@@ -93,6 +95,15 @@ struct WaylandState {
 
     // what normal windows are known by when they don't set their own
     app_id: String,
+
+    // the normal windows App was given, opened again when a closed app is launched again
+    normal_views: Vec<(String, WindowView)>,
+
+    // lets a window take the focus with a token, none when the compositor lacks xdg-activation
+    activation: Option<ActivationState>,
+
+    // a token to focus the next window that shows with, like the one amane was started with
+    pending_token: Option<String>,
 
     // set by App::keep_alive, so closing the last window doesn't end the app
     keep_alive: bool,
@@ -250,6 +261,10 @@ impl WaylandApp {
             app_id,
             keep_alive,
 
+            normal_views: normal_views.clone(),
+            activation: ActivationState::bind(&globals, &qh).ok(),
+            pending_token: std::env::var("XDG_ACTIVATION_TOKEN").ok(),
+
             registry: RegistryState::new(&globals),
             output: OutputState::new(&globals, &qh),
             seat: SeatState::new(&globals, &qh),
@@ -320,7 +335,7 @@ impl WaylandApp {
             .expect("failed to insert Wayland source");
 
         if let Some(handlers) = handlers {
-            socket::insert(&event_loop.handle(), handlers);
+            socket::insert(&event_loop.handle(), handlers, &state.app_id);
         }
 
         wake::insert(&event_loop.handle());

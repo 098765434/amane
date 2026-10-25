@@ -82,10 +82,24 @@ Other changes:
 
 The editing model is `src/widgets/text_input/field.rs`, with unit tests. Live-tested on niri: typing, selection drawing, Shift+Home, cut and paste via the system clipboard, undo, Ctrl+Backspace, multiline Up/Down, one-line scrolling. Mouse selection and the IME are not live-tested, because no pointer automation tool or input method is installed; the IME's byte/letter conversions have unit tests.
 
+## Phase 6: apps as separate processes (done)
+
+| Addition | Notes |
+|---|---|
+| A socket per app-id | `ipc_socket_for(app_id)`: `amane.sock` for the default `"amane"` (the shell, unchanged), `amane-settings.sock`, `amane-<id>.sock` |
+| Single instance | `App::run` hands a launch to a running copy (`activate` call: the activation token, then argv) and exits instead of panicking |
+| `App::on_activate(fn(&[String]))` | without it, the app's window comes to the front, or its windows open again when it was kept alive with none |
+| `ipc_call(app_id, name, args)` | the client side, now shared by the CLI; `amane ipc call --app <id>` |
+| xdg-activation | a window opened with `XDG_ACTIVATION_TOKEN` (or a handed-over token) takes the focus on its first configure; `spawn_activated` asks for a token for the last input and starts the program with it; `DesktopApp::launch`/`launch_with`/`DesktopAction::launch` use it |
+| Spawned programs | `spawn` no longer passes on amane's own activation token |
+
+Live-tested on niri: `ipc call --app`, a second launch handing over its argument, `spawn_activated` launching a copy, and a handed-over token moving the focus to an already open window.
+
+Behaviour change: an example started without its own app-id beside the running shell now hands over to the shell and exits, instead of panicking with "already running".
+
 ## Planned
 
-1. Separate app processes: an IPC socket per app-id, single instance with activation, `ipc::call` between apps, `xdg-activation`.
-2. Platform helpers: a `Config<T>` file service, a file chooser through the portal (with xdg-foreign for the parent), a notification send helper, double click and side buttons.
-3. In amane-shell: an `amane-kit` widget crate, then the settings app.
+1. Platform helpers: a `Config<T>` file service, a file chooser through the portal (with xdg-foreign for the parent), a notification send helper, double click and side buttons.
+2. In amane-shell: an `amane-kit` widget crate, then the settings app.
 
 Out of scope for now: client-side decorations, running without layer-shell, accessibility.

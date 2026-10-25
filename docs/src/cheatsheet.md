@@ -75,7 +75,10 @@ use amane::*;
 | `window_size()` | the real size of the window being drawn, `(f32, f32)` |
 | `window_state()` | `focused`, `maximized`, `fullscreen`, `tiled`, `resizing`, `server_decorated` |
 | `current_window()` | the name of the normal window being drawn |
-| `App::app_id("id")` / `App::keep_alive()` | the app's default app-id; keep running with no windows |
+| `App::app_id("id")` / `App::keep_alive()` | the app's default app-id and IPC socket; keep running with no windows |
+| `App::on_activate(handler)` | the app was launched again, `fn(&[String])` with that launch's arguments |
+| `ipc_call(app_id, name, args)` | calls another app's IPC handler, returns its reply |
+| `spawn_activated(command)` | starts a program with an activation token, for launchers |
 
 ## Sizes
 

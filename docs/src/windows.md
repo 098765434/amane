@@ -173,19 +173,20 @@ fn unsaved_dialog() -> Window {
 
 ### An app of its own
 
-A normal window doesn't need a bar or the shell. An app that runs next to the shell sets its app-id and leaves the IPC socket to the shell:
+A normal window doesn't need a bar or the shell. An app that runs next to the shell sets its app-id, which also gives it its own IPC socket:
 
 ```rust,ignore
 fn main() {
     App::new()
         .app_id("amane-settings")
-        .without_ipc()
         .normal_window("main", main_window)
         .run();
 }
 ```
 
 The app exits when its last window closes. `App::keep_alive()` keeps it running anyway, for an app that only opens windows when asked.
+
+Only one copy of an app runs: launching it again hands the launch to the running copy ([One copy at a time](ipc.md#one-copy-at-a-time)). `without_ipc()` turns that off along with IPC.
 
 See `examples/app_window.rs` for all of this in one app.
 
