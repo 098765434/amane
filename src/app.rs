@@ -1,11 +1,13 @@
+use std::env;
+use std::os::unix::net::UnixStream;
 use std::sync::Arc;
 
 #[cfg(target_env = "gnu")]
 use crate::allocator;
 use crate::graphics::{GpuSession, font};
-use crate::ipc::IpcHandlers;
-use crate::scale::ScaleFactor;
+use crate::ipc::{self, ACTIVATE, IpcHandlers, ipc_socket_for};
 use crate::popup::Popup;
+use crate::scale::ScaleFactor;
 use crate::wayland::WaylandApp;
 use crate::window::WindowView;
 use crate::{LayerWindow, Monitor, Window};
@@ -57,7 +59,8 @@ impl App {
 
     // a regular desktop window with a title bar, next to layer windows; close_window takes the name
     pub fn normal_window(mut self, name: &'static str, view: fn() -> Window) -> Self {
-        self.normal_windows.push((String::from(name), Arc::new(view)));
+        self.normal_windows
+            .push((String::from(name), Arc::new(view)));
 
         self
     }
@@ -108,7 +111,20 @@ impl App {
         self
     }
 
+    /*
+     * runs when the app is launched again while it is running, with that launch's
+     * arguments, like a file to open; the second launch hands them over and exits, so
+     * only one copy runs. Without it, the app's window is brought to the front, opened
+     * again if it was closed
+     */
+    pub fn on_activate(mut self, handler: fn(&[String])) -> Self {
+        self.handlers.on_activate = Some(handler);
+
+        self
+    }
+
     /// Runs without an IPC socket, allowing a standalone app alongside the shell.
+    /// Every launch then runs on its own, without `on_activate`.
     pub fn without_ipc(mut self) -> Self {
         self.ipc_disabled = true;
 
@@ -120,6 +136,13 @@ impl App {
 
         if no_windows && self.per_monitor.is_empty() && self.lock.is_none() {
             panic!("failed to run: no window set");
+        }
+
+        let app_id = self.app_id.unwrap_or_else(|| String::from("amane"));
+
+        // a copy already running takes this launch over, so only one runs
+        if !self.ipc_disabled && hand_over(&app_id) {
+            return;
         }
 
         #[cfg(target_env = "gnu")]
@@ -144,12 +167,41 @@ impl App {
                 Some(self.handlers)
             },
             self.scale_factor,
-            self.app_id.unwrap_or_else(|| String::from("amane")),
+            app_id,
             self.keep_alive,
         );
 
         backend.run();
     }
+}
+
+/*
+ * tells the copy of this app that is running about this launch, with its arguments and
+ * the token that lets it take the focus; false when none is running
+ */
+fn hand_over(app_id: &str) -> bool {
+    if UnixStream::connect(ipc_socket_for(app_id)).is_err() {
+        return false;
+    }
+
+    let token = env::var("XDG_ACTIVATION_TOKEN").unwrap_or_default();
+
+    // one argument a line, so a newline inside one becomes a space
+    let mut arguments = vec![token];
+
+    arguments.extend(
+        env::args()
+            .skip(1)
+            .map(|argument| argument.replace('\n', " ")),
+    );
+
+    if ipc::call(app_id, ACTIVATE, &arguments).is_err() {
+        return false;
+    }
+
+    eprintln!("amane: {app_id} is already running, it takes this launch");
+
+    true
 }
 
 #[cfg(test)]

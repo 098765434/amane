@@ -1,6 +1,9 @@
 use std::io::{BufRead, BufReader};
 use std::process::{Child, ChildStdout, Command, Stdio};
+use std::sync::{Mutex, PoisonError};
 use std::thread;
+
+use crate::changes;
 
 pub struct Lines {
     child: Child,
@@ -42,15 +45,56 @@ fn shell(command: &str) -> Command {
 
     shell.arg("-c").arg(command);
 
+    // the token amane was started with is used up, a program it starts gets its own
+    shell
+        .env_remove("XDG_ACTIVATION_TOKEN")
+        .env_remove("DESKTOP_STARTUP_ID");
+
     shell
 }
 
 // starts a program and moves on without waiting for it
 pub fn spawn(command: &str) {
-    let mut child = shell(command).spawn().expect("failed to start command");
+    spawn_with_token(command, None);
+}
+
+pub(crate) fn spawn_with_token(command: &str, token: Option<&str>) {
+    let mut shell = shell(command);
+
+    if let Some(token) = token {
+        shell
+            .env("XDG_ACTIVATION_TOKEN", token)
+            .env("DESKTOP_STARTUP_ID", token);
+    }
+
+    let mut child = shell.spawn().expect("failed to start command");
 
     // a finished child that nobody waits for stays behind as a zombie
     thread::spawn(move || child.wait());
+}
+
+// programs to start once the compositor has given each a token, in the order asked
+pub(crate) static ACTIVATED: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+/*
+ * starts a program the way a launcher should: the compositor hands it a token that lets
+ * its window take the focus, or brings it forward if it is already running. Call it from
+ * input, like a click, since the token stands for that input
+ */
+pub fn spawn_activated(command: &str) {
+    // without an event loop there is no compositor to ask
+    if !changes::has_loop() {
+        spawn(command);
+
+        return;
+    }
+
+    ACTIVATED
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .push(String::from(command));
+
+    changes::wake();
 }
 
 // waits for the command to finish, so call it from a service thread, not from view()

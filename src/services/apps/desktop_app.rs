@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::spawn;
+use crate::spawn_activated;
 
 use super::{exec, mime};
 
@@ -70,7 +70,7 @@ impl DesktopApp {
 
     // starts the program and moves on without waiting for it
     pub fn launch(&self) {
-        spawn(&self.exec);
+        spawn_activated(&self.exec);
     }
 
     // the kinds of file it says it opens, like "text/markdown"
@@ -91,7 +91,7 @@ impl DesktopApp {
     // starts it on `files`, and moves on without waiting
     pub fn launch_with(&self, files: &[PathBuf]) {
         for command in self.commands_with(files) {
-            spawn(&command);
+            spawn_activated(&command);
         }
     }
 }
@@ -113,6 +113,6 @@ impl DesktopAction {
 
     // starts the action and moves on without waiting for it
     pub fn launch(&self) {
-        spawn(&self.exec);
+        spawn_activated(&self.exec);
     }
 }

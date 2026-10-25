@@ -65,7 +65,7 @@ pub use input::cursor_names::{
 };
 pub use input::modifiers::get as modifiers;
 pub use input::{Button, Cursor, Key, Modifiers, Point, Scroll, ScrollSource, pointer_position};
-pub use ipc::{IpcCall, ipc_socket};
+pub use ipc::{IpcCall, call as ipc_call, ipc_socket, ipc_socket_for};
 pub use layer_window::{
     Horizontal, InputArea, Keyboard, Layer, LayerWindow, Margin, Vertical, WindowSize, Zone,
 };
@@ -74,7 +74,7 @@ pub use popup::{
     Anchor as PopupAnchor, AnchorRect, ConstraintAdjustment, Gravity, Popup, open_popup,
 };
 pub use placement::{Align, Center, End, Justify, Padding, Size, Start};
-pub use process::{lines, output, spawn};
+pub use process::{lines, output, spawn, spawn_activated};
 pub use services::{
     AccessPoint, Action, Appearance, Apps, Audio, AudioDevice, AudioKind, Battery, BatteryState,
     Bluetooth, BluetoothDevice, Brightness, Cpu, DesktopAction, DesktopApp, DeviceKind, Gestures, Idle, Link,
