@@ -12,6 +12,10 @@ const COLOR_SCHEME: &str = "color-scheme";
 
 const ACCENT_COLOR: &str = "accent-color";
 
+const CONTRAST: &str = "contrast";
+
+const REDUCED_MOTION: &str = "reduced-motion";
+
 // the light or dark preference the desktop asks programs to follow
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Scheme {
@@ -30,6 +34,10 @@ pub struct Appearance {
 
     // only some portal backends know one
     accent: Option<Color>,
+
+    // the accessibility preferences, off where the portal doesn't publish them
+    high_contrast: bool,
+    reduced_motion: bool,
 }
 
 // the portal announces every change with SettingChanged, so nothing is polled
@@ -65,6 +73,8 @@ impl Service for Appearance {
             match key.text() {
                 COLOR_SCHEME => fresh.scheme = Scheme::from_portal(value),
                 ACCENT_COLOR => fresh.accent = accent_from(value),
+                CONTRAST => fresh.high_contrast = is_one(value),
+                REDUCED_MOTION => fresh.reduced_motion = is_one(value),
 
                 _ => continue,
             }
@@ -91,6 +101,21 @@ impl Appearance {
     pub fn accent(&self) -> Option<Color> {
         self.accent
     }
+
+    // the desktop asks for higher contrast
+    pub fn high_contrast(&self) -> bool {
+        self.high_contrast
+    }
+
+    // the desktop asks for less motion
+    pub fn reduced_motion(&self) -> bool {
+        self.reduced_motion
+    }
+}
+
+// contrast and reduced-motion are 0 for no preference and 1 for the stronger one
+fn is_one(value: &Value) -> bool {
+    *value == Value::Number(1.0)
 }
 
 impl Scheme {
@@ -148,6 +173,8 @@ fn fetch() -> Appearance {
         present: true,
         scheme: Scheme::from_portal(&scheme),
         accent: accent_from(&read(ACCENT_COLOR)),
+        high_contrast: is_one(&read(CONTRAST)),
+        reduced_motion: is_one(&read(REDUCED_MOTION)),
     }
 }
 
@@ -181,6 +208,13 @@ mod tests {
             Scheme::NoPreference
         );
         assert_eq!(Scheme::from_portal(&Value::Nothing), Scheme::NoPreference);
+    }
+
+    #[test]
+    fn preferences_from_the_portal() {
+        assert!(is_one(&Value::Number(1.0)));
+        assert!(!is_one(&Value::Number(0.0)));
+        assert!(!is_one(&Value::Nothing));
     }
 
     #[test]
