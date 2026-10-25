@@ -116,7 +116,7 @@ fn view() -> LayerWindow {
 
 ## Setting the text
 
-`TextInput::set_text` replaces what an input holds, by name, and puts the cursor at the end. `TextInput::text` reads it:
+`TextInput::set_text` replaces what an input holds, by name, and puts the cursor at the end. `TextInput::text` reads it, and `TextInput::has_focus` says whether it takes the keys, to draw a focus ring:
 
 ```rust,ignore
 TextInput::set_text("search", "");          // clear it, for example after Enter
