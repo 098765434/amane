@@ -119,6 +119,7 @@ While an input has focus:
 - `Enter` calls `on_submit`.
 - `Escape` takes focus away, and then also reaches the window's `on_key`.
 - `Up`, `Down`, and `Tab` skip the input and go straight to the window's `on_key`, so a list under a search box can be moved through with the arrow keys.
+- A letter or `Space` with `Ctrl`, `Alt`, or `Super` held is a command, not text, so the input doesn't type it ([Modifier keys](input.md#modifier-keys)).
 
 Holding a key down doesn't repeat it yet.
 

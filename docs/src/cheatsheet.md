@@ -131,6 +131,7 @@ use amane::*;
 | `.on_move(\|point\| ...)` | `Point { x, y }` from the top-left corner |
 | `.on_drag(\|point\| ...)` | `Point`, from a left press until release |
 | `.cursor(Pointer)` | `Default`, `Pointer`, `Text`, `Grab`, `Grabbing`, `Move`, `NotAllowed`, `Wait`, `Crosshair`, `Resize...` |
+| `modifiers()` | the keys held now: `ctrl`, `shift`, `alt`, `logo`; `command()` for Ctrl, Alt or Super. `Ctrl`+letter reaches `on_key` as `Character(letter)` |
 
 ## Text
 
@@ -246,7 +247,7 @@ use amane::*;
 | `Media` | `players`, `active`, `title`, `artist`, `art_url`, `playing`, `position`, `length` | `play_pause`, `next`, `previous` |
 | `Notifications` | `list`, `running` | `click`, `invoke`, `dismiss`, `clear` |
 | `Workspaces` | `list` | `focus` |
-| `Apps` | `list` | `launch` on each `DesktopApp` |
+| `Apps` | `list` (each `DesktopApp` has `name`, `exec`, `icon_path`, `description`, `categories`, `keywords`) | `launch` on each `DesktopApp` |
 | `Appearance` | `present`, `scheme`, `prefers_dark`, `accent` | |
 | `Palette` | `colors`, `dominant`, `accent`, `background`, `foreground`, `on_accent`, `light` | `open` |
 | [`Pam`](pam.md) | `active`, `messages`, `prompt`, `result` | `start`, `respond`, `abort` |
