@@ -102,7 +102,7 @@ impl WaylandState {
         self.windows
             .retain(|window| !matches!(window.role, Role::Lock(_)));
 
-        if self.windows.is_empty() && self.per_monitor.is_empty() {
+        if self.windows.is_empty() && self.per_monitor.is_empty() && !self.keep_alive {
             self.running = false;
         }
     }

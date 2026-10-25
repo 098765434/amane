@@ -49,7 +49,7 @@ use wayland_client::{
 use crate::ipc::IpcHandlers;
 use crate::popup::Popup;
 use crate::scale::ScaleFactor;
-use crate::window::NamedWindow;
+use crate::window::WindowView;
 use crate::{Cursor, LayerWindow, Monitor};
 
 use surface::{OpenWindow, View};
@@ -82,6 +82,12 @@ struct WaylandState {
 
     // keys do not say which window they are for, so the window that has focus is kept
     keyboard_focus: Option<WlSurface>,
+
+    // what normal windows are known by when they don't set their own
+    app_id: String,
+
+    // set by App::keep_alive, so closing the last window doesn't end the app
+    keep_alive: bool,
 
     registry: RegistryState,
     output: OutputState,
@@ -143,14 +149,17 @@ pub struct WaylandApp {
 }
 
 impl WaylandApp {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         views: Vec<fn() -> LayerWindow>,
-        normal_views: Vec<NamedWindow>,
+        normal_views: Vec<(String, WindowView)>,
         popup_views: Vec<fn() -> Popup>,
         per_monitor: Vec<fn(&Monitor) -> LayerWindow>,
         lock_view: Option<fn(&Monitor) -> LayerWindow>,
         handlers: Option<IpcHandlers>,
         scale_factor: ScaleFactor,
+        app_id: String,
+        keep_alive: bool,
     ) -> Self {
         let connection = connect();
 
@@ -202,6 +211,9 @@ impl WaylandApp {
             scale_factor,
 
             keyboard_focus: None,
+
+            app_id,
+            keep_alive,
 
             registry: RegistryState::new(&globals),
             output: OutputState::new(&globals, &qh),

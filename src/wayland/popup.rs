@@ -288,6 +288,7 @@ impl WaylandState {
 
             pointer: Pointer::default(),
             on_key: None,
+            on_close: None,
 
             gpu,
             fractional,

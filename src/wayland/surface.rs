@@ -18,13 +18,15 @@ use wayland_client::{
 use crate::graphics::Gpu;
 use crate::input::{KeyHandler, Pointer};
 use crate::scale::ScaleFactor;
-use crate::{BlurShape, InputArea, LayerWindow, Monitor, Popup, Widget, Window};
+use crate::window::{CloseHandler, WindowView};
+use crate::{BlurShape, InputArea, LayerWindow, Monitor, Popup, Widget, Window, WindowState};
 
 use super::{
     WaylandState,
     background_effect::BlurEffect,
     blur_shapes::{BlurShapes, protocol::niri_blur_shapes_manager_v1::NiriBlurShapesManagerV1},
     layer::{self, Settings},
+    normal::{Dialog, NormalSettings},
     scale::Fractional,
 };
 
@@ -62,6 +64,9 @@ pub struct OpenWindow {
     // both come from the last drawn view, so input matches what is on screen
     pub pointer: Pointer,
     pub on_key: Option<KeyHandler>,
+
+    // a normal window's, from the last drawn view, asked before the user closes it
+    pub on_close: Option<CloseHandler>,
 
     // the gpu draws into the surface, so it has to go first when both are dropped
     pub gpu: Gpu,
@@ -101,10 +106,20 @@ pub enum Role {
     Lock(SessionLockSurface),
 
     Normal {
+        // over its parent, only held so it is destroyed before the window it belongs to
+        #[allow(dead_code)]
+        dialog: Option<Dialog>,
+
         window: XdgWindow,
 
-        // the size it opened at, kept for as long as the compositor leaves the size to it
+        // the size it last had, kept for as long as the compositor leaves the size to it
         size: (u32, u32),
+
+        // what the compositor was last told, so only a real change is sent again
+        settings: NormalSettings,
+
+        // what the compositor last said, handed to the view as window_state()
+        state: WindowState,
     },
 
     Popup {
@@ -127,11 +142,13 @@ pub enum View {
     Monitor(fn(&Monitor) -> LayerWindow, Monitor),
 
     // the name tells it apart from other normal windows
-    Normal(&'static str, fn() -> Window),
+    Normal(String, WindowView),
 
     // an xdg-popup; the view returns a Popup with .visible(bool) each frame
     Popup(fn() -> Popup),
 }
+
+pub type Parts = (Option<Box<dyn Widget>>, Option<KeyHandler>, Option<CloseHandler>);
 
 // what a view gave back
 pub enum Content {
@@ -200,7 +217,11 @@ impl View {
         match self {
             View::Plain(view) => Content::Layer(view()),
             View::Monitor(view, monitor) => Content::Layer(view(monitor)),
-            View::Normal(_, view) => Content::Normal(view()),
+            View::Normal(key, view) => {
+                crate::window::set_current(key);
+
+                Content::Normal(view())
+            }
             View::Popup(view) => Content::Popup(view()),
         }
     }
@@ -210,26 +231,26 @@ impl View {
             return false;
         };
 
-        *shown == name
+        shown == name
     }
 }
 
 impl Content {
     // the name AMANE_FRAMES logs the window under
-    pub fn name(&self) -> &'static str {
+    pub fn name(&self) -> String {
         match self {
-            Content::Layer(window) => window.namespace,
-            Content::Normal(_) => "normal",
-            Content::Popup(popup) => popup.namespace,
+            Content::Layer(window) => String::from(window.namespace),
+            Content::Normal(_) => format!("normal {}", crate::window::current_window()),
+            Content::Popup(popup) => String::from(popup.namespace),
         }
     }
 
-    // the widgets and the key handler, drawn and used the same way by every kind of window
-    pub fn into_parts(self) -> (Option<Box<dyn Widget>>, Option<KeyHandler>) {
+    // the widgets and the handlers, drawn and used the same way by every kind of window
+    pub fn into_parts(self) -> Parts {
         match self {
-            Content::Layer(window) => (window.root, window.on_key),
-            Content::Normal(window) => (window.root, window.on_key),
-            Content::Popup(popup) => (popup.root, popup.on_key),
+            Content::Layer(window) => (window.root, window.on_key, None),
+            Content::Normal(window) => (window.root, window.on_key, window.on_close),
+            Content::Popup(popup) => (popup.root, popup.on_key, None),
         }
     }
 }

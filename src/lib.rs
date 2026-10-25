@@ -86,4 +86,7 @@ pub use widgets::{
 
 pub use placement::Justify::{SpaceAround, SpaceBetween, SpaceEvenly};
 pub use placement::Size::Parent;
-pub use window::{Window, close_window, open_window, window_size};
+pub use window::{
+    Window, WindowState, close_window, current_window, minimize_window, open_window,
+    open_window_with, window_size, window_state,
+};

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 #[cfg(target_env = "gnu")]
 use crate::allocator;
 use crate::graphics::{GpuSession, font};
@@ -5,7 +7,7 @@ use crate::ipc::IpcHandlers;
 use crate::scale::ScaleFactor;
 use crate::popup::Popup;
 use crate::wayland::WaylandApp;
-use crate::window::NamedWindow;
+use crate::window::WindowView;
 use crate::{LayerWindow, Monitor, Window};
 
 #[derive(Default)]
@@ -14,13 +16,16 @@ pub struct App {
     scale_factor: ScaleFactor,
 
     windows: Vec<fn() -> LayerWindow>,
-    normal_windows: Vec<NamedWindow>,
+    normal_windows: Vec<(String, WindowView)>,
     popups: Vec<fn() -> Popup>,
     per_monitor: Vec<fn(&Monitor) -> LayerWindow>,
     lock: Option<fn(&Monitor) -> LayerWindow>,
 
     handlers: IpcHandlers,
     ipc_disabled: bool,
+
+    app_id: Option<String>,
+    keep_alive: bool,
 }
 
 impl App {
@@ -52,7 +57,7 @@ impl App {
 
     // a regular desktop window with a title bar, next to layer windows; close_window takes the name
     pub fn normal_window(mut self, name: &'static str, view: fn() -> Window) -> Self {
-        self.normal_windows.push((name, view));
+        self.normal_windows.push((String::from(name), Arc::new(view)));
 
         self
     }
@@ -85,6 +90,20 @@ impl App {
     // lets `amane ipc call <name> [arguments...]` run the handler while the shell is running
     pub fn ipc(mut self, name: &str, handler: fn(&[String]) -> String) -> Self {
         self.handlers.insert(name, handler);
+
+        self
+    }
+
+    // what normal windows are known by when they don't set Window::app_id; "amane" by default
+    pub fn app_id(mut self, app_id: &str) -> Self {
+        self.app_id = Some(String::from(app_id));
+
+        self
+    }
+
+    // keeps running after the last window closes, for an app that opens windows on an ipc call
+    pub fn keep_alive(mut self) -> Self {
+        self.keep_alive = true;
 
         self
     }
@@ -125,6 +144,8 @@ impl App {
                 Some(self.handlers)
             },
             self.scale_factor,
+            self.app_id.unwrap_or_else(|| String::from("amane")),
+            self.keep_alive,
         );
 
         backend.run();

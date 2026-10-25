@@ -2,16 +2,25 @@ use std::time::Instant;
 
 use smithay_client_toolkit::compositor::FrameCallbackData;
 
+use crate::WindowState;
 use crate::frame;
 use crate::graphics::Renderer;
 use crate::timing::{self, Timing};
 
-use super::surface::OpenWindow;
+use super::surface::{OpenWindow, Role};
 
 impl OpenWindow {
     // one frame: run the view, send its settings, draw it and show it
     pub fn redraw(&mut self) {
         let started = Instant::now();
+
+        // layer windows and popups get the empty state
+        let state = match &self.role {
+            Role::Normal { state, .. } => *state,
+            _ => WindowState::default(),
+        };
+
+        crate::window::set_state(state);
 
         let (content, reads) = frame::run_view(
             || self.view.run(),
@@ -25,7 +34,7 @@ impl OpenWindow {
 
         let viewed = Instant::now();
 
-        let name = content.name();
+        let name = &content.name();
 
         // what the compositor blurs behind the last frame shown, put back if this one is skipped
         let shown_blur = self.blur_sent();
@@ -37,7 +46,7 @@ impl OpenWindow {
             return;
         }
 
-        let (root, on_key) = content.into_parts();
+        let (root, on_key, on_close) = content.into_parts();
 
         // a window without a child has nothing to show, which is a mistake but not a crash
         let Some(root) = root else {
@@ -61,6 +70,7 @@ impl OpenWindow {
         self.pointer.set_targets(frame.targets);
 
         self.on_key = on_key;
+        self.on_close = on_close;
 
         /*
          * an animation that has not arrived yet needs the next frame too; asking
