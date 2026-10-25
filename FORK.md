@@ -36,7 +36,7 @@ series on top of upstream; everything else is stock.
 | [Spring easing, retargeting](#animation) | feature | `ba43071`, `289f191` | this file only (not in [animation](docs/src/animation.md) yet) | yes |
 | [Scroll source and finger lift](#input) | feature | `7f48e10` | [input](docs/src/input.md) | yes |
 | [Keyboard modifiers, Ctrl chords](#input) | feature | `e3b2efb`, `bc9729e`, `c24533c` | [input](docs/src/input.md) | yes |
-| [App categories, keywords, `find_icon`](#apps) | feature | `0ebcfd2`, `7f48e10`, `bc9729e` | [apps](docs/src/apps.md) | yes |
+| [App categories, keywords, actions, `find_icon`](#apps) | feature | `0ebcfd2`, `7f48e10`, `bc9729e` | [apps](docs/src/apps.md) | yes |
 | [64 shader value rows](#fixes-and-internals) | internal | `16480b2` | [shaders](docs/src/shaders.md) | yes |
 | [Glyph atlas fills mid-frame](#fixes-and-internals) | fix | `389fc29` | — | yes |
 | [Fork docs and housekeeping](#fixes-and-internals) | internal | `be25bb3`, `fe941a9`, `fe45a04`, `6bfdba8` | this file | no |
@@ -157,6 +157,8 @@ notification by itself; the server now advertises `persistence`.
 - `DesktopApp::categories()` / `keywords()` return the entry's freedesktop `Categories` and
   `Keywords`, for filtering and searching.
 - `Apps::find_icon` exposes the icon-theme lookup for windows without a `.desktop` file.
+- `DesktopApp::actions()` returns the `[Desktop Action …]` sections the entry's `Actions` lists
+  (`DesktopAction`: `name()`, `exec()`, `icon()`, `launch()`), for an app's menu.
 
 - **Files:** `src/services/apps/`.
 - **Review it:** `git show 0ebcfd2 7f48e10`

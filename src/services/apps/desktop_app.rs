@@ -11,6 +11,15 @@ pub struct DesktopApp {
     pub(crate) description: Option<String>,
     pub(crate) categories: Vec<String>,
     pub(crate) keywords: Vec<String>,
+    pub(crate) actions: Vec<DesktopAction>,
+}
+
+// one of an app's [Desktop Action] sections: another way to start it, like "New Private Window"
+#[derive(Debug, Clone, PartialEq)]
+pub struct DesktopAction {
+    pub(crate) name: String,
+    pub(crate) exec: String,
+    pub(crate) icon: Option<String>,
 }
 
 impl DesktopApp {
@@ -48,7 +57,33 @@ impl DesktopApp {
         &self.keywords
     }
 
+    // the entry's Actions, in the order it lists them, each with its own command line
+    pub fn actions(&self) -> &[DesktopAction] {
+        &self.actions
+    }
+
     // starts the program and moves on without waiting for it
+    pub fn launch(&self) {
+        spawn(&self.exec);
+    }
+}
+
+impl DesktopAction {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    // the command line, without the %f style placeholders
+    pub fn exec(&self) -> &str {
+        &self.exec
+    }
+
+    // the icon's name in the icon theme, or none to use the app's
+    pub fn icon(&self) -> Option<&str> {
+        self.icon.as_deref()
+    }
+
+    // starts the action and moves on without waiting for it
     pub fn launch(&self) {
         spawn(&self.exec);
     }
