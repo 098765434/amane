@@ -22,16 +22,23 @@ let accent = appearance.accent().unwrap_or(Palette::read().accent());
 | `scheme()` | a `Scheme`: `Dark`, `Light` or `NoPreference` |
 | `prefers_dark()` | `true` when the scheme is `Dark` |
 | `accent()` | the accent `Color`, or `None` when the portal backend doesn't know one |
+| `high_contrast()` | `true` when the desktop asks for higher contrast (`contrast` is `1`) |
+| `reduced_motion()` | `true` when the desktop asks for less motion (`reduced-motion` is `1`) |
 
 ## How it works
 
 At start-up, `Read("org.freedesktop.appearance", …)` is called once each for
-`color-scheme` and `accent-color`, on
+`color-scheme`, `accent-color`, `contrast` and `reduced-motion`, on
 `org.freedesktop.portal.Desktop` / `/org/freedesktop/portal/desktop`.
 
 `color-scheme` is `1` for dark and `2` for light. Anything else means no
 preference. `accent-color` is three sRGB parts from 0 to 1. A part outside
 that range means unset, which some backends send, and becomes `None`.
+`contrast` and `reduced-motion` are `0` for no preference and `1` for higher
+contrast or less motion; a portal that doesn't publish them reads as no
+preference. With the
+GNOME backend they follow `org.gnome.desktop.a11y.interface high-contrast` and
+`org.gnome.desktop.interface enable-animations`.
 
 After that, one thread waits for `SettingChanged` in the
 `org.freedesktop.appearance` namespace. A change made elsewhere shows
