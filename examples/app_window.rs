@@ -1,8 +1,8 @@
 use amane::{
-    App, Button, Center, Color, Column, ConstraintAdjustment, Gravity, Key, Point, Pointer, Popup,
-    PopupAnchor, Rectangle, Service, Text, TextInput, Window, children, close_window,
-    current_window, minimize_window, open_popup, open_window, open_window_with, pointer_position,
-    window_size, window_state,
+    App, Button, Center, Clipboard, Color, Column, ConstraintAdjustment, DragData, Gravity, Key,
+    Point, Pointer, Popup, PopupAnchor, PrimarySelection, Rectangle, Service, Text, TextInput,
+    Window, children, close_window, current_window, minimize_window, open_popup, open_window,
+    open_window_with, pointer_position, window_size, window_state,
 };
 
 // an app on its own, beside the shell, with the window features a regular app has
@@ -14,6 +14,7 @@ struct Editor {
     menu_open: bool,
     notes: String,
     released: String,
+    pasted: String,
 }
 
 impl Service for Editor {
@@ -26,6 +27,7 @@ impl Service for Editor {
             menu_open: false,
             notes: String::new(),
             released: String::new(),
+            pasted: String::new(),
         }
     }
 
@@ -98,6 +100,20 @@ fn main_window() -> Window {
                             .placeholder("type, hold Backspace")
                             .focused()
                             .on_change(|text| Editor::write().notes = text),
+                        label(format!(
+                            "pasted: {:?} (Ctrl+V, Ctrl+B for primary)",
+                            editor.pasted
+                        )),
+                        Rectangle::new()
+                            .width(240.0)
+                            .height(30.0)
+                            .fill("#45475a")
+                            .radius(6.0)
+                            .cursor(amane::Grab)
+                            .align_child(Center, Center)
+                            .drag_out(|| DragData::Text(Editor::read().notes.clone()))
+                            .on_text_drop(|text| Editor::write().pasted = text)
+                            .child(label(String::from("drag the notes out, or text in"))),
                         button("edit (Ctrl+E)", |_| edit()),
                         button("save (Ctrl+S)", |_| save()),
                         button("toggle maximized (Ctrl+M)", |_| toggle_maximized()),
@@ -121,6 +137,10 @@ fn shortcut(key: Key) -> bool {
         Key::Character('m') => toggle_maximized(),
         Key::Character('n') => new_document(),
         Key::Character('k') => open_menu(),
+        Key::Character('c') => Clipboard::copy(Editor::read().notes.clone()),
+        Key::Character('v') => Clipboard::paste(|text| Editor::write().pasted = text),
+        Key::Character('p') => PrimarySelection::copy(Editor::read().notes.clone()),
+        Key::Character('b') => PrimarySelection::paste(|text| Editor::write().pasted = text),
         _ => return false,
     }
 

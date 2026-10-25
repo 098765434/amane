@@ -47,6 +47,11 @@ pub fn mark_all() {
     ping();
 }
 
+// wakes the event loop for work that draws nothing, like a copy
+pub fn wake() {
+    ping();
+}
+
 // only the windows that read this service are drawn again
 pub fn mark(service: TypeId) {
     let mut changes = CHANGED.lock().unwrap_or_else(PoisonError::into_inner);

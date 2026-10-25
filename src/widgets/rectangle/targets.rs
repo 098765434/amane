@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::graphics::Area;
 use crate::input::{Cursor, Target, clip};
-use crate::{Button, Point, Rectangle, Scroll};
+use crate::{Button, DragData, Point, Rectangle, Scroll};
 
 use super::{child, transform};
 
@@ -57,6 +57,24 @@ impl Rectangle {
     // runs with the files dragged in from another program and let go over the rectangle
     pub fn on_drop(mut self, handler: impl Fn(Vec<PathBuf>) + 'static) -> Self {
         self.handlers.drop = Some(Rc::new(handler));
+
+        self
+    }
+
+    // runs with text dragged in from another program and let go over the rectangle
+    pub fn on_text_drop(mut self, handler: impl Fn(String) + 'static) -> Self {
+        self.handlers.text_drop = Some(Rc::new(handler));
+
+        self
+    }
+
+    /*
+     * lets the rectangle be dragged out of the window to another program, like a file to
+     * a file manager or text to an editor; asked for what to hand over once the pointer
+     * moves with the left button down
+     */
+    pub fn drag_out(mut self, data: impl Fn() -> DragData + 'static) -> Self {
+        self.handlers.drag_out = Some(Rc::new(data));
 
         self
     }

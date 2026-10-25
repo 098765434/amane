@@ -10,6 +10,7 @@ mod normal;
 mod output;
 mod pointer;
 mod popup;
+mod clipboard;
 mod redraw;
 mod scale;
 mod seat;
@@ -29,7 +30,10 @@ use smithay_client_toolkit::reexports::protocols::wp::{
 };
 use smithay_client_toolkit::{
     compositor::CompositorState,
-    data_device_manager::{DataDeviceManagerState, data_device::DataDevice},
+    data_device_manager::{
+        DataDeviceManagerState, data_device::DataDevice, data_source::DragSource,
+    },
+    primary_selection::{PrimarySelectionManagerState, device::PrimarySelectionDevice},
     delegate_dispatch2, delegate_registry,
     output::OutputState,
     reexports::{
@@ -139,6 +143,19 @@ struct WaylandState {
     // the surface files are being dragged over, and the files, read as they came in
     files_held: Option<(WlSurface, Vec<std::path::PathBuf>)>,
 
+    // the middle-click selection, none when the compositor lacks it
+    primary_manager: Option<PrimarySelectionManagerState>,
+    primary_device: Option<PrimarySelectionDevice>,
+
+    // what amane put on the clipboards, sent to whoever pastes it
+    copied: clipboard::Copied,
+
+    // what is being dragged out to another program
+    dragging_out: Option<(DragSource, crate::DragData)>,
+
+    // a drag out has to name the press that started it
+    last_press_serial: Option<u32>,
+
     // what the pointer was last set to on one of the windows, none after it leaves
     cursor_shown: Option<Cursor>,
 
@@ -202,6 +219,8 @@ impl WaylandApp {
 
         let data_device_manager = DataDeviceManagerState::bind(&globals, &qh).ok();
 
+        let primary_manager = PrimarySelectionManagerState::bind(&globals, &qh).ok();
+
         // windows per monitor are opened once the compositor describes each monitor
         let mut state = WaylandState {
             windows: Vec::new(),
@@ -255,6 +274,12 @@ impl WaylandApp {
             data_device_manager,
             data_device: None,
             files_held: None,
+
+            primary_manager,
+            primary_device: None,
+            copied: clipboard::Copied::default(),
+            dragging_out: None,
+            last_press_serial: None,
 
             qh,
 

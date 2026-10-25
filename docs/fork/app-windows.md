@@ -48,12 +48,25 @@ The popup docs are [popups.md](popups.md). Reading the configure's `position` (t
 
 Internally, a window's key handlers are one `KeyHandlers` struct (`src/input/target.rs`) instead of a lone `on_key`.
 
+## Phase 4: clipboard and drag and drop (done)
+
+| Addition | Notes |
+|---|---|
+| `Clipboard::{copy, paste}` | `wl_data_device` selection; text offered as `text/plain;charset=utf-8`, `UTF8_STRING`, `text/plain`, `TEXT`, `STRING` |
+| `PrimarySelection::{copy, paste}` | `zwp_primary_selection_v1`, optional |
+| `Rectangle::on_text_drop` | text drags are taken anywhere and land on the innermost handler |
+| `Rectangle::drag_out(Fn() -> DragData)` | starts `wl_data_device.start_drag` after 8 px of motion with the left button down, using the press serial |
+| `changes::wake()` | wakes the loop without redrawing every window |
+
+Data is written and pasted text read on their own threads (`src/wayland/clipboard.rs`). When amane owns the selection or the drag, it uses its own copy instead of reading a pipe it would have to write on the same thread.
+
+Live-tested on niri with `wl-copy`/`wl-paste` in both directions for both selections. Drag-out and text drops are not live-tested, because no pointer automation tool is available; the uri-list encoding has a round-trip test. The shell's `text_edit.rs` still uses `wl-copy`/`wl-paste` until it pins an amane rev with this in it.
+
 ## Planned
 
-1. Clipboard and primary selection, text drops, dragging out.
-2. `TextInput`: selection, mouse caret placement, word movement, undo, multiline, IME (`text-input-v3`).
-3. Separate app processes: an IPC socket per app-id, single instance with activation, `ipc::call` between apps, `xdg-activation`.
-4. Platform helpers: a `Config<T>` file service, a file chooser through the portal (with xdg-foreign for the parent), a notification send helper, double click and side buttons.
-5. In amane-shell: an `amane-kit` widget crate, then the settings app.
+1. `TextInput`: selection, mouse caret placement, word movement, undo, multiline, IME (`text-input-v3`).
+2. Separate app processes: an IPC socket per app-id, single instance with activation, `ipc::call` between apps, `xdg-activation`.
+3. Platform helpers: a `Config<T>` file service, a file chooser through the portal (with xdg-foreign for the parent), a notification send helper, double click and side buttons.
+4. In amane-shell: an `amane-kit` widget crate, then the settings app.
 
 Out of scope for now: client-side decorations, running without layer-shell, accessibility.
