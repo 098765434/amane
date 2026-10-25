@@ -124,6 +124,9 @@ struct WaylandState {
     data_device_manager: Option<DataDeviceManagerState>,
     data_device: Option<DataDevice>,
 
+    // the surface files are being dragged over, and the files, read as they came in
+    files_held: Option<(WlSurface, Vec<std::path::PathBuf>)>,
+
     // what the pointer was last set to on one of the windows, none after it leaves
     cursor_shown: Option<Cursor>,
 
@@ -229,6 +232,7 @@ impl WaylandApp {
 
             data_device_manager,
             data_device: None,
+            files_held: None,
 
             qh,
 

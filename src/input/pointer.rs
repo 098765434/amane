@@ -16,6 +16,9 @@ pub struct Pointer {
     hovered: Vec<usize>,
     pressed: Option<usize>,
     dragged: Option<usize>,
+
+    // the target files from another program are held over
+    files_over: Option<usize>,
 }
 
 impl Pointer {
@@ -244,8 +247,53 @@ impl Pointer {
 
     // drop
 
+    /*
+     * files held at (x, y): tells the target under them where they are, and
+     * the one they were over before that they left; whether they can be let
+     * go there, none when no target there asks to be told
+     */
+    pub fn files_over(&mut self, x: f32, y: f32, files: &[PathBuf]) -> Option<bool> {
+        self.x = x;
+        self.y = y;
+
+        let over = self.find_topmost(|target| target.handlers.files_over.is_some());
+
+        if self.files_over != over {
+            self.files_left(files);
+        }
+
+        self.files_over = over;
+
+        let target = &self.targets[over?];
+
+        let handler = target.handlers.files_over.as_ref()?;
+
+        Some(handler(Some(target.point(x, y)), files))
+    }
+
+    // the held files left the window or were let go; returns whether a handler ran
+    pub fn files_left(&mut self, files: &[PathBuf]) -> bool {
+        let Some(index) = self.files_over.take() else {
+            return false;
+        };
+
+        let Some(handler) = self
+            .targets
+            .get(index)
+            .and_then(|target| target.handlers.files_over.as_ref())
+        else {
+            return false;
+        };
+
+        handler(None, files);
+
+        true
+    }
+
     // returns whether a handler ran
     pub fn drop_files(&mut self, x: f32, y: f32, files: Vec<PathBuf>) -> bool {
+        self.files_left(&files);
+
         self.x = x;
         self.y = y;
 
@@ -272,6 +320,44 @@ mod tests {
     use crate::Point;
     use crate::graphics::Area;
     use crate::input::{Handlers, Target};
+
+    #[test]
+    fn held_files_are_told_where_they_are_and_when_they_leave() {
+        let seen = Rc::new(RefCell::new(Vec::new()));
+        let told = seen.clone();
+        let handlers = Handlers {
+            // only the left half takes them
+            files_over: Some(Rc::new(move |at: Option<Point>, files: &[PathBuf]| {
+                told.borrow_mut().push((at, files.len()));
+                at.is_some_and(|at| at.x < 25.0)
+            })),
+            ..Handlers::default()
+        };
+        let mut pointer = Pointer::default();
+        pointer.set_targets(vec![Target::new(
+            Area::new(10.0, 10.0, 50.0, 50.0),
+            handlers,
+        )]);
+        let files = [PathBuf::from("/tmp/a.md")];
+
+        assert_eq!(pointer.files_over(20.0, 20.0, &files), Some(true));
+        assert_eq!(pointer.files_over(50.0, 20.0, &files), Some(false));
+        // outside every target that asks, nobody says
+        assert_eq!(pointer.files_over(100.0, 100.0, &files), None);
+        assert_eq!(
+            seen.borrow().as_slice(),
+            [
+                (Some(Point { x: 10.0, y: 10.0 }), 1),
+                (Some(Point { x: 40.0, y: 10.0 }), 1),
+                (None, 1)
+            ]
+        );
+
+        // let go over it, it hears they've gone before the drop
+        pointer.files_over(20.0, 20.0, &files);
+        pointer.drop_files(20.0, 20.0, files.to_vec());
+        assert_eq!(seen.borrow().last(), Some(&(None, 1)));
+    }
 
     #[test]
     fn a_drag_ends_with_one_release_where_the_pointer_is() {

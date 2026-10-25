@@ -17,6 +17,9 @@ pub struct WindowInfo {
 
     // the workspace it is on, if any
     pub(crate) workspace: Option<i64>,
+
+    // its column and its place in the column, from 1, in a scrolling layout
+    pub(crate) column: Option<(usize, usize)>,
 }
 
 impl WindowInfo {
@@ -42,5 +45,11 @@ impl WindowInfo {
 
     pub fn workspace(&self) -> Option<i64> {
         self.workspace
+    }
+
+    // where it is in niri's scrolling layout: its column, then its place in
+    // the column, both from 1; none while floating or under another compositor
+    pub fn column(&self) -> Option<(usize, usize)> {
+        self.column
     }
 }

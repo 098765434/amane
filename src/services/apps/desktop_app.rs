@@ -2,10 +2,16 @@ use std::path::{Path, PathBuf};
 
 use crate::spawn;
 
+use super::{exec, mime};
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct DesktopApp {
     pub(crate) name: String,
     pub(crate) exec: String,
+    // the Exec line as written, with its %f style placeholders
+    pub(crate) exec_codes: String,
+    // the kinds of file it opens (MimeType)
+    pub(crate) mime_types: Vec<String>,
     pub(crate) icon: Option<String>,
     pub(crate) icon_path: Option<PathBuf>,
     pub(crate) description: Option<String>,
@@ -65,6 +71,28 @@ impl DesktopApp {
     // starts the program and moves on without waiting for it
     pub fn launch(&self) {
         spawn(&self.exec);
+    }
+
+    // the kinds of file it says it opens, like "text/markdown"
+    pub fn mime_types(&self) -> &[String] {
+        &self.mime_types
+    }
+
+    // whether it opens `file`, by the kind of file its name says it is
+    pub fn opens(&self, file: &Path) -> bool {
+        mime::mime_type(file).is_some_and(|kind| mime::opens(&self.mime_types, &kind))
+    }
+
+    // the command lines that open `files` with it, one a file for a program that takes one at a time
+    pub fn commands_with(&self, files: &[PathBuf]) -> Vec<String> {
+        exec::fill_field_codes(&self.exec_codes, files)
+    }
+
+    // starts it on `files`, and moves on without waiting
+    pub fn launch_with(&self, files: &[PathBuf]) {
+        for command in self.commands_with(files) {
+            spawn(&command);
+        }
     }
 }
 

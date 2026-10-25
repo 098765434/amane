@@ -61,6 +61,21 @@ impl Rectangle {
         self
     }
 
+    /*
+     * runs while files dragged in from another program are held over the
+     * rectangle, with where they are on it and the files, and once with none
+     * when they leave it or are let go; answers whether they can be let go
+     * there, which the pointer shows
+     */
+    pub fn on_files_over(
+        mut self,
+        handler: impl Fn(Option<Point>, &[PathBuf]) -> bool + 'static,
+    ) -> Self {
+        self.handlers.files_over = Some(Rc::new(handler));
+
+        self
+    }
+
     // runs on every move while the pointer is over the rectangle
     pub fn on_move(mut self, handler: impl Fn(Point) + 'static) -> Self {
         self.handlers.motion = Some(Rc::new(handler));

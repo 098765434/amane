@@ -14,6 +14,8 @@ pub type ScrollHandler = Rc<dyn Fn(Scroll)>;
 pub type KeyHandler = Rc<dyn Fn(Key)>;
 pub type PointHandler = Rc<dyn Fn(Point)>;
 pub type DropHandler = Rc<dyn Fn(Vec<PathBuf>)>;
+// the point files are held over, none once they leave; true when they can be let go there
+pub type FilesOverHandler = Rc<dyn Fn(Option<Point>, &[PathBuf]) -> bool>;
 
 #[derive(Clone, Default)]
 pub struct Handlers {
@@ -25,6 +27,7 @@ pub struct Handlers {
     pub release: Option<PointHandler>,
     pub motion: Option<PointHandler>,
     pub drop: Option<DropHandler>,
+    pub files_over: Option<FilesOverHandler>,
 
     // not a handler, but it belongs to the same spot the pointer is over
     pub cursor: Option<Cursor>,

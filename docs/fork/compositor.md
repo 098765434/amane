@@ -38,7 +38,11 @@ for window in windows.list() { /* build a dock / switcher */ }
 
 `WindowInfo` fields (all via getters): `id() -> u64`,
 `app_id() -> Option<&str>`, `title() -> Option<&str>`,
-`focused() -> bool`, `floating() -> bool`, `workspace() -> Option<i64>`.
+`focused() -> bool`, `floating() -> bool`, `workspace() -> Option<i64>`,
+`column() -> Option<(usize, usize)>` (its column and its place in that column
+in niri's scrolling layout, both from 1; `None` while floating, and on other
+backends; kept current from niri's `WindowLayoutsChanged`, which only counts
+when a window moved, not when it resized).
 The list is sorted by `id`, so id-keyed UI stays stable across updates.
 `focused()` returns `None` when focus is on a non-window surface (e.g. a
 layer-shell panel).
@@ -106,7 +110,8 @@ so a slow socket never stalls drawing (like `Workspaces::focus`):
 | `Windows::close(id)` | `CloseWindow` |
 | `Windows::fullscreen(id)` | `FullscreenWindow` |
 | `Windows::toggle_floating(id)` | `ToggleWindowFloating` |
-| `Windows::move_to_workspace(id, ws)` | `MoveWindowToWorkspace` |
+| `Windows::move_to_workspace(id, ws)` | `MoveWindowToWorkspace` (the focus follows) |
+| `Windows::move_to(id, ws, index)` | `MoveWindowToWorkspace` with `focus: false` when `ws` is `Some`, then `MoveColumnToIndex` with the window's id: its column to `index` (from 1), the focus staying put. **Needs the niri fork**; stock niri ignores `window_id` and moves the focused column |
 | `Windows::focus_column_left()` | `FocusColumnLeft` |
 | `Windows::focus_column_right()` | `FocusColumnRight` |
 | `Windows::spawn(cmd)` | `Spawn` |
@@ -134,7 +139,8 @@ All parse the same niri event set
 ([src/compositor/niri.rs](../../src/compositor/niri.rs)) —
 `WorkspacesChanged`, `WorkspaceActivated`, `WorkspaceUrgencyChanged`,
 `WindowsChanged`, `WindowOpenedOrChanged`, `WindowClosed`,
-`WindowFocusChanged`, `OverviewOpenedOrClosed`, and the fork's
+`WindowFocusChanged`, `WindowLayoutsChanged` (windows only; the workspace
+listener skips it), `OverviewOpenedOrClosed`, and the fork's
 `OverviewProgress` / `ViewOffsetChanged` / `WorkspaceSwitchProgress` — and
 ignore the rest. An event that changes nothing a
 service reads (e.g. a workspace event seen by the window listener) leaves
