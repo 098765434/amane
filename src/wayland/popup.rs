@@ -15,7 +15,7 @@ use wayland_client::protocol::wl_surface::WlSurface;
 use wayland_client::{Connection, QueueHandle};
 
 use crate::graphics::Gpu;
-use crate::input::Pointer;
+use crate::input::{KeyHandlers, Pointer};
 use crate::Popup;
 use crate::popup::{Anchor, ConstraintAdjustment, Gravity, OPENING, PopupView};
 
@@ -360,7 +360,7 @@ impl WaylandState {
             reads: HashSet::new(),
 
             pointer: Pointer::default(),
-            on_key: None,
+            keys: KeyHandlers::default(),
             on_close: None,
 
             gpu,

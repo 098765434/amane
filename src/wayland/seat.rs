@@ -45,10 +45,18 @@ impl SeatHandler for WaylandState {
             }
 
             Capability::Keyboard => {
-                let keyboard = self
-                    .seat
-                    .get_keyboard(qh, &seat, None)
-                    .expect("failed to get keyboard");
+                // held keys repeat at the rate the compositor asks for, once the loop can time them
+                let keyboard = match self.loop_handle.clone() {
+                    Some(loop_handle) => self.seat.get_keyboard_with_repeat(
+                        qh,
+                        &seat,
+                        None,
+                        loop_handle,
+                        Box::new(|state, _, event| state.key_down(&event)),
+                    ),
+                    None => self.seat.get_keyboard(qh, &seat, None),
+                }
+                .expect("failed to get keyboard");
 
                 self.keyboard_device = Some(keyboard);
             }
