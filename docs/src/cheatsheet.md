@@ -66,6 +66,10 @@ use amane::*;
 | `Clipboard::copy(text)` / `Clipboard::paste(then)` | the Ctrl+C/Ctrl+V clipboard; `then` runs once the text arrives |
 | `PrimarySelection::copy` / `::paste` | the middle-click selection |
 | `Rectangle::on_text_drop(handler)` / `.drag_out(data)` | text dragged in; dragging `DragData` out |
+| `Config::<T>::read()` / `::change(edit)` | a settings file in `~/.config`, shared live between programs |
+| `FileDialog::open(title)...show(then)` | the desktop's file dialog through the portal |
+| `Notify::new(summary).body(..).send()` | sends a desktop notification |
+| `click_count()` | 1, 2 or 3 for the click being handled |
 | `.on_close(handler)` | asked when the user closes it, `Fn() -> bool`; `false` keeps it open |
 | `.child(widget)` | the window's content |
 | `open_window("name", view)` | opens a normal window later. Does nothing if that name is open. |

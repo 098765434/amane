@@ -53,6 +53,8 @@
 - [Commands and Files](processes.md)
 - [IPC](ipc.md)
 - [D-Bus](dbus.md)
+- [Settings Files](config.md)
+- [Desktop Dialogs and Notifications](portals.md)
 
 ---
 

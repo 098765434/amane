@@ -97,9 +97,23 @@ Live-tested on niri: `ipc call --app`, a second launch handing over its argument
 
 Behaviour change: an example started without its own app-id beside the running shell now hands over to the shell and exits, instead of panicking with "already running".
 
+## Phase 7: platform helpers (done)
+
+| Addition | Notes |
+|---|---|
+| `Config<T: Settings>` | a generic Service over `~/.config/<APP>/<FILE>.json`: serde, atomic save, watched with `watch_file`, quiet when nothing changed; adds the `serde` dependency (already built for zbus) and re-exports it |
+| `FileDialog` | the file chooser portal (`OpenFile`/`SaveFile`), filters, multiple, directory, name, folder; the answer arrives on its own thread and runs on the event loop |
+| `Notify` | `org.freedesktop.Notifications.Notify` on the worker thread, under the app-id, with an urgency hint |
+| `click_count()`, `Button::{Back, Forward}` | double and triple clicks within 400 ms and 4 px; `TextInput` selects a word on a double click and a line on a triple click |
+| `Argument::Byte` | for D-Bus calls that take a single byte |
+| `changes::later` | runs work handed back from another thread on the event loop; `Clipboard::paste` uses it too |
+
+Not done: the file dialog's parent window (xdg-foreign export), and touch input.
+
+Live-tested on niri: a notification reached the shell's notification server with the right arguments and showed as a toast; the file dialog opened through `xdg-desktop-portal-gnome` with its title and filters. A pick through the dialog was not confirmed: while scripted input was driving the dialog, the session's lock screen came up and the keystrokes went to it, so testing stopped there.
+
 ## Planned
 
-1. Platform helpers: a `Config<T>` file service, a file chooser through the portal (with xdg-foreign for the parent), a notification send helper, double click and side buttons.
-2. In amane-shell: an `amane-kit` widget crate, then the settings app.
+1. In amane-shell: an `amane-kit` widget crate, then the settings app.
 
 Out of scope for now: client-side decorations, running without layer-shell, accessibility.

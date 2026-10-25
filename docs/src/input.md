@@ -147,6 +147,22 @@ Rectangle::new()
     .on_click(move |_| Workspaces::focus(id))
 ```
 
+## Double clicks and side buttons
+
+`click_count()` says how many quick clicks in a row the one being handled is: `1`, then `2` for a double click and `3` for a triple click. Read it in `on_click` or `on_drag`:
+
+```rust,ignore
+Rectangle::new().on_click(|button| {
+    if button == Button::Left && click_count() == 2 {
+        open_file();
+    }
+})
+```
+
+A click counts as the next one when it comes within 400 ms of the last, with the same button, less than 4 pixels away. A double click also reports a first click before it, so a widget that does something different on each should make the single click harmless.
+
+The side buttons many mice have arrive as `Button::Back` and `Button::Forward`.
+
 ## Hover effects
 
 A hover effect needs state, because the view has to know whether the pointer is inside:

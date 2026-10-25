@@ -4,7 +4,9 @@ use std::rc::Rc;
 use crate::graphics::Area;
 use crate::input::focus::{self, InputHandler};
 use crate::input::{Cursor, Handlers, Target};
-use crate::{Button, Clipboard, Key, Point, PrimarySelection, modifiers, pointer_position};
+use crate::{
+    Button, Clipboard, Key, Point, PrimarySelection, click_count, modifiers, pointer_position,
+};
 
 use super::{TextHandler, TextInput, fields};
 
@@ -64,13 +66,20 @@ pub fn collect_targets(text_input: &TextInput, area: Area, targets: &mut Vec<Tar
         let at = measure.index_at(&field, point);
 
         if SELECTING.get() == Some(id) {
-            field.move_to(at, true);
+            // a double or triple click keeps what it selected while the button is down
+            if click_count() == 1 {
+                field.move_to(at, true);
+            }
         } else {
             SELECTING.set(Some(id));
 
             focus::set(id, on_key.clone(), multiline);
 
-            field.move_to(at, modifiers().shift);
+            match click_count() {
+                1 => field.move_to(at, modifiers().shift),
+                2 => field.select_word(at),
+                _ => field.select_line(at),
+            }
         }
 
         fields::set(id, field);

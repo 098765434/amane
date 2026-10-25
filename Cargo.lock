@@ -25,6 +25,7 @@ dependencies = [
  "libpulse-binding",
  "png",
  "resvg",
+ "serde",
  "serde_json",
  "smithay-client-toolkit",
  "swash",

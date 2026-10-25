@@ -439,6 +439,31 @@ impl Field {
         at
     }
 
+    // selects the word around a letter, for a double click
+    pub fn select_word(&mut self, at: usize) {
+        let letters: Vec<char> = self.text.chars().collect();
+
+        let at = at.min(letters.len());
+
+        let mut start = at;
+        let mut end = at;
+
+        while start > 0 && is_word(letters[start - 1]) {
+            start -= 1;
+        }
+
+        while end < letters.len() && is_word(letters[end]) {
+            end += 1;
+        }
+
+        self.select(start, end);
+    }
+
+    // selects the line a letter is on, for a triple click
+    pub fn select_line(&mut self, at: usize) {
+        self.select(self.line_start(at), self.line_end(at));
+    }
+
     // the line a letter is on and how far along it, both counted from 0
     pub fn line_and_column(&self, at: usize) -> (usize, usize) {
         let before: String = self.text.chars().take(at).collect();
@@ -658,6 +683,17 @@ mod tests {
         // one line turns Enter into submit, many lines into a line break
         assert!(field.apply(Key::Enter, NONE, false).submit);
         assert!(field.apply(Key::Enter, NONE, true).changed);
+    }
+
+    #[test]
+    fn double_and_triple_clicks_select_a_word_and_a_line() {
+        let mut field = typed("one two\nthree");
+
+        field.select_word(5);
+        assert_eq!(field.selected(), "two");
+
+        field.select_line(2);
+        assert_eq!(field.selected(), "one two");
     }
 
     #[test]

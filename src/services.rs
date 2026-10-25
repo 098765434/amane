@@ -19,7 +19,7 @@ mod power_profile;
 pub mod store;
 mod window_info;
 mod windows;
-mod worker;
+pub(crate) mod worker;
 mod workspace;
 mod workspaces;
 mod write;

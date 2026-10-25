@@ -19,7 +19,7 @@ use smithay_client_toolkit::reexports::protocols::wp::primary_selection::zv1::cl
 use wayland_client::{Connection, QueueHandle};
 
 use crate::changes;
-use crate::clipboard::{Board, PASTED, REQUESTS, Request, Then};
+use crate::clipboard::{Board, REQUESTS, Request, Then};
 
 use super::WaylandState;
 
@@ -53,14 +53,6 @@ impl WaylandState {
                 Request::Copy(board, text) => self.copy(board, text),
                 Request::Paste(board, then) => self.paste(board, then),
             }
-        }
-
-        let mut pasted = PASTED.lock().unwrap_or_else(PoisonError::into_inner);
-
-        let pasted = mem::take(&mut *pasted);
-
-        for (then, text) in pasted {
-            then(text);
         }
     }
 
@@ -166,12 +158,7 @@ pub fn read_text(pipe: ReadPipe, then: Then) {
 
         let text = String::from_utf8_lossy(&bytes).into_owned();
 
-        PASTED
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .push((then, text));
-
-        changes::wake();
+        changes::later(move || then(text));
     });
 }
 

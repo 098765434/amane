@@ -55,8 +55,14 @@ impl WaylandState {
             _ => {}
         }
 
-        if let PointerEventKind::Press { serial, .. } = &event.kind {
+        if let PointerEventKind::Press { serial, button, .. } = &event.kind {
             self.last_press_serial = Some(*serial);
+
+            let press = LastPress::next(self.last_press, *button, event.position);
+
+            self.last_press = Some(press);
+
+            crate::input::set_click_count(press.count);
         }
 
         // every event names the surface it happened on
@@ -115,7 +121,6 @@ impl WaylandState {
             }
 
             PointerEventKind::Release { button, .. } => {
-                // side buttons like back and forward have no amane button yet
                 let Some(button) = to_button(*button) else {
                     return false;
                 };
@@ -168,12 +173,60 @@ impl WaylandState {
     }
 }
 
+// linux's codes for the side buttons, which mice report as either pair
+const BTN_SIDE: u32 = 0x113;
+const BTN_EXTRA: u32 = 0x114;
+const BTN_FORWARD: u32 = 0x115;
+const BTN_BACK: u32 = 0x116;
+
 fn to_button(code: u32) -> Option<Button> {
     match code {
         BTN_LEFT => Some(Button::Left),
         BTN_RIGHT => Some(Button::Right),
         BTN_MIDDLE => Some(Button::Middle),
+        BTN_SIDE | BTN_BACK => Some(Button::Back),
+        BTN_EXTRA | BTN_FORWARD => Some(Button::Forward),
         _ => None,
+    }
+}
+
+// how quick and how close a press has to follow the last to count as the next click
+const CLICK_TIME: std::time::Duration = std::time::Duration::from_millis(400);
+const CLICK_DISTANCE: f64 = 4.0;
+
+// the press before, to count double and triple clicks
+#[derive(Clone, Copy)]
+pub struct LastPress {
+    at: std::time::Instant,
+    position: (f64, f64),
+    button: u32,
+    count: u32,
+}
+
+impl LastPress {
+    // the count this press makes, after the last one
+    fn next(last: Option<Self>, button: u32, position: (f64, f64)) -> Self {
+        let now = std::time::Instant::now();
+
+        let follows = last.is_some_and(|last| {
+            let (x, y) = last.position;
+
+            last.button == button
+                && now.duration_since(last.at) < CLICK_TIME
+                && (position.0 - x).hypot(position.1 - y) < CLICK_DISTANCE
+        });
+
+        let count = match last {
+            Some(last) if follows => last.count + 1,
+            _ => 1,
+        };
+
+        Self {
+            at: now,
+            position,
+            button,
+            count,
+        }
     }
 }
 
