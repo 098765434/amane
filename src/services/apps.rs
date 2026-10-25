@@ -12,7 +12,7 @@ use std::time::Duration;
 
 use crate::Service;
 
-pub use desktop_app::DesktopApp;
+pub use desktop_app::{DesktopAction, DesktopApp};
 
 // the programs a launcher can show, read from the .desktop files in the xdg data dirs
 #[derive(Default)]

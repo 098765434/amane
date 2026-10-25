@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::{DesktopApp, exec};
+use super::{DesktopAction, DesktopApp, exec};
 
 // the desktop file id: its path inside applications/, with / turned into -
 pub fn id(applications: &Path, path: &Path) -> Option<String> {
@@ -21,7 +21,13 @@ pub fn id(applications: &Path, path: &Path) -> Option<String> {
 pub fn read(path: &Path, icons: &HashMap<String, PathBuf>) -> Option<DesktopApp> {
     let text = fs::read_to_string(path).ok()?;
 
-    let fields = main_section(&text);
+    parse(&text, icons)
+}
+
+fn parse(text: &str, icons: &HashMap<String, PathBuf>) -> Option<DesktopApp> {
+    let sections = sections(text);
+
+    let fields = sections.get("Desktop Entry")?;
 
     if fields.get("Type").copied() != Some("Application") {
         return None;
@@ -46,6 +52,11 @@ pub fn read(path: &Path, icons: &HashMap<String, PathBuf>) -> Option<DesktopApp>
     let categories = list_field(fields.get("Categories"));
     let keywords = list_field(fields.get("Keywords"));
 
+    let actions = list_field(fields.get("Actions"))
+        .iter()
+        .filter_map(|id| action(sections.get(format!("Desktop Action {id}").as_str())?))
+        .collect();
+
     Some(DesktopApp {
         name,
         exec,
@@ -54,6 +65,16 @@ pub fn read(path: &Path, icons: &HashMap<String, PathBuf>) -> Option<DesktopApp>
         description,
         categories,
         keywords,
+        actions,
+    })
+}
+
+// an action needs a name to show and a command to run
+fn action(fields: &HashMap<&str, &str>) -> Option<DesktopAction> {
+    Some(DesktopAction {
+        name: fields.get("Name")?.to_string(),
+        exec: exec::strip_field_codes(fields.get("Exec")?),
+        icon: fields.get("Icon").map(|icon| icon.to_string()),
     })
 }
 
@@ -70,33 +91,40 @@ fn list_field(value: Option<&&str>) -> Vec<String> {
     }
 }
 
-// the keys of [Desktop Entry], leaving out translations like Name[de] and the action sections
-fn main_section(text: &str) -> HashMap<&str, &str> {
-    let mut fields = HashMap::new();
+// the keys of each [section] by its name, like "Desktop Entry" or "Desktop Action new-window",
+// leaving out translations like Name[de]
+fn sections(text: &str) -> HashMap<&str, HashMap<&str, &str>> {
+    let mut sections: HashMap<&str, HashMap<&str, &str>> = HashMap::new();
 
-    let mut inside = false;
+    let mut current = None;
 
     for line in text.lines() {
         let line = line.trim();
 
-        if line.starts_with('[') {
-            inside = line == "[Desktop Entry]";
+        if let Some(name) = line
+            .strip_prefix('[')
+            .and_then(|line| line.strip_suffix(']'))
+        {
+            current = Some(name);
 
             continue;
         }
 
-        if !inside {
+        let Some(section) = current else {
             continue;
-        }
+        };
 
         let Some((key, value)) = line.split_once('=') else {
             continue;
         };
 
-        fields.insert(key.trim(), value.trim());
+        sections
+            .entry(section)
+            .or_default()
+            .insert(key.trim(), value.trim());
     }
 
-    fields
+    sections
 }
 
 fn is_true(value: Option<&&str>) -> bool {
@@ -112,4 +140,59 @@ pub fn find_icon(icon: &str, icons: &HashMap<String, PathBuf>) -> Option<PathBuf
     }
 
     icons.get(icon).cloned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const FIREFOX: &str = "\
+[Desktop Entry]
+Type=Application
+Name=Firefox
+Name[de]=Feuerfuchs
+Exec=firefox %u
+Icon=firefox
+Actions=new-window;new-private-window;broken;
+
+[Desktop Action new-window]
+Name=New Window
+Exec=firefox --new-window %u
+
+[Desktop Action new-private-window]
+Name=New Private Window
+Exec=firefox --private-window %u
+Icon=firefox-private
+
+[Desktop Action broken]
+Name=Has No Command
+";
+
+    #[test]
+    fn reads_the_main_section() {
+        let app = parse(FIREFOX, &HashMap::new()).expect("an application");
+
+        assert_eq!(app.name(), "Firefox");
+        assert_eq!(app.exec(), "firefox");
+        assert_eq!(app.icon(), Some("firefox"));
+    }
+
+    #[test]
+    fn reads_the_actions_it_lists_in_order() {
+        let app = parse(FIREFOX, &HashMap::new()).expect("an application");
+
+        let names: Vec<&str> = app.actions().iter().map(DesktopAction::name).collect();
+
+        assert_eq!(names, ["New Window", "New Private Window"]);
+        assert_eq!(app.actions()[0].exec(), "firefox --new-window");
+        assert_eq!(app.actions()[0].icon(), None);
+        assert_eq!(app.actions()[1].icon(), Some("firefox-private"));
+    }
+
+    #[test]
+    fn an_action_section_is_not_the_app() {
+        let text = "[Desktop Action new-window]\nName=New Window\nExec=x\n";
+
+        assert_eq!(parse(text, &HashMap::new()), None);
+    }
 }

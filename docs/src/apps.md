@@ -62,7 +62,18 @@ fn view() -> LayerWindow {
 | `icon_path()` | the icon's image file, a PNG when the theme has one, or `None` |
 | `categories()` | its freedesktop `Categories`, like `["Network", "WebBrowser"]` |
 | `keywords()` | its `Keywords`, extra search terms the author added |
+| `actions()` | its desktop actions, other ways to start it like "New Private Window" (see below) |
 | `launch()` | starts the program, without waiting for it |
+
+Each `DesktopAction` is one of the `[Desktop Action …]` sections the entry's `Actions` lists, in
+that order; one without a `Name` or `Exec` is left out. It has `name()`, `exec()` (without the
+placeholders), `icon()` (its own icon's name, or `None` to use the app's) and `launch()`:
+
+```rust,ignore
+for action in app.actions() {
+    println!("{}: {}", action.name(), action.exec());
+}
+```
 
 `Apps::find_icon(name)` looks up an icon by its name in the icon theme (or takes a full path as it is) and gives its image file, or `None`. Use it for something with no `.desktop` file, like a window whose app_id names an icon:
 
