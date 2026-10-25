@@ -2,11 +2,14 @@ use smithay_client_toolkit::seat::pointer::{
     AxisScroll, BTN_LEFT, BTN_MIDDLE, BTN_RIGHT, CursorIcon, PointerEvent, PointerEventKind,
     PointerHandler,
 };
-use wayland_client::{Connection, QueueHandle, protocol::wl_pointer::WlPointer};
+use wayland_client::{
+    Connection, QueueHandle,
+    protocol::wl_pointer::{AxisSource, WlPointer},
+};
 
 use crate::input::PIXELS_PER_LINE;
 use crate::scale::ScaleFactor;
-use crate::{Button, Cursor, Scroll};
+use crate::{Button, Cursor, Scroll, ScrollSource};
 
 use super::WaylandState;
 
@@ -108,8 +111,13 @@ impl WaylandState {
             PointerEventKind::Axis {
                 horizontal,
                 vertical,
+                source,
                 ..
-            } => pointer.scroll(to_scroll(horizontal, vertical, window.scale_factor)),
+            } => {
+                let source = to_source(*source);
+
+                pointer.scroll(to_scroll(horizontal, vertical, source, window.scale_factor))
+            }
         }
     }
 
@@ -149,10 +157,27 @@ fn to_button(code: u32) -> Option<Button> {
     }
 }
 
-fn to_scroll(horizontal: &AxisScroll, vertical: &AxisScroll, scale_factor: ScaleFactor) -> Scroll {
+fn to_scroll(
+    horizontal: &AxisScroll,
+    vertical: &AxisScroll,
+    source: ScrollSource,
+    scale_factor: ScaleFactor,
+) -> Scroll {
     Scroll {
         x: lines(horizontal, scale_factor),
         y: lines(vertical, scale_factor),
+        source,
+        stop: horizontal.stop || vertical.stop,
+    }
+}
+
+// a frame without a source (older compositors) counts as a wheel
+fn to_source(source: Option<AxisSource>) -> ScrollSource {
+    match source {
+        Some(AxisSource::Finger) => ScrollSource::Finger,
+        Some(AxisSource::Continuous) => ScrollSource::Continuous,
+        Some(AxisSource::WheelTilt) => ScrollSource::Tilt,
+        _ => ScrollSource::Wheel,
     }
 }
 
@@ -224,5 +249,29 @@ mod tests {
         assert_eq!(lines(&touchpad, ScaleFactor::default()), 2.0);
         assert_eq!(lines(&wheel, factor), 1.0);
         assert_eq!(lines(&old_wheel, factor), 1.0);
+    }
+
+    #[test]
+    fn a_finger_lift_is_a_stop_from_the_touchpad() {
+        let lifted = AxisScroll {
+            stop: true,
+            ..AxisScroll::default()
+        };
+        let scroll = to_scroll(
+            &AxisScroll::default(),
+            &lifted,
+            to_source(Some(AxisSource::Finger)),
+            ScaleFactor::default(),
+        );
+
+        assert!(scroll.stop);
+        assert_eq!(scroll.source, ScrollSource::Finger);
+        assert_eq!((scroll.x, scroll.y), (0.0, 0.0));
+    }
+
+    #[test]
+    fn a_frame_without_a_source_is_a_wheel() {
+        assert_eq!(to_source(None), ScrollSource::Wheel);
+        assert_eq!(to_source(Some(AxisSource::Wheel)), ScrollSource::Wheel);
     }
 }

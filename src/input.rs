@@ -65,6 +65,36 @@ pub struct Scroll {
 
     // positive scrolls down
     pub y: f32,
+
+    // what made it, so a handler can follow fingers but step a wheel
+    pub source: ScrollSource,
+
+    // the fingers lifted (or a continuous scroll ended); x and y may be zero
+    pub stop: bool,
+}
+
+impl Scroll {
+    // the scroll in logical pixels, for following fingers one to one
+    pub fn pixels(&self) -> (f32, f32) {
+        (self.x * PIXELS_PER_LINE, self.y * PIXELS_PER_LINE)
+    }
+}
+
+// what a scroll came from, as the compositor reports it
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ScrollSource {
+    // a wheel that clicks in steps, and what an unknown source counts as
+    #[default]
+    Wheel,
+
+    // fingers on a touchpad, which end in a stop
+    Finger,
+
+    // a continuous source without steps, like a trackpoint
+    Continuous,
+
+    // a wheel tilted sideways
+    Tilt,
 }
 
 // the pointer's look while it is over a widget
