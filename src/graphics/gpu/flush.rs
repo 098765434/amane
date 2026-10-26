@@ -75,6 +75,8 @@ impl Gpu {
 
     // the scene alone, on its own texture of the given size, given back by the caller
     pub(super) fn render(&mut self, scene: &Scene, width: u32, height: u32) -> Texture {
+        self.runs += 1;
+
         self.keep_atlas(scene);
 
         let scratch = self.take_scratch(width, height);

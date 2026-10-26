@@ -126,6 +126,9 @@ pub struct Gpu {
     // the commands and buffer size of the frame on screen, none before one shows
     showing: Option<(Vec<Command>, u32, u32)>,
 
+    // how many times this frame went through vello, for the frame log
+    runs: u32,
+
     composite: Pass,
     present: Pass,
     box_blur: Pass,
@@ -200,11 +203,18 @@ impl Gpu {
 
             showing: None,
 
+            runs: 0,
+
             composite,
             present,
             box_blur,
             erase,
         }
+    }
+
+    // how many vello runs the last frame took; a frame the quads drew alone took none
+    pub fn vello_runs(&self) -> u32 {
+        self.runs
     }
 
     /*

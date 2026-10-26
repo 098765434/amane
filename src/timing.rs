@@ -29,7 +29,15 @@ pub fn skipped(name: &str) {
     }
 }
 
-pub fn log(name: &str, width: u32, height: u32, last: Option<Instant>, timing: &Timing) {
+// vello is how many times the frame went through vello: 0 for a frame the quads drew alone
+pub fn log(
+    name: &str,
+    width: u32,
+    height: u32,
+    last: Option<Instant>,
+    timing: &Timing,
+    vello: u32,
+) {
     if !*ENABLED {
         return;
     }
@@ -42,7 +50,7 @@ pub fn log(name: &str, width: u32, height: u32, last: Option<Instant>, timing: &
     };
 
     eprintln!(
-        "frame {name} {width}x{height} gap {gap:.1} view {:.1} draw {:.1} gpu {:.1}",
+        "frame {name} {width}x{height} gap {gap:.1} view {:.1} draw {:.1} gpu {:.1} vello {vello}",
         milliseconds(timing.started, timing.viewed),
         milliseconds(timing.viewed, timing.drawn),
         milliseconds(timing.drawn, timing.presented),
