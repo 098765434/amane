@@ -4,6 +4,8 @@
 colour** from the XDG Settings portal (`xdg-desktop-portal`). Most programs
 already follow this setting, so a bar that reads it matches them.
 
+## Usage
+
 ```rust
 let appearance = Appearance::read();
 
@@ -25,7 +27,7 @@ let accent = appearance.accent().unwrap_or(Palette::read().accent());
 | `high_contrast()` | `true` when the desktop asks for higher contrast (`contrast` is `1`) |
 | `reduced_motion()` | `true` when the desktop asks for less motion (`reduced-motion` is `1`) |
 
-## How it works
+## Design / internals
 
 At start-up, `Read("org.freedesktop.appearance", …)` is called once each for
 `color-scheme`, `accent-color`, `contrast` and `reduced-motion`, on

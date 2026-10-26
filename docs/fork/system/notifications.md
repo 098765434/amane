@@ -5,7 +5,10 @@ center on top of upstream's `Notifications` server: how long the sender
 asked a notification to show, the hints that say what kind it is, an
 icon as a file, and a way for the shell to let one go. amane still
 never closes a notification by itself. The shell decides when a toast
-ends and what stays in its history.
+ends and what stays in its history. Upstream's guide is
+[Notifications](../../src/notifications.md).
+
+## Usage
 
 ```rust
 let notifications = Notifications::read();
@@ -34,7 +37,12 @@ Notifications::expire(id);
 | `resident()` | `true` when it stays open after an action |
 | `Notifications::expire(id)` | closes it with the reason *expired*, for a toast the shell is done with |
 
-## How it works
+To hide popups after a few seconds, compare `received()` plus the timeout with the current
+time in a Service that polls, and only show the recent ones in your popup window. Keep the full
+list for a notification center. When a `transient()` notification's popup ends, call
+`Notifications::expire(id)` so it leaves the list too.
+
+## Design / internals
 
 **Timeout.** `Notify` sends `expire_timeout` in milliseconds: `-1` for
 the server's default, `0` for never, or a duration. Upstream ignored it.

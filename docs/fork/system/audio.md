@@ -3,7 +3,9 @@
 Upstream's `Audio` service only follows the *default* output and input. The fork adds the list of
 devices, what kind each one is, and switching the default, so a shell can offer a sound menu and
 show a headphones icon while headphones are in use. Everything else in
-[the Audio page](../src/audio.md) is unchanged.
+[the Audio page](../../src/audio.md) is unchanged.
+
+## Usage
 
 ```rust
 use amane::{Audio, AudioKind, Service};
@@ -31,7 +33,7 @@ Audio::set_output("bluez_output.AA_BB_CC_DD_EE_FF.1");
 | `AudioDevice::kind()` | `Internal`, `Speaker`, `Headphones`, `Headset`, `Display`, `Car`, `Phone`, `Webcam` or `Microphone` |
 | `AudioDevice::default()` | `true` for the current default |
 
-## How the kind is found
+## Design / internals: how the kind is found
 
 First match wins (`src/services/audio/device.rs`, unit-tested):
 
@@ -51,3 +53,8 @@ A device that lands on the wrong kind can be checked with
 
 The device list re-reads on every sink, source and server event, which covers plugging, Bluetooth
 connects and default changes. See `examples/audio.rs`.
+
+## Fix: dropping the pulse context
+
+`dedcda4` also fixes an abort when a thread that had used audio exited: the pulse context is now
+dropped before its mainloop (`src/services/audio/pulse.rs`).

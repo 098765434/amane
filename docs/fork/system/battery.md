@@ -4,10 +4,13 @@
 it is running. That adds peripheral batteries (mouse, keyboard, headset,
 controller), warning levels, time estimates and AC state to what the
 kernel-only reader gave. Without UPower it falls back to the original
-sysfs reader (`/sys/class/power_supply`), so the battery still shows.
+sysfs reader (`/sys/class/power_supply`), so the battery still shows, polled every 5 seconds as upstream does. Upstream's guide is
+[System](../../src/system.md#battery).
 
 The source is picked once, when the service starts: if `GetDisplayDevice`
 answers, UPower is used for the rest of the session.
+
+## Usage
 
 ```rust
 let battery = Battery::read();
@@ -24,7 +27,7 @@ for device in battery.peripherals() {
 }
 ```
 
-## Getters
+### Getters
 
 | Function | Gives | sysfs fallback |
 | --- | --- | --- |
@@ -49,7 +52,7 @@ critical and action. The upstream getters (`present`, `percent`,
 `PowerSupply` is false and it is present. That is UPower's own line between
 the machine's batteries and everything else.
 
-## How it works
+## Design / internals
 
 The overall charge comes from UPower's **display device**, which combines
 all of the machine's batteries into the one a bar should show. Nothing is

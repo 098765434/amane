@@ -5,6 +5,8 @@ whether a program has asked not to idle, like a browser playing a video.
 The compositor's **ext-idle-notify** protocol gives the first, and amane
 serving **org.freedesktop.ScreenSaver** gives the second.
 
+## Usage
+
 ```rust
 const DIM: Duration = Duration::from_secs(120);
 const LOCK: Duration = Duration::from_secs(300);
@@ -33,7 +35,7 @@ if !idle.inhibited() {
 | `running()` | `false` when another program already serves `org.freedesktop.ScreenSaver` |
 | `Idle::set_levels(levels)` | replaces the levels, and starts every timer again |
 
-## How it works
+## Design / internals
 
 **Idle detection.** The backend binds `ext_idle_notifier_v1` when the
 compositor offers it (niri, Sway, Hyprland and other wlroots-style
@@ -68,3 +70,6 @@ amane never dims, locks or blanks anything by itself. The shell decides,
 from `crossed`, `inhibited` and `Lock::start()`.
 
 There is no logind `SetIdleHint` yet.
+
+For the ScreenSaver server, `Bus` gains `Method::sender()`, the caller's unique bus name, so an
+inhibit can be released when its program leaves the bus.

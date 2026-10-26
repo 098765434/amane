@@ -11,7 +11,33 @@ The overall design is already sound. It only redraws when something changed, it 
 
 The work is split into phases ordered by impact ÷ risk. Each phase is a separate commit or PR so it can be measured and reverted on its own.
 
-> Status: **planned, not yet implemented.** Line numbers refer to `ocbk` at `fe941a9` and may drift.
+> Line numbers refer to `ocbk` at `fe941a9` and may drift.
+
+## Status
+
+Partly implemented. Done from this plan:
+
+| Item | Commit |
+|---|---|
+| 1.5 Battery: UPower `PropertiesChanged` instead of the 5 s poll (sysfs poll stays as the fallback) | `dd6f110` |
+| 2.7 Skip identical frames: the GPU pass is skipped when the commands, size and motion equal the frame on screen | `e56b843` |
+| 2.8 Pointer motion (partly): `on_track` follows the pointer without a redraw | `6b0099b` |
+
+Related render and redraw work done since, outside the phases above:
+
+| Change | Commit |
+|---|---|
+| A new `Animation` is at rest, so making one draws nothing | `527c538` |
+| `Renderer::blend` makes no group for what's invisible or a single shape | `3f57058` |
+| A vello run draws into its own box, not the whole window (GPU bounds) | `6d2123b` |
+| A backdrop reading redraws only the windows that read that shape's | `e71c91e` |
+| A window title change redraws only what shows a title | `45e0edc` |
+| `Overview`, `WorkspaceSwitch` and `Desktop` split out of `Gestures`, and frozen layer windows | `14c6994`, `916aecd` |
+
+The rest is still planned: event-driven network, media, bluetooth, brightness and palette;
+pausing unread services; the allocator thread; popup reconcile; text and layout caches; GPU
+state sharing, present mode and power preference; caches and fonts; the release profile. How
+the done items work is in [Architecture](architecture.md).
 
 ---
 
