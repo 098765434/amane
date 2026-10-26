@@ -63,7 +63,18 @@ fn draw_in_place(rectangle: &Rectangle, renderer: &mut Renderer, area: Area) {
 
     paint(rectangle, &mut group, area, radius);
 
-    renderer.blend(group, rectangle.opacity);
+    let Some(effect) = &rectangle.effect else {
+        renderer.blend(group, rectangle.opacity);
+
+        return;
+    };
+
+    // the effect's result is faded as one, like the drawing it replaces
+    let mut affected = renderer.group();
+
+    affected.effect(group, area, effect);
+
+    renderer.blend(affected, rectangle.opacity);
 }
 
 fn paint(rectangle: &Rectangle, renderer: &mut Renderer, area: Area, radius: Corners) {

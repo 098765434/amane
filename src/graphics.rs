@@ -10,6 +10,7 @@ pub mod letter;
 mod outline;
 mod path;
 mod renderer;
+pub(crate) mod shader_files;
 mod transform;
 pub(crate) mod vibrancy;
 mod weight;

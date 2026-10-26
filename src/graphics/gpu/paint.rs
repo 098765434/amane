@@ -127,6 +127,25 @@ impl Gpu {
      * a blur, cut or shader is drawn apart too, so those only see the clip's drawing
      */
     fn draw_on_own_canvas(&mut self, command: Command, canvas: &Texture, clips: Clips) {
+        // an effect's passes read what its commands drew on their own canvas
+        if let Command::Effect {
+            commands,
+            effect,
+            area,
+            transform,
+        } = command
+        {
+            let own = self.take_canvas(canvas.width(), canvas.height());
+
+            self.run_clipped(commands, &own, clips);
+
+            self.run_effect(&own, &effect, area, transform, canvas);
+
+            self.give_back(own);
+
+            return;
+        }
+
         let (commands, opacity, clipped_to) = match command {
             Command::Group { commands, opacity } => (commands, opacity, None),
 
@@ -306,7 +325,7 @@ enum Route {
     // blurs, cuts and shaders work on what the canvas already holds
     Canvas,
 
-    // a faded group, or a clip holding a blur, cut or shader
+    // a faded group, an effect, or a clip holding a blur, cut, shader or effect
     OwnCanvas,
 
     // a clip the quads apply themselves, its commands routed like any others
@@ -323,7 +342,7 @@ fn route(command: &Command) -> Route {
     match command {
         Command::Blur { .. } | Command::Cut { .. } | Command::Shader { .. } => Route::Canvas,
 
-        Command::Group { .. } => Route::OwnCanvas,
+        Command::Group { .. } | Command::Effect { .. } => Route::OwnCanvas,
 
         Command::Clip { commands, .. } if needs_own_canvas(commands) => Route::OwnCanvas,
 
@@ -372,7 +391,10 @@ fn route(command: &Command) -> Route {
 // blurs, cuts and shaders work on the canvas itself, so a clip holding one draws on a canvas of its own
 fn needs_own_canvas(commands: &[Command]) -> bool {
     commands.iter().any(|command| match command {
-        Command::Blur { .. } | Command::Cut { .. } | Command::Shader { .. } => true,
+        Command::Blur { .. }
+        | Command::Cut { .. }
+        | Command::Shader { .. }
+        | Command::Effect { .. } => true,
         Command::Group { commands, .. } | Command::Clip { commands, .. } => {
             needs_own_canvas(commands)
         }

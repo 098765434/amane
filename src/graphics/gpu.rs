@@ -5,6 +5,7 @@ mod clip;
 mod convert;
 mod cut;
 mod dispatch;
+mod effect;
 mod flush;
 mod forget;
 mod glyph;
@@ -37,14 +38,13 @@ use std::sync::Arc;
 use vello::Scene;
 use vello::peniko::ImageData;
 use vello::wgpu::{
-    BlendState, Device, Queue, Surface, SurfaceConfiguration, Texture, TextureFormat,
+    BlendState, Device, Queue, Sampler, Surface, SurfaceConfiguration, Texture, TextureFormat,
 };
 
 use crate::graphics::image::Bitmap;
 use crate::graphics::renderer::Command;
 
 use pass::Pass;
-use shader::Shader;
 use shared::Shared;
 
 // Outlives the backend so cached GPU resources are released after every window.
@@ -86,8 +86,15 @@ pub struct Gpu {
     atlas_drops: Rc<Cell<u64>>,
     atlas_seen: u64,
 
-    // custom shaders, compiled once and kept by the path they were read from
-    shaders: HashMap<PathBuf, Shader>,
+    // custom shaders by the path they were read from, compiled again once their file is saved
+    shaders: HashMap<PathBuf, HashMap<shader::Kind, shader::Loaded>>,
+
+    // the shader files' generation of the frame on screen
+    shaders_seen: u64,
+
+    // what effect passes read their inputs with, and read in place of an input they don't have
+    input_sampler: Sampler,
+    blank: Texture,
 
     // finished window-sized textures waiting to be reused
     spare: Vec<Texture>,
@@ -138,6 +145,9 @@ impl Gpu {
 
         let quads = quads::Quads::new(&device, &queue);
 
+        let input_sampler = effect::sampler(&device);
+        let blank = effect::blank(&device, &queue);
+
         Self {
             device,
             queue,
@@ -156,6 +166,9 @@ impl Gpu {
             atlas_seen: 0,
 
             shaders: HashMap::new(),
+            shaders_seen: crate::graphics::shader_files::generation(),
+            input_sampler,
+            blank,
             spare: Vec::new(),
 
             painted: Vec::new(),

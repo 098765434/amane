@@ -7,6 +7,10 @@ pub const CANVAS: TextureUsages = TextureUsages::RENDER_ATTACHMENT
     .union(TextureUsages::TEXTURE_BINDING)
     .union(TextureUsages::COPY_SRC);
 
+// an effect pass's result, read by a later pass
+pub const FIELD: TextureUsages =
+    TextureUsages::RENDER_ATTACHMENT.union(TextureUsages::TEXTURE_BINDING);
+
 pub const SCRATCH: TextureUsages =
     TextureUsages::STORAGE_BINDING.union(TextureUsages::TEXTURE_BINDING);
 
@@ -18,6 +22,11 @@ pub fn canvas(device: &Device, width: u32, height: u32) -> Texture {
 // vello writes here from a compute shader, with plain, not premultiplied, alpha
 pub fn scratch(device: &Device, width: u32, height: u32) -> Texture {
     create(device, width, height, SCRATCH)
+}
+
+// half floats, so a pass can hand on finer steps and values past 0 and 1
+pub fn field(device: &Device, width: u32, height: u32) -> Texture {
+    create_as(device, width, height, FIELD, TextureFormat::Rgba16Float)
 }
 
 // vello copies the finished blur into its image atlas, so it has to be a copy source
@@ -36,6 +45,16 @@ pub fn view(texture: &Texture) -> TextureView {
 
 // new textures start out fully transparent
 fn create(device: &Device, width: u32, height: u32, usage: TextureUsages) -> Texture {
+    create_as(device, width, height, usage, TextureFormat::Rgba8Unorm)
+}
+
+fn create_as(
+    device: &Device,
+    width: u32,
+    height: u32,
+    usage: TextureUsages,
+    format: TextureFormat,
+) -> Texture {
     let size = Extent3d {
         width,
         height,
@@ -48,7 +67,7 @@ fn create(device: &Device, width: u32, height: u32, usage: TextureUsages) -> Tex
         mip_level_count: 1,
         sample_count: 1,
         dimension: TextureDimension::D2,
-        format: TextureFormat::Rgba8Unorm,
+        format,
         usage,
         view_formats: &[],
     })

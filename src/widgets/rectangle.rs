@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use crate::graphics::{Color, VALUE_ROWS};
 use crate::input::Handlers;
-use crate::{Align, Fill, Padding, Radius, Shadow, Size};
+use crate::{Align, Effect, Fill, Padding, Radius, Shadow, Size};
 
 use super::Widget;
 
@@ -26,6 +26,7 @@ pub struct Rectangle {
     pub(crate) shadow: Option<Shadow>,
     pub(crate) shader: Option<PathBuf>,
     pub(crate) shader_values: Vec<[f32; 4]>,
+    pub(crate) effect: Option<Effect>,
     pub(crate) child: Option<Box<dyn Widget>>,
     pub(crate) clip: bool,
     pub(crate) rotation: f32,
@@ -134,7 +135,7 @@ impl Rectangle {
     }
 
     /*
-     * numbers the shader reads as `values`, up to 16 rows of four,
+     * numbers the shader reads as `values`, up to 64 rows of four,
      * like the rectangles a shader should draw; rows left out are 0
      */
     pub fn shader_values(mut self, values: Vec<[f32; 4]>) -> Self {
@@ -144,6 +145,16 @@ impl Rectangle {
         );
 
         self.shader_values = values;
+
+        self
+    }
+
+    /*
+     * runs the fill and children through the effect's shader passes,
+     * see examples/effect.rs
+     */
+    pub fn effect(mut self, effect: Effect) -> Self {
+        self.effect = Some(effect);
 
         self
     }
@@ -200,6 +211,7 @@ impl RectangleNeedsHeight {
             shadow: None,
             shader: None,
             shader_values: Vec::new(),
+            effect: None,
             child: None,
             clip: false,
             rotation: 0.0,

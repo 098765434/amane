@@ -4,6 +4,7 @@ mod shape;
 mod text;
 
 use super::{Area, Color, Corners, Transform, vibrancy};
+use crate::style::Effect;
 
 pub use command::Command;
 pub use effect::VALUE_ROWS;
@@ -87,6 +88,22 @@ impl Renderer {
             radius,
             transform: self.transform,
             commands: group.commands,
+        });
+    }
+
+    // what the group drew goes through the effect's passes, which cover the area and its margin
+    pub fn effect(&mut self, group: Renderer, area: Area, effect: &Effect) {
+        if effect.passes.is_empty() || area.width <= 0.0 || area.height <= 0.0 {
+            self.commands.extend(group.commands);
+
+            return;
+        }
+
+        self.commands.push(Command::Effect {
+            commands: group.commands,
+            effect: effect.clone(),
+            area,
+            transform: self.transform,
         });
     }
 

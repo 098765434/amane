@@ -1,6 +1,7 @@
 use vello::wgpu::{CurrentSurfaceTexture, SurfaceTexture};
 
 use crate::graphics::renderer::Command;
+use crate::graphics::shader_files;
 
 use super::{Gpu, texture};
 
@@ -11,9 +12,14 @@ impl Gpu {
      * on time (a shader) isn't, and the caller says so
      */
     pub fn shows(&self, commands: &[Command], width: u32, height: u32) -> bool {
-        self.showing
-            .as_ref()
-            .is_some_and(|(shown, w, h)| (*w, *h) == (width, height) && shown == commands)
+        // a saved shader file draws differently with the same commands
+        let shaders_saved = self.shaders_seen != shader_files::generation();
+
+        !shaders_saved
+            && self
+                .showing
+                .as_ref()
+                .is_some_and(|(shown, w, h)| (*w, *h) == (width, height) && shown == commands)
     }
 
     // the window's buffer was taken away, so nothing it showed is on screen now
@@ -37,6 +43,8 @@ impl Gpu {
         let Some(frame) = self.next_frame() else {
             return false;
         };
+
+        self.shaders_seen = shader_files::generation();
 
         // kept to tell whether the next frame changes anything
         let kept = commands.clone();
