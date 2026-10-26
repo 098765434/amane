@@ -55,7 +55,11 @@ fn open_instance(display: *mut c_void) -> Instance {
 
 // opened by the first window, with a gpu that can draw to its surface; later windows reuse it
 pub fn get(instance: &Instance, surface: &Surface) -> Shared {
-    SHARED.with_borrow_mut(|shared| shared.get_or_insert_with(|| open(instance, surface)).clone())
+    SHARED.with_borrow_mut(|shared| {
+        shared
+            .get_or_insert_with(|| open(instance, surface))
+            .clone()
+    })
 }
 
 pub fn clear() {

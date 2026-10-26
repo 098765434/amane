@@ -47,7 +47,13 @@ pub fn stack_height(font: FontRef<'static>, size: f32, count: usize) -> f32 {
     above_last + height(font, size)
 }
 
-pub fn arrange(content: &str, font: FontRef<'static>, size: f32, width: f32, rules: Rules) -> Vec<String> {
+pub fn arrange(
+    content: &str,
+    font: FontRef<'static>,
+    size: f32,
+    width: f32,
+    rules: Rules,
+) -> Vec<String> {
     let mut lines = match rules.wrap {
         true => wrap(content, font, size, width),
         false => vec![String::from(content)],

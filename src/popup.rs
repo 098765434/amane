@@ -102,6 +102,9 @@ pub struct Popup {
     pub(crate) root: Option<Box<dyn Widget>>,
     pub(crate) keys: KeyHandlers,
     pub(crate) on_dismiss: Option<Rc<dyn Fn()>>,
+
+    // its grey content blended with what's behind it, see vibrant
+    pub(crate) vibrant: bool,
 }
 
 pub struct PopupNeedsSize {
@@ -147,6 +150,17 @@ impl Popup {
 
     pub fn offset(mut self, x: i32, y: i32) -> Self {
         self.offset = (x, y);
+        self
+    }
+
+    /*
+     * its light and dark grey content blended with what the compositor
+     * frosted behind it rather than painted over it, on a compositor with
+     * niri-vibrancy: Apple's vibrant labels on a material
+     */
+    pub fn vibrant(mut self, vibrant: bool) -> Self {
+        self.vibrant = vibrant;
+
         self
     }
 
@@ -221,6 +235,7 @@ impl PopupNeedsAnchorRect {
             root: None,
             keys: KeyHandlers::default(),
             on_dismiss: None,
+            vibrant: false,
         }
     }
 }

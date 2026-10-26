@@ -20,10 +20,9 @@ impl Outline {
                 Command::MoveTo(to) => self.path.move_to(to.x, to.y),
                 Command::LineTo(to) => self.path.line_to(to.x, to.y),
                 Command::QuadTo(control, to) => self.path.quad_to(control.x, control.y, to.x, to.y),
-                Command::CurveTo(first, second, to) => {
-                    self.path
-                        .cubic_to(first.x, first.y, second.x, second.y, to.x, to.y)
-                }
+                Command::CurveTo(first, second, to) => self
+                    .path
+                    .cubic_to(first.x, first.y, second.x, second.y, to.x, to.y),
                 Command::Close => self.path.close(),
             }
         }

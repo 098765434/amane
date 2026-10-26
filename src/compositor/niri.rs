@@ -14,9 +14,15 @@ pub enum Event {
     Workspaces(Vec<Workspace>),
 
     // focused is false when it only became the one shown on its monitor
-    Activated { id: i64, focused: bool },
+    Activated {
+        id: i64,
+        focused: bool,
+    },
 
-    Urgent { id: i64, urgent: bool },
+    Urgent {
+        id: i64,
+        urgent: bool,
+    },
 
     // every window, sent first and whenever the set changes
     Windows(Vec<WindowInfo>),
@@ -24,20 +30,28 @@ pub enum Event {
     // a window opened, or any of its fields changed (title, workspace, …)
     WindowChanged(WindowInfo),
 
-    WindowClosed { id: u64 },
+    WindowClosed {
+        id: u64,
+    },
 
     // windows moved in the layout: each one's id and new column, if tiled
     WindowLayouts(Vec<(u64, Option<(usize, usize)>)>),
 
     // focus moved; id is None when no window is focused (e.g. a layer
     // surface took it). All other windows are no longer focused.
-    WindowFocus { id: Option<u64> },
+    WindowFocus {
+        id: Option<u64>,
+    },
 
     // niri's overview was opened or closed
-    Overview { open: bool },
+    Overview {
+        open: bool,
+    },
 
     // overview open/close animation progress: 0.0 closed .. 1.0 fully open
-    OverviewProgress { progress: f64 },
+    OverviewProgress {
+        progress: f64,
+    },
 
     // horizontal scroll position of the focused output's active workspace
     ViewOffset {

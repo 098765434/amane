@@ -4,10 +4,11 @@ use smithay_client_toolkit::compositor::FrameCallbackData;
 
 use crate::WindowState;
 use crate::frame;
-use crate::graphics::Renderer;
+use crate::graphics::{Command, Renderer, vibrancy};
 use crate::timing::{self, Timing};
 
 use super::surface::{OpenWindow, Role};
+use super::vibrancy::VibrantLayers;
 
 impl OpenWindow {
     // one frame: run the view, send its settings, draw it and show it
@@ -46,6 +47,8 @@ impl OpenWindow {
             return;
         }
 
+        let vibrant = content.vibrant();
+
         let (root, keys, on_close) = content.into_parts();
 
         // a window without a child has nothing to show, which is a mistake but not a crash
@@ -83,7 +86,7 @@ impl OpenWindow {
 
         let drawn = Instant::now();
 
-        let presented = self.present(frame.renderer);
+        let presented = self.present(frame.renderer, vibrant);
 
         let timing = Timing {
             started,
@@ -151,7 +154,7 @@ impl OpenWindow {
      * is measured in logical pixels, the buffer in real ones, and the scale goes
      * out with the commit that presenting the frame makes
      */
-    fn present(&mut self, renderer: Renderer) -> bool {
+    fn present(&mut self, renderer: Renderer, vibrant: bool) -> bool {
         let (buffer_width, buffer_height) = match &self.fractional {
             // a buffer at the exact scale, shown back at the window's size
             Some(fractional) => {
@@ -176,8 +179,51 @@ impl OpenWindow {
             }
         };
 
-        self.gpu
-            .draw(renderer.finish(), buffer_width, buffer_height)
+        let commands = renderer.finish();
+
+        let commands = self.draw_vibrant_layers(commands, vibrant, (buffer_width, buffer_height));
+
+        self.gpu.draw(commands, buffer_width, buffer_height)
+    }
+
+    /*
+     * a vibrant window's light and dark grey content goes on its layers, drawn
+     * first: they're synced, so they show with the window's own commit; what's
+     * left is the window's. Without niri-vibrancy everything stays on the window
+     */
+    fn draw_vibrant_layers(
+        &mut self,
+        commands: Vec<Command>,
+        vibrant: bool,
+        buffer: (u32, u32),
+    ) -> Vec<Command> {
+        let Some(kit) = &self.vibrancy_kit else {
+            return commands;
+        };
+
+        // a window that stops being vibrant drops its layers, and shows all on itself again
+        if !vibrant {
+            self.vibrant_layers = None;
+
+            return commands;
+        }
+
+        let parent = self.role.wl_surface().clone();
+        let layers = self
+            .vibrant_layers
+            .get_or_insert_with(|| VibrantLayers::new(kit, &parent, &self.qh));
+
+        let split = vibrancy::split(commands);
+
+        let size = (self.width, self.height);
+        let whole_scale = self.fractional.is_none().then_some(self.scale as i32);
+
+        layers
+            .lighter
+            .draw(split.lighter, size, buffer, whole_scale);
+        layers.darker.draw(split.darker, size, buffer, whole_scale);
+
+        split.window
     }
 }
 

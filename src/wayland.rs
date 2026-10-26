@@ -1,5 +1,7 @@
+mod activation;
 mod background_effect;
 mod blur_shapes;
+mod clipboard;
 mod compositor;
 pub(crate) mod dropped;
 mod idle;
@@ -10,15 +12,14 @@ mod normal;
 mod output;
 mod pointer;
 mod popup;
-mod activation;
-mod clipboard;
-mod text_input;
 mod redraw;
 mod scale;
 mod seat;
 mod socket;
 mod surface;
+mod text_input;
 mod update;
+mod vibrancy;
 mod wake;
 mod windows;
 
@@ -46,6 +47,7 @@ use smithay_client_toolkit::{
     registry_handlers,
     seat::{SeatState, pointer::ThemedPointer},
     session_lock::{SessionLock, SessionLockState},
+    subcompositor::SubcompositorState,
     activation::ActivationState,
     shell::{wlr_layer::LayerShell, xdg::XdgShell},
     shm::{Shm, ShmHandler},
@@ -127,6 +129,9 @@ struct WaylandState {
 
     // rounded, fading blur shapes in place of that region, none when the compositor lacks niri-blur-shapes
     blur_shapes: Option<blur_shapes::protocol::niri_blur_shapes_manager_v1::NiriBlurShapesManagerV1>,
+
+    // what windows make their vibrant layers with, none when the compositor lacks niri-vibrancy
+    vibrancy_kit: Option<vibrancy::VibrancyKit>,
 
     // tells Idle when the user went away, none when the compositor lacks ext-idle-notify
     idle_notifier: Option<ExtIdleNotifierV1>,
@@ -234,6 +239,25 @@ impl WaylandApp {
         };
         crate::blur::set_shapes_available(blur_shapes.is_some());
 
+        // AMANE_NO_VIBRANCY=1 draws vibrant windows as a compositor without it would get them
+        let vibrancy_manager = if std::env::var_os("AMANE_NO_VIBRANCY").is_some() {
+            None
+        } else {
+            globals.bind(&qh, 1..=1, ()).ok()
+        };
+        let subcompositor =
+            SubcompositorState::bind(compositor.wl_compositor().clone(), &globals, &qh).ok();
+        let vibrancy_kit = match (vibrancy_manager, subcompositor) {
+            (Some(manager), Some(subcompositor)) => Some(vibrancy::VibrancyKit {
+                manager,
+                subcompositor: std::rc::Rc::new(subcompositor),
+                compositor: compositor.wl_compositor().clone(),
+                viewporter: viewporter.clone(),
+                connection: connection.clone(),
+            }),
+            _ => None,
+        };
+
         let idle_notifier = globals.bind(&qh, 1..=1, ()).ok();
 
         let data_device_manager = DataDeviceManagerState::bind(&globals, &qh).ok();
@@ -282,6 +306,7 @@ impl WaylandApp {
 
             background_effect,
             blur_shapes,
+            vibrancy_kit,
 
             idle_notifier,
             idle_notifications: Vec::new(),

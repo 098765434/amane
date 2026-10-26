@@ -17,8 +17,8 @@ use wayland_client::{
 
 use crate::graphics::Gpu;
 use crate::input::{KeyHandlers, Pointer};
-use crate::scale::ScaleFactor;
 use crate::popup::PopupView;
+use crate::scale::ScaleFactor;
 use crate::window::{CloseHandler, WindowView};
 use crate::{BlurShape, InputArea, LayerWindow, Monitor, Popup, Widget, Window, WindowState};
 
@@ -29,6 +29,7 @@ use super::{
     layer::{self, Settings},
     normal::{Dialog, NormalSettings},
     scale::Fractional,
+    vibrancy::{VibrancyKit, VibrantLayers},
 };
 
 // one surface on screen, with everything it needs to draw and take input
@@ -69,6 +70,9 @@ pub struct OpenWindow {
     // a normal window's, from the last drawn view, asked before the user closes it
     pub on_close: Option<CloseHandler>,
 
+    // a vibrant window's layers over it, made the first time it draws; they go before its surface
+    pub vibrant_layers: Option<VibrantLayers>,
+
     // the gpu draws into the surface, so it has to go first when both are dropped
     pub gpu: Gpu,
 
@@ -91,6 +95,9 @@ pub struct OpenWindow {
 
     // kept to ask for blur shapes, none when the compositor lacks them
     pub blur_shapes_manager: Option<NiriBlurShapesManagerV1>,
+
+    // kept to make the vibrant layers, none when the compositor lacks niri-vibrancy
+    pub vibrancy_kit: Option<VibrancyKit>,
 
     pub qh: QueueHandle<WaylandState>,
 }
@@ -249,6 +256,15 @@ impl Content {
             Content::Layer(window) => String::from(window.namespace),
             Content::Normal(_) => format!("normal {}", crate::window::current_window()),
             Content::Popup(popup) => String::from(popup.namespace),
+        }
+    }
+
+    // whether its grey content is blended with what's behind it
+    pub fn vibrant(&self) -> bool {
+        match self {
+            Content::Layer(window) => window.vibrant,
+            Content::Normal(window) => window.vibrant,
+            Content::Popup(popup) => popup.vibrant,
         }
     }
 

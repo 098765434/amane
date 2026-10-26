@@ -35,6 +35,9 @@ pub struct Window {
     pub(crate) keys: KeyHandlers,
 
     pub(crate) on_close: Option<CloseHandler>,
+
+    // its grey content blended with what's behind it, see vibrant
+    pub(crate) vibrant: bool,
 }
 
 // asked when the user closes the window, false keeps it open
@@ -65,6 +68,7 @@ impl Window {
             keys: KeyHandlers::default(),
 
             on_close: None,
+            vibrant: false,
         }
     }
 
@@ -139,6 +143,17 @@ impl Window {
     // keeps the user out of the parent until this window closes, where the compositor can
     pub fn modal(mut self, modal: bool) -> Self {
         self.modal = modal;
+
+        self
+    }
+
+    /*
+     * its light and dark grey content blended with what the compositor
+     * frosted behind it rather than painted over it, on a compositor with
+     * niri-vibrancy: Apple's vibrant labels on a material
+     */
+    pub fn vibrant(mut self, vibrant: bool) -> Self {
+        self.vibrant = vibrant;
 
         self
     }
