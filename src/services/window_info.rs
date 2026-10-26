@@ -1,3 +1,5 @@
+use crate::changes::{self, Source};
+
 // A single open window (toplevel) as reported by the compositor. Named
 // `WindowInfo` because the crate root already exports `Window` for the
 // xdg-toplevel *surface role* this shell can open itself.
@@ -31,8 +33,21 @@ impl WindowInfo {
         self.app_id.as_deref()
     }
 
+    // a later change to any title draws again only the windows that asked for one
     pub fn title(&self) -> Option<&str> {
+        changes::note_source(Source::Titles);
+
         self.title.as_deref()
+    }
+
+    // whether the two are the same window in the same place, whatever their titles
+    pub(crate) fn same_but_title(&self, other: &Self) -> bool {
+        self.id == other.id
+            && self.app_id == other.app_id
+            && self.focused == other.focused
+            && self.floating == other.floating
+            && self.workspace == other.workspace
+            && self.column == other.column
     }
 
     pub fn focused(&self) -> bool {

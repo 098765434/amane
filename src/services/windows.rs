@@ -1,5 +1,7 @@
+use crate::changes::{self, Source};
 use crate::compositor::{self, Action};
 use crate::services::worker;
+use crate::timing;
 use crate::{Service, WindowInfo};
 
 pub struct Windows {
@@ -24,17 +26,41 @@ impl Service for Windows {
 
             let mut windows = Self::write();
 
-            // a title or overview change is a real change; but an event that
-            // touched nothing this service shows (e.g. a workspace event on
-            // the shared stream) leaves both equal, so redraw nothing
+            // an event that touched nothing this service shows (e.g. a
+            // workspace event on the shared stream) leaves both equal, so
+            // redraw nothing
             if windows.list == list && windows.overview == overview {
                 windows.quiet();
 
                 return;
             }
 
+            /*
+             * only titles changed (a terminal's running command, a page
+             * loading): only the windows that read a title draw again
+             */
+            let retitled = windows.overview == overview
+                && windows.list.len() == list.len()
+                && windows
+                    .list
+                    .iter()
+                    .zip(&list)
+                    .all(|(was, now)| was.same_but_title(now));
+
             windows.list = list;
             windows.overview = overview;
+
+            if retitled {
+                windows.quiet();
+
+                drop(windows);
+
+                if timing::enabled() {
+                    eprintln!("change Titles");
+                }
+
+                changes::mark_source(Source::Titles);
+            }
         });
     }
 }

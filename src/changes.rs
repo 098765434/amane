@@ -17,6 +17,9 @@ static WAKE: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
 pub enum Source {
     Service(TypeId),
     Backdrop(u32),
+
+    // windows' titles, which change far more often than what else is known of them
+    Titles,
 }
 
 /*
