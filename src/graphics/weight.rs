@@ -10,40 +10,31 @@ pub enum Weight {
     Bold,
     ExtraBold,
     Black,
+
+    // any weight from 1 to 1000; a variable font draws it exactly, others pick the closest file
+    Number(u16),
 }
 
 impl Weight {
-    // the style name fontconfig looks a font file up by
-    pub(crate) fn style(self) -> &'static str {
+    // how heavy it is, on the 100 to 900 scale fonts use
+    pub fn value(self) -> u16 {
         match self {
-            Weight::Thin => "Thin",
-            Weight::ExtraLight => "ExtraLight",
-            Weight::Light => "Light",
-            Weight::Regular => "Regular",
-            Weight::Medium => "Medium",
-            Weight::SemiBold => "SemiBold",
-            Weight::Bold => "Bold",
-            Weight::ExtraBold => "ExtraBold",
-            Weight::Black => "Black",
+            Weight::Thin => 100,
+            Weight::ExtraLight => 200,
+            Weight::Light => 300,
+            Weight::Regular => 400,
+            Weight::Medium => 500,
+            Weight::SemiBold => 600,
+            Weight::Bold => 700,
+            Weight::ExtraBold => 800,
+            Weight::Black => 900,
+            Weight::Number(number) => number.clamp(1, 1000),
         }
     }
 }
 
 impl From<u16> for Weight {
-    // font files only come in named weights, so a number picks the closest one
     fn from(number: u16) -> Self {
-        let hundreds = number.saturating_add(50) / 100;
-
-        match hundreds {
-            0 | 1 => Weight::Thin,
-            2 => Weight::ExtraLight,
-            3 => Weight::Light,
-            4 => Weight::Regular,
-            5 => Weight::Medium,
-            6 => Weight::SemiBold,
-            7 => Weight::Bold,
-            8 => Weight::ExtraBold,
-            _ => Weight::Black,
-        }
+        Weight::Number(number)
     }
 }

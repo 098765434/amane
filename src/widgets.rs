@@ -21,7 +21,7 @@ pub use row::Row;
 pub use scroll_area::ScrollArea;
 pub use shape::{Arc, Circle, Line, Path, Shape};
 pub use stack::Stack;
-pub use text::Text;
+pub use text::{Case, Decoration, Text, TextAlign, TextDirection};
 pub use text_input::TextInput;
 
 pub trait Widget {

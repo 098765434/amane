@@ -22,6 +22,6 @@ pub use gradient::Gradient;
 pub use outline::Outline;
 pub use path::{BezierPath, PathBuilder};
 pub(crate) use renderer::Command;
-pub use renderer::{Renderer, VALUE_ROWS};
+pub use renderer::{Placed, Renderer, VALUE_ROWS};
 pub use transform::Transform;
 pub use weight::Weight;

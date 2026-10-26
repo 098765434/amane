@@ -95,8 +95,8 @@ pub use services::{
 };
 pub use style::{Fill, Image, Mask, Radius, Shadow};
 pub use widgets::{
-    Arc, Canvas, Circle, Column, Line, Path, Rectangle, Row, ScrollArea, Shape, Stack, Text,
-    TextInput, Widget,
+    Arc, Canvas, Case, Circle, Column, Decoration, Line, Path, Rectangle, Row, ScrollArea, Shape,
+    Stack, Text, TextAlign, TextDirection, TextInput, Widget,
 };
 
 pub use placement::Justify::{SpaceAround, SpaceBetween, SpaceEvenly};

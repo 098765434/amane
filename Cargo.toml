@@ -17,7 +17,6 @@ wayland-client = "0.31.15"
 wayland-scanner = "0.31.11"
 # only for client_system, which hands the gpu libwayland's own display pointer
 wayland-backend = { version = "0.3.17", features = ["client_system"] }
-fontconfig = "0.11"
 swash = "0.2.10"
 zune-jpeg = "0.5.15"
 png = "0.18.1"
@@ -30,6 +29,7 @@ libpulse-binding = "2.30"
 # turns svg icons into pixels once, so they draw like any other image
 resvg = { version = "0.48.1", default-features = false }
 bitflags = "2"
+parley = "0.12"
 
 [dev-dependencies]
 chrono = "0.4"

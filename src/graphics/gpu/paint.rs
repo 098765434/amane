@@ -190,7 +190,7 @@ impl Gpu {
             }
 
             Command::Glyph {
-                font,
+                face,
                 id,
                 size,
                 color,
@@ -200,7 +200,7 @@ impl Gpu {
                 &self.device,
                 &self.queue,
                 canvas,
-                font,
+                face,
                 id,
                 size,
                 color,
