@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::ffi::OsString;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, PoisonError};
@@ -60,8 +61,15 @@ pub fn report(path: &Path, error: Option<String>) {
     }
 }
 
-// editors save by renaming a new file over the old one, so the folder is watched, as in files.rs
+/*
+ * editors save by renaming a new file over the old one, so the folder is
+ * watched, as in files.rs; a link is followed, so saving the file it points
+ * to counts
+ */
 pub fn watch(path: &Path) {
+    let real = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let path = real.as_path();
+
     let Some(name) = path.file_name() else {
         return;
     };
