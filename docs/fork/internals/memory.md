@@ -163,6 +163,21 @@ callback and never one for a hidden or frozen window, so no frame ever waits on 
 stalls Fifo presents. On niri no stall was seen (launcher, Quick Settings and toast animations
 run at their usual frame counts).
 
+## An empty vibrant layer holds nothing
+
+A vibrant window draws its translucent whites and blacks on two subsurfaces of its own
+(`src/wayland/vibrancy.rs`), each with its own `Gpu`: a swapchain, a canvas and spares the size
+of the window. A layer with nothing on it (a window with no translucent black, say) drew an
+empty buffer and kept all that. It is now unmapped instead (a null buffer attached, synced with
+the window's commit) and its `Gpu` released, until it shows something again. The layers also go
+with the window when it hides (above).
+
+Sizing a layer to its content rather than the window was considered and left: the surfaces that
+are vibrant are the bar, the dock and the widgets, and the widgets surface is now the size of
+its cards (the shell's `widgets/mod.rs`), so a content-sized layer would save a few tens of MB
+for a translate-every-command pass. The frame log's `vello N` field (`AMANE_FRAMES=1`) says how
+many times a frame went through vello; an idle frame should say 0.
+
 ## Small things
 
 - `device.poll` is called without waiting after every present (`present.rs`), so what the last
