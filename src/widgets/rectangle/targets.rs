@@ -100,6 +100,16 @@ impl Rectangle {
 
         self
     }
+
+    /*
+     * runs on every move like on_move, for a handler that only remembers
+     * where the pointer is: the window isn't redrawn for it
+     */
+    pub fn on_track(mut self, handler: impl Fn(Point) + 'static) -> Self {
+        self.handlers.track = Some(Rc::new(handler));
+
+        self
+    }
 }
 
 pub fn collect_targets(rectangle: &Rectangle, area: Area, targets: &mut Vec<Target>) {
