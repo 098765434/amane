@@ -128,6 +128,9 @@ pub struct Gpu {
     // the commands and buffer size of the frame on screen, none before one shows
     showing: Option<(Vec<Command>, u32, u32)>,
 
+    // how many times this frame went through vello, for the frame log
+    runs: u32,
+
     // the frame's jobs not mailed yet; none between frames and right after mailing
     pending: RefCell<Option<CommandEncoder>>,
 
@@ -205,6 +208,8 @@ impl Gpu {
 
             showing: None,
 
+            runs: 0,
+
             pending: RefCell::new(None),
 
             composite,
@@ -212,6 +217,11 @@ impl Gpu {
             box_blur,
             erase,
         }
+    }
+
+    // how many vello runs the last frame took; a frame the quads drew alone took none
+    pub fn vello_runs(&self) -> u32 {
+        self.runs
     }
 
     /*

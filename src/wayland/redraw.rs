@@ -101,7 +101,14 @@ impl OpenWindow {
         };
 
         timing::record(name, self.last_frame, &timing);
-        timing::log(name, self.width, self.height, self.last_frame, &timing);
+        timing::log(
+            name,
+            self.width,
+            self.height,
+            self.last_frame,
+            &timing,
+            self.gpu.vello_runs(),
+        );
 
         self.last_frame = Some(started);
 

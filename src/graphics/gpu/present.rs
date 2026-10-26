@@ -56,6 +56,7 @@ impl Gpu {
         let kept = commands.clone();
 
         self.painting = 0;
+        self.runs = 0;
 
         self.quads.start_frame();
 
