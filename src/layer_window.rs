@@ -19,6 +19,9 @@ pub struct LayerWindow {
 
     pub(crate) visible: bool,
 
+    // keeps the last frame up, see frozen
+    pub(crate) frozen: bool,
+
     // none means the whole window takes the pointer
     pub(crate) input_region: Option<Vec<InputArea>>,
     pub(crate) blur_region: Option<Vec<InputArea>>,
@@ -179,6 +182,18 @@ impl LayerWindow {
         self
     }
 
+    /*
+     * a frozen window keeps its last frame on screen, settings and all, and draws nothing:
+     * for a window the compositor shows nothing of for now. Its view still runs on a change
+     * to what it read, so it reads only what tells it when to thaw; the first frame after
+     * draws everything afresh. A window not shown yet ignores it
+     */
+    pub fn frozen(mut self, frozen: bool) -> Self {
+        self.frozen = frozen;
+
+        self
+    }
+
     // only these areas take the pointer, everywhere else clicks go to the windows below
     pub fn input_region(mut self, areas: Vec<InputArea>) -> Self {
         self.input_region = Some(areas);
@@ -278,6 +293,7 @@ impl LayerWindowNeedsHeight {
             namespace: "amane",
 
             visible: true,
+            frozen: false,
 
             input_region: None,
             blur_region: None,

@@ -25,7 +25,7 @@ series on top of upstream; everything else is stock.
 |---|---|---|---|---|
 | [xdg-popups](#xdg-popups) | feature | `19d012d` | [popups](docs/fork/popups.md) | yes |
 | [`Windows` service + compositor actions](#compositor-services) | feature | `19d012d` | [compositor](docs/fork/compositor.md) | yes |
-| [`Gestures` / `Overview` services](#compositor-services) | feature (niri fork only) | `19d012d`, `14c6994` | [compositor](docs/fork/compositor.md) | no — needs the niri fork's IPC |
+| [`Gestures` / `Overview` / `WorkspaceSwitch` / `Desktop` services](#compositor-services) | feature (niri fork only) | `19d012d`, `14c6994` | [compositor](docs/fork/compositor.md) | no — needs the niri fork's IPC |
 | [Battery via UPower + `PowerProfile`](#battery-and-power-profiles) | feature | `dd6f110` | [battery](docs/fork/battery.md), [power-profile](docs/fork/power-profile.md) | yes |
 | [`Idle` service](#idle) | feature | `2953df9` | [idle](docs/fork/idle.md) | yes |
 | [`Appearance` service](#appearance) | feature | `317943e`, `b1187e6` | [appearance](docs/fork/appearance.md) | yes |
@@ -63,8 +63,14 @@ positioner edge collision (`ConstraintAdjustment`) and outside-click dismiss.
   gesture-progress IPC ([098765434/niri](https://github.com/098765434/niri)).
 - **`Overview`** (niri only): the overview progress alone, so a view that only follows the
   overview isn't redrawn on every view scroll (`14c6994`).
+- **`WorkspaceSwitch`** (niri only): the focused output's workspace switch alone, for the same
+  reason.
+- **`Desktop`** (niri only): whether each output's desktop is obscured, from the fork's
+  `DesktopObscured` event, so a view on the desktop can freeze (`LayerWindow::frozen`: the last
+  frame stays up, nothing is drawn or committed) while nothing under the workspaces shows.
 
-- **Files:** `src/services/{windows,window_info,gestures,overview}.rs`, `src/compositor/`.
+- **Files:** `src/services/{windows,window_info,gestures,overview,workspace_switch,desktop}.rs`,
+  `src/compositor/`, `src/layer_window.rs` and `src/wayland/redraw.rs` (frozen).
 - **Review it:** `git show 19d012d 14c6994`
 
 ### Battery and power profiles

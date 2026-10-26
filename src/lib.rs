@@ -87,11 +87,11 @@ pub use process::{lines, output, spawn, spawn_activated};
 pub use serde;
 pub use services::{
     AccessPoint, Action, Appearance, Apps, Audio, AudioDevice, AudioKind, Backdrop, Battery,
-    BatteryState, Bluetooth, BluetoothDevice, Brightness, Cpu, DesktopAction, DesktopApp,
+    BatteryState, Bluetooth, BluetoothDevice, Brightness, Cpu, Desktop, DesktopAction, DesktopApp,
     DeviceKind, Gestures, Idle, Link, Lock, Media, MediaPlayer, Memory, Network, Notification,
     Notifications, Overview, Palette, Pam, PamConfig, PamError, PamMessage, PamMessageKind,
     PamResult, PowerDevice, PowerProfile, Scheme, Service, Timeout, Urgency, WarningLevel,
-    WindowInfo, Windows, Workspace, Workspaces,
+    WindowInfo, Windows, Workspace, WorkspaceSwitch, Workspaces,
 };
 pub use style::{Fill, Image, Mask, Radius, Shadow};
 pub use widgets::{

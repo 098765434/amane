@@ -66,6 +66,12 @@ pub enum Event {
         workspace_idx: f64,
         active_workspace_idx: usize,
     },
+
+    // nothing under an output's workspaces shows, or something does again (the niri fork)
+    DesktopObscured {
+        output: String,
+        obscured: bool,
+    },
 }
 
 // niri's events only say what changed, so the rest is remembered here
@@ -250,8 +256,8 @@ pub fn listen_gestures(mut on_change: impl FnMut(Gesture)) {
             continue;
         };
 
-        // only the three gesture events move anything here; every other event
-        // on the shared stream is ignored
+        // only the gesture events (and DesktopObscured) move anything here; every
+        // other event on the shared stream is ignored
         if apply_gesture(&mut gesture, event) {
             on_change(gesture.clone());
         }
@@ -285,6 +291,11 @@ fn apply_gesture(gesture: &mut Gesture, event: Event) -> bool {
             gesture.output = output;
             gesture.workspace_idx = workspace_idx;
             gesture.active_workspace_idx = active_workspace_idx;
+            true
+        }
+
+        Event::DesktopObscured { output, obscured } => {
+            gesture.obscured.insert(output, obscured);
             true
         }
 
@@ -356,6 +367,7 @@ fn parse(line: &str) -> Option<Event> {
         "OverviewProgress" => overview_progress(body),
         "ViewOffsetChanged" => view_offset(body),
         "WorkspaceSwitchProgress" => workspace_switch(body),
+        "DesktopObscured" => desktop_obscured(body),
         _ => None,
     }
 }
@@ -387,6 +399,13 @@ fn workspace_switch(body: &Value) -> Option<Event> {
         output: body["output"].as_str()?.to_string(),
         workspace_idx: body["workspace_idx"].as_f64()?,
         active_workspace_idx: body["active_workspace_idx"].as_u64()? as usize,
+    })
+}
+
+fn desktop_obscured(body: &Value) -> Option<Event> {
+    Some(Event::DesktopObscured {
+        output: body["output"].as_str()?.to_string(),
+        obscured: body["obscured"].as_bool()?,
     })
 }
 
@@ -529,6 +548,7 @@ impl State {
             | Event::OverviewProgress { .. }
             | Event::ViewOffset { .. }
             | Event::WorkspaceSwitch { .. }
+            | Event::DesktopObscured { .. }
             | Event::WindowLayouts(_) => {}
         }
 

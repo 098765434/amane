@@ -268,6 +268,14 @@ impl Content {
         }
     }
 
+    // whether the last frame stays up, see LayerWindow::frozen
+    pub fn frozen(&self) -> bool {
+        match self {
+            Content::Layer(window) => window.frozen,
+            Content::Normal(_) | Content::Popup(_) => false,
+        }
+    }
+
     // the widgets and the handlers, drawn and used the same way by every kind of window
     pub fn into_parts(self) -> Parts {
         match self {

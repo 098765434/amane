@@ -89,7 +89,7 @@ A finished image wakes the windows waiting on it. Images decode on their own thr
 
 And animations keep going until they're done. Reading `Animation::value()` before the animation has arrived sets the event loop thread's `moving` flag, and so does calling `request_frame()` from a view. A new `Animation` is at rest until `to()` sends it somewhere, so making one draws nothing. After drawing, `redraw` sees the flag and asks for the next frame callback. When everything has arrived, nobody sets the flag anymore, and the window stops drawing.
 
-A redraw isn't always drawn. When a frame's commands equal the frame on screen, at the same size and with nothing moving, the GPU is skipped and the window only commits (`Gpu::shows`). Hiding a window forgets its last frame, since showing it again needs a buffer.
+A redraw isn't always drawn. When a frame's commands equal the frame on screen, at the same size and with nothing moving, the GPU is skipped and the window only commits (`Gpu::shows`). Hiding a window forgets its last frame, since showing it again needs a buffer. A frozen layer window (`LayerWindow::frozen`) keeps it instead: its view still runs, but it neither draws nor commits, so the last frame stays on screen until a view says otherwise.
 
 `OpenWindow::request_frame` is where these meet. If a frame is already requested, it does nothing, so several changes inside one display refresh become one frame. The exception is a hidden or unconfigured window, which gets no frame callbacks at all, so it runs its view right away to find out whether it should show again.
 
