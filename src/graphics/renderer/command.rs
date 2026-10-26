@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::graphics::font::Face;
-use crate::graphics::{Area, BezierPath, Cap, Color, Corners, Gradient, Transform};
+use crate::graphics::{Area, BezierPath, Cap, Color, Corners, Gradient, Join, Transform};
 
 #[derive(Clone, PartialEq)]
 pub enum Command {
@@ -55,6 +55,7 @@ pub enum Command {
         thickness: f32,
         color: Color,
         cap: Cap,
+        join: Join,
     },
 
     // the image is only shown inside the rounded rectangle

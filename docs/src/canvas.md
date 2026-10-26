@@ -30,7 +30,7 @@ fn ring(value: f32) -> Canvas {
 - A `Canvas` is a widget with a size, like a rectangle. Inside it, shapes are placed in the canvas's own coordinates: `(0, 0)` is its top-left corner, and `x` and `y` grow right and down.
 - `shapes!` makes the list of shapes, like `children!` does for widgets. Later shapes are drawn over earlier ones, so the blue arc sits on top of the gray track.
 - An `Arc` with no center and no radius sits in the middle of the canvas, as big as fits, and pulls in by half its line width so the line stays inside.
-- `stroke`, `fill`, `cap`, and `opacity` come from the `Shape` trait, so `Shape` has to be in your `use` line, or Rust can't find these methods.
+- `stroke`, `fill`, `cap`, `join`, and `opacity` come from the `Shape` trait, so `Shape` has to be in your `use` line, or Rust can't find these methods.
 
 ## Shapes
 
@@ -39,18 +39,19 @@ fn ring(value: f32) -> Canvas {
 | `Circle` | `.center(x, y)`, `.radius(r)` | middle of the canvas, as big as fits |
 | `Arc` | `.center(x, y)`, `.radius(r)`, `.start(degrees)`, `.sweep(degrees)` | middle of the canvas, as big as fits, a full turn |
 | `Line` | `.from(x, y)`, `.to(x, y)` | from `(0, 0)` to `(0, 0)` |
-| `Path` | `.move_to`, `.line_to`, `.quad_to`, `.cubic_to`, `.arc`, `.close` | empty |
+| `Path` | `.move_to`, `.line_to`, `.quad_to`, `.cubic_to`, `.arc`, `.close`, or `Path::svg(d)`; `.place(x, y, scale)`, `.trim(start, end)` | empty, in place, all of it |
 
 Arc angles are in degrees. `0` points straight up, and angles grow clockwise. A negative sweep goes counterclockwise. `Path::arc` uses the same angles.
 
 ## Fill, stroke, and caps
 
-Every shape gets the same four methods:
+Every shape gets the same five methods:
 
 ```rust,ignore
 .fill("#89b4fa")          // paints the inside
 .stroke(4.0, "#cdd6f4")   // draws the outline, 4 pixels thick
 .cap(Cap::Round)          // how open line ends look: Butt (the default), Round, or Square
+.join(Join::Round)        // how corners look: Miter (the default), Round, or Bevel
 .opacity(0.5)
 ```
 
@@ -105,6 +106,24 @@ fn graph(history: &[f32]) -> Canvas {
 ```
 
 `y` grows downward, so a value of 1 is drawn at `y = 0`, the top.
+
+## Drawing a line on like a pen
+
+`Path::svg` reads the `d` attribute of an SVG path, arcs included, and gives back `None` if it doesn't parse. `.place(x, y, scale)` draws it scaled about `(0, 0)` and then moved, so one outline fits any size. `.trim(start, end)` draws only the part of the line between two fractions of its length: `0` is where it starts and `1` where it ends. Animate the two and the line draws itself on, or erases itself from the start, the way a stroke clock changes its digits. An empty part draws nothing, not even a dot from a round cap.
+
+```rust,ignore
+// parse once and clone it each frame, parsing isn't free
+let one = Path::svg("M18 24 L34 12 L34 88").unwrap();
+
+one.clone()
+    .place(20.0, 10.0, 1.5)
+    .trim(0.0, drawn.value())
+    .stroke(18.0, "#E8C99A")
+    .cap(Cap::Round)
+    .join(Join::Round)
+```
+
+`examples/stroke_clock.rs` is a counter that ticks like that.
 
 ## Example: a gauge
 

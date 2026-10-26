@@ -4,19 +4,21 @@ mod line;
 mod path;
 mod round;
 
-use crate::graphics::{self, Cap, Color};
+use crate::graphics::{self, Cap, Color, Join};
 
 pub use arc::Arc;
 pub use circle::Circle;
 pub use line::Line;
 pub use path::Path;
 
+#[derive(Clone)]
 pub struct Style {
     pub(crate) fill: Color,
 
     pub(crate) stroke_thickness: f32,
     pub(crate) stroke_color: Color,
     pub(crate) cap: Cap,
+    pub(crate) join: Join,
 
     pub(crate) opacity: f32,
 }
@@ -58,6 +60,15 @@ pub trait Shape {
         self
     }
 
+    fn join(mut self, join: Join) -> Self
+    where
+        Self: Sized,
+    {
+        self.style_mut().join = join;
+
+        self
+    }
+
     fn opacity(mut self, opacity: f32) -> Self
     where
         Self: Sized,
@@ -77,6 +88,7 @@ impl Default for Style {
             stroke_thickness: 0.0,
             stroke_color: Color::TRANSPARENT,
             cap: Cap::Butt,
+            join: Join::Miter,
 
             opacity: 1.0,
         }

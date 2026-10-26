@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::graphics::image::Bitmap;
-use crate::graphics::{Area, BezierPath, Cap, Color, Corners, Gradient, Renderer, Transform};
+use crate::graphics::{Area, BezierPath, Cap, Color, Corners, Gradient, Join, Renderer, Transform};
 
 use super::Command;
 
@@ -106,6 +106,7 @@ impl Renderer {
         thickness: f32,
         color: Color,
         cap: Cap,
+        join: Join,
     ) {
         self.commands.push(Command::Stroke {
             path: path.clone(),
@@ -113,6 +114,7 @@ impl Renderer {
             thickness,
             color,
             cap,
+            join,
         });
     }
 

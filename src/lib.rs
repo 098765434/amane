@@ -64,7 +64,7 @@ pub use blur::{BlurShape, blur_fades, material_available};
 pub use dbus::{Argument, Bus, Method, Signal, Value};
 pub use files::watch_file;
 pub use full::Full;
-pub use graphics::{Cap, Color, Gradient, Weight};
+pub use graphics::{Cap, Color, Gradient, Join, Weight};
 pub use input::cursor_names::{
     Crosshair, Default, Grab, Grabbing, Move, NotAllowed, Pointer, ResizeBottom, ResizeBottomLeft,
     ResizeBottomRight, ResizeHorizontal, ResizeLeft, ResizeRight, ResizeTop, ResizeTopLeft,
