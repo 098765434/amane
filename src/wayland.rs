@@ -5,6 +5,7 @@ mod clipboard;
 mod compositor;
 pub(crate) mod dropped;
 mod idle;
+mod idle_gpu;
 mod keyboard;
 mod layer;
 mod lock;
@@ -368,6 +369,8 @@ impl WaylandApp {
         }
 
         wake::insert(&event_loop.handle());
+
+        idle_gpu::insert(&event_loop.handle());
 
         state.loop_handle = Some(event_loop.handle());
 

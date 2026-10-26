@@ -106,6 +106,31 @@ segments and 1.1k lines (the widgets layer at full output). Every limit is 7× o
 have no such buffers. Moving amane to `vello_gpu` once it has feature parity and a stable API
 retires the fork.
 
+## vello's scratch is let go when idle (fork of vello)
+
+**What it cost.** `vello::Renderer` takes each run's scratch set and scene uploads from a pool
+and gives them back afterwards, and upstream's pool keeps everything for the renderer's
+lifetime: the scratch set (29 MB with the fork's sizes) sits on the GPU between runs that on a
+desktop may be minutes apart, and a scene that was once large leaves a buffer in every size
+class it passed through. After Quick Settings closed, the shell kept 96 MB of that.
+
+**What changed.** The fork's `vello` crate (the second `[patch.crates-io]` line) stamps every
+buffer given back with the run and drops those no run took again for 60 runs, and adds
+`Renderer::release_scratch()`, which drops the whole pool; the shaders and the image atlas
+stay, so the next run only allocates. amane calls it from a calloop timer
+(`src/wayland/idle_gpu.rs`, `shared::release_idle_scratch`) once nothing drew through vello for
+`AMANE_VELLO_IDLE` seconds, 30 by default, checked once a period, and polls the device once so
+wgpu frees what was dropped. Every vello run stamps the shared time (`flush.rs`).
+
+**Switching it off.** `AMANE_VELLO_IDLE=0` keeps the pool for life, as upstream does; a larger
+value waits longer.
+
+**Measured** on a second shell (`AMANE_VELLO_IDLE=10`, VRAM of the process): Quick Settings
+opened and closed, 219 MB; after the idle release, 123 MB; opened and closed again, 187 MB,
+then 123 MB again. The `gradient` example: 65 MB → 49 MB (wgpu's allocator keeps some of
+its blocks). The launcher alone never runs vello (its glass and text are the quads'), so it
+is unaffected: 59 MB at start, 317 open, 59 closed.
+
 ## A hidden window holds nothing on the GPU
 
 **What it cost.** `hide()` (`src/wayland/update.rs`) took the buffer away and nothing else. The
@@ -141,16 +166,15 @@ Quick Settings), VRAM of the shell process:
 only when the device is polled, and a desktop that hid a window may draw nothing for a long
 while, so without it the window's textures stayed until the next frame of any window.
 
-What stays after the launcher closes (about 96 MB over the start) is partly vello's: its scratch
-set (29 MB) and the pool buffers for the scene. **Open:** Quick Settings costs about 190 MB of
-VRAM, 110 MB of GTT and 30 MB of heap to open, and about 120 MB of VRAM and all of the GTT
-stay after it hides. With upstream's scratch sizes it costs 128 MB more, so the fork's sizing
-holds; `AMANE_PRESENT=mailbox` makes no difference; vello's image atlas stays at 1×1; and
-`vello-stats` reports 43 vello buffers and 7 more textures than before alive afterwards, none of
-them a surface, spare, picture or atlas (those went). Whatever holds it is below wgpu's
-accounting (its Vulkan allocator's blocks, or Mesa's swapchain images, which it gives FIFO four
-of). The next step is a driver-level view (`VK_EXT_device_memory_report`, or RADV's
-`RADV_DEBUG=info`) rather than more guessing.
+What stayed after a vello-drawing window closed (about 96 MB over the start) was vello's pool:
+its scratch set and the upload buffers of every scene size it saw. That is now let go when idle
+(the section below). **Open:** Quick Settings still costs about 110 MB of GTT to open, which
+stays after it hides and grows a little on each reopening (10 → 117 → 151 MB over two), and
+about 64 MB of VRAM over the start once idle. With upstream's scratch sizes it costs 128 MB
+more, so the fork's sizing holds; `AMANE_PRESENT=mailbox` makes no difference; vello's image
+atlas stays at 1×1. The GTT is below wgpu's accounting (its Vulkan allocator's blocks, or
+mapped upload memory); the next step is a driver-level view (`VK_EXT_device_memory_report`, or
+RADV's `RADV_DEBUG=info`) rather than more guessing.
 
 ## Spare textures that outlive their frame are dropped
 
