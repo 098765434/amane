@@ -127,7 +127,8 @@ impl VibrantLayer {
     /*
      * draws the layer's commands at the window's size, the buffer at the
      * window's scale; a layer that would show what it shows already is left
-     * as it is (synced, it keeps its buffer through the window's commit)
+     * as it is (synced, it keeps its buffer through the window's commit),
+     * and one with nothing on it is unmapped and holds nothing
      */
     pub fn draw(
         &mut self,
@@ -141,6 +142,25 @@ impl VibrantLayer {
 
         // an empty layer that showed nothing has nothing on it to clear
         if !showing && !self.showing {
+            return;
+        }
+
+        /*
+         * a layer with nothing on it now gives its buffer back rather than
+         * drawing an empty one: unmapped, it shows nothing, and its gpu memory
+         * (swapchain, canvas, spares) goes with it until it shows again
+         */
+        if !showing {
+            self.surface.attach(None, 0, 0);
+            self.surface.commit();
+
+            if let Some(gpu) = &mut self.gpu {
+                gpu.forget_shown();
+                gpu.release();
+            }
+
+            self.showing = false;
+
             return;
         }
 
