@@ -74,14 +74,14 @@ impl Quads {
         y: f32,
         clips: Clips,
     ) {
-        let mut placed = self.atlas.letter(queue, face, id, size);
+        let mut placed = self.atlas.letter(device, queue, face, id, size);
 
         if placed.is_none() && self.atlas.is_full() {
             self.draw(device, queue, canvas);
 
             self.atlas.empty();
 
-            placed = self.atlas.letter(queue, face, id, size);
+            placed = self.atlas.letter(device, queue, face, id, size);
         }
 
         let Some(letter) = placed else {

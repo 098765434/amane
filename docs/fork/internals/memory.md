@@ -103,11 +103,80 @@ segments and 1.1k lines (the widgets layer at full output). Every limit is 7× o
 have no such buffers. Moving amane to `vello_gpu` once it has feature parity and a stable API
 retires the fork.
 
+## A hidden window holds nothing on the GPU
+
+**What it cost.** `hide()` (`src/wayland/update.rs`) took the buffer away and nothing else. The
+swapchain, the canvas, the spare textures, last frame's kept vello results, the picture
+textures, both glyph caches with the 1024² letter atlas, the shader inputs and the two vibrant
+layers (each a window-sized surface with its own swapchain and canvas) all stayed. A full-output
+window that had been shown once, like the launcher, kept 80–100 MB for the rest of the session,
+and a window reopened kept more each time (the spares, below).
+
+**What changed.** `Gpu::release()` (`src/graphics/gpu.rs`), called from `hide()`: the wgpu
+surface is made again from the same wayland surface (an unconfigured surface holds no
+swapchain; the next `draw()` configures it, since the kept size is 0), the spares, kept results,
+images, glyphs, shader inputs and the quads' pictures and atlas are let go, and the window's
+vibrant layers are dropped. The pipelines stay; they are small and showing again would make the
+same. The letter atlas is now made on the first letter (`atlas.rs`), so a window that never
+shows text never has one.
+
+**Switching it off.** `AMANE_KEEP_HIDDEN=1`.
+
+**Measured** on a second shell beside the live one (launcher opened and closed twice, then
+Quick Settings), VRAM of the shell process:
+
+| Step | before | after |
+|---|---|---|
+| start | 58 MB | 58 MB |
+| launcher open | 317 | 317 |
+| launcher closed | 235 | 154 |
+| launcher open again | 349 | 285 |
+| launcher closed again | 267 | 186 |
+| Quick Settings open, then closed | 371, 354 | 225, 128 |
+
+What stays after the launcher closes (about 96 MB over the start) is vello's: its scratch set
+and the pool buffers that grew to the full-output scene's size classes. Dropping the renderer
+when idle (planned) is what frees those.
+
+## Spare textures that outlive their frame are dropped
+
+**What it cost.** Finished window-sized textures (`spare` in `Gpu`) were kept for reuse and
+only cleared on a resize, and reuse needs an exact size match. Partial vello runs round their
+box to 64 px steps, so every animation left one spare per size it passed through, and a
+reopened window grew by a few tens of MB each time (the table above).
+
+**What changed.** `pool.rs` keeps two lists: what was given back this frame, and what was left
+from the last. A spare no frame took since it was given back is dropped at the end of the next
+frame; the canvas and the sizes a steady frame uses are taken every frame, so they stay.
+
+**Switching it off.** `AMANE_KEEP_SPARES=1`.
+
+## Fifo presentation, one frame of latency
+
+**What it cost.** The swapchain preferred Mailbox with a latency of 2, which Mesa's Wayland
+backend serves with four images, 20.7 MB each at full output. amane draws one frame per frame
+callback and never one for a hidden or frozen window, so no frame ever waits on another.
+
+**What changed.** `target.rs` asks for Fifo with `desired_maximum_frame_latency: 1`.
+
+**Switching it off.** `AMANE_PRESENT=mailbox` restores the old choice, for a compositor that
+stalls Fifo presents. On niri no stall was seen (launcher, Quick Settings and toast animations
+run at their usual frame counts).
+
+## Small things
+
+- `device.poll` is called without waiting after every present (`present.rs`), so what the last
+  submit finished with (blur temporaries, upload staging, a released window's textures) is
+  given back then, not at some later submit.
+- vello compiles its shaders on one thread (`num_init_threads`), not one per CPU, at start.
+- The fork's vello also retires atlas images unused for 120 passes and shrinks the atlas (the
+  fork's docs). The shell's own surfaces don't reach the atlas (niri frosts them), but amane's
+  blur regions and `draw_image` pictures do: `blur_shapes` at full output sits at 210 MB, most
+  of it the 4096² atlas its two blur copies need.
+
 ## Planned
 
-The rest of the idle-memory work, in order of payoff: releasing a hidden window's GPU resources
-(`hide()` keeps its swapchain, canvas, spare textures and caches), dropping spare textures that
-outlive their frame, Fifo presentation with one frame of latency, content-sized vibrant layers,
-dropping the vello renderer after an idle period, sharing pipelines and picture textures across
-windows, decoding images at their drawn size with a byte-capped cache, and event-driven
-services in place of polls. Each lands with its own section here.
+The rest of the idle-memory work, in order of payoff: content-sized vibrant layers, dropping the
+vello renderer after an idle period (what the launcher leaves behind, above), sharing pipelines
+and picture textures across windows, decoding images at their drawn size with a byte-capped
+cache, and event-driven services in place of polls. Each lands with its own section here.

@@ -88,7 +88,7 @@ impl Quads {
             inputs,
             picture_inputs,
             sampler,
-            atlas: Atlas::new(device),
+            atlas: Atlas::new(),
             pictures: HashMap::new(),
             blank,
             waiting: Vec::new(),

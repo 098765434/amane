@@ -1,5 +1,7 @@
+use std::env;
 use std::ffi::c_void;
 use std::ptr::NonNull;
+use std::sync::LazyLock;
 
 use vello::wgpu::rwh::{
     DisplayHandle, HandleError, HasDisplayHandle, RawDisplayHandle, RawWindowHandle,
@@ -84,12 +86,19 @@ pub(super) fn configure(surface: &Surface, adapter: &Adapter) -> SurfaceConfigur
         capabilities.alpha_modes[0]
     };
 
-    // amane waits for frame callbacks itself, so presenting should not wait again
-    let present_mode = if capabilities.present_modes.contains(&PresentMode::Mailbox) {
-        PresentMode::Mailbox
-    } else {
-        PresentMode::Fifo
-    };
+    /*
+     * amane draws one frame per frame callback and never one for a hidden
+     * window, so fifo never has a frame waiting on another: it gets the
+     * fewest buffers (mesa gives mailbox four), and one frame of latency is
+     * all a frame drawn on the callback needs. AMANE_PRESENT=mailbox is the
+     * old choice, for a compositor that stalls fifo presents
+     */
+    let (present_mode, desired_maximum_frame_latency) =
+        if *MAILBOX && capabilities.present_modes.contains(&PresentMode::Mailbox) {
+            (PresentMode::Mailbox, 2)
+        } else {
+            (PresentMode::Fifo, 1)
+        };
 
     SurfaceConfiguration {
         usage: TextureUsages::RENDER_ATTACHMENT,
@@ -98,8 +107,11 @@ pub(super) fn configure(surface: &Surface, adapter: &Adapter) -> SurfaceConfigur
         width: 0,
         height: 0,
         present_mode,
-        desired_maximum_frame_latency: 2,
+        desired_maximum_frame_latency,
         alpha_mode,
         view_formats: Vec::new(),
     }
 }
+
+static MAILBOX: LazyLock<bool> =
+    LazyLock::new(|| env::var_os("AMANE_PRESENT").is_some_and(|mode| mode == "mailbox"));

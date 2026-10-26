@@ -1,4 +1,4 @@
-use vello::wgpu::{CurrentSurfaceTexture, SurfaceTexture};
+use vello::wgpu::{CurrentSurfaceTexture, PollType, SurfaceTexture};
 
 use crate::graphics::renderer::Command;
 use crate::graphics::shader_files;
@@ -41,6 +41,7 @@ impl Gpu {
 
             // spares and kept results of the old size would never fit again
             self.spare.clear();
+            self.stale.clear();
             self.painted.clear();
         }
 
@@ -84,8 +85,17 @@ impl Gpu {
 
         self.forget_unread_inputs();
 
+        self.end_frame();
+
         // presenting attaches the frame to the wayland surface and commits it
         self.queue.present(frame);
+
+        /*
+         * what the last submit finished with (blur temporaries, upload
+         * staging) is only given back when the device is polled, which
+         * nothing else does; without waiting, so it costs the frame nothing
+         */
+        let _ = self.device.poll(PollType::Poll);
 
         self.showing = Some((kept, width, height));
 

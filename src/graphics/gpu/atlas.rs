@@ -34,7 +34,8 @@ type Key = (u64, u16, u32);
  * since those still read their pixels
  */
 pub struct Atlas {
-    texture: Texture,
+    // made once the first letter is placed, and let go when the window hides
+    texture: Option<Texture>,
 
     letters: HashMap<Key, Option<Letter>>,
 
@@ -48,24 +49,9 @@ pub struct Atlas {
 }
 
 impl Atlas {
-    pub fn new(device: &Device) -> Self {
-        let texture = device.create_texture(&TextureDescriptor {
-            label: None,
-            size: Extent3d {
-                width: SIZE,
-                height: SIZE,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: TextureFormat::R8Unorm,
-            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-            view_formats: &[],
-        });
-
+    pub fn new() -> Self {
         Self {
-            texture,
+            texture: None,
             letters: HashMap::new(),
             row_top: 0,
             row_x: 0,
@@ -74,8 +60,31 @@ impl Atlas {
         }
     }
 
-    pub fn texture(&self) -> &Texture {
-        &self.texture
+    // the texture every letter is in, made on the first ask
+    pub fn texture(&mut self, device: &Device) -> &Texture {
+        self.texture.get_or_insert_with(|| {
+            device.create_texture(&TextureDescriptor {
+                label: None,
+                size: Extent3d {
+                    width: SIZE,
+                    height: SIZE,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::R8Unorm,
+                usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+                view_formats: &[],
+            })
+        })
+    }
+
+    // lets the texture go with the letters; the next letter makes a new one
+    pub fn release(&mut self) {
+        self.empty();
+
+        self.texture = None;
     }
 
     // the last frame's draws were submitted, so nothing reads the old pixels anymore
@@ -102,7 +111,14 @@ impl Atlas {
     }
 
     // none for a letter without pixels, like a space
-    pub fn letter(&mut self, queue: &Queue, face: Face, id: u16, size: f32) -> Option<Letter> {
+    pub fn letter(
+        &mut self,
+        device: &Device,
+        queue: &Queue,
+        face: Face,
+        id: u16,
+        size: f32,
+    ) -> Option<Letter> {
         let key = (face.key(), id, size.to_bits());
 
         if let Some(letter) = self.letters.get(&key) {
@@ -129,7 +145,7 @@ impl Atlas {
         let (x, y) = self.place(width, height)?;
 
         let target = TexelCopyTextureInfo {
-            texture: &self.texture,
+            texture: self.texture(device),
             mip_level: 0,
             origin: Origin3d { x, y, z: 0 },
             aspect: TextureAspect::All,

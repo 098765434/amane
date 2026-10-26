@@ -60,7 +60,7 @@ impl Quads {
             usage: BufferUsages::UNIFORM,
         });
 
-        let atlas = texture::view(self.atlas.texture());
+        let atlas = texture::view(self.atlas.texture(device));
 
         let inputs = device.create_bind_group(&BindGroupDescriptor {
             label: None,

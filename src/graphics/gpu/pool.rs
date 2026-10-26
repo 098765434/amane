@@ -1,3 +1,6 @@
+use std::env;
+use std::sync::LazyLock;
+
 use vello::wgpu::{
     Color, LoadOp, Operations, RenderPassColorAttachment, RenderPassDescriptor, StoreOp, Texture,
     TextureUsages,
@@ -5,9 +8,15 @@ use vello::wgpu::{
 
 use super::{Gpu, texture};
 
+// AMANE_KEEP_SPARES=1 keeps every spare texture until the window resizes, as before
+static KEEP_SPARES: LazyLock<bool> = LazyLock::new(|| env::var_os("AMANE_KEEP_SPARES").is_some());
+
 /*
- * textures the size of the window are needed several times a frame,
- * so finished ones are kept and handed out again instead of allocated
+ * textures the size of the window are needed several times a frame, so
+ * finished ones are kept and handed out again instead of allocated; one
+ * that no frame took since it was given back is let go at the end of the
+ * next frame, since a size an animation passed through never comes back,
+ * while the canvas and the sizes a steady frame uses are taken every frame
  */
 impl Gpu {
     // a reused canvas still holds the last drawing, so it's cleared first
@@ -44,10 +53,23 @@ impl Gpu {
         self.spare.push(texture);
     }
 
+    // the frame is drawn: what was left from the last frame goes, and this frame's spares wait for the next
+    pub(super) fn end_frame(&mut self) {
+        if *KEEP_SPARES {
+            self.spare.append(&mut self.stale);
+        }
+
+        self.stale = std::mem::take(&mut self.spare);
+    }
+
     fn take(&mut self, width: u32, height: u32, usage: TextureUsages) -> Option<Texture> {
         let fits = |texture: &Texture| {
             texture.width() == width && texture.height() == height && texture.usage() == usage
         };
+
+        if let Some(index) = self.stale.iter().position(fits) {
+            return Some(self.stale.swap_remove(index));
+        }
 
         let index = self.spare.iter().position(fits)?;
 

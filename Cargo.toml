@@ -36,9 +36,15 @@ chrono = "0.4"
 
 [features]
 # with AMANE_FRAMES=1, read back what each vello run took of the scratch
-# buffers, to check a scene against the shell-sized limits (see
-# docs/fork/internals/memory.md); slow, as every run waits for the gpu
-vello-stats = ["vello/debug_layers"]
+# buffers, to check a scene against the shell-sized limits, and print vello's
+# own log (its image atlas size) on stderr (see docs/fork/internals/memory.md);
+# slow, as every run waits for the gpu
+vello-stats = ["vello/debug_layers", "dep:log"]
+
+[dependencies.log]
+# only to hear vello's atlas log under vello-stats; vello brings it anyway
+version = "0.4"
+optional = true
 
 [lints.clippy]
 # keep the zero-denominator guard explicit

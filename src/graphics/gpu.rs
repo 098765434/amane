@@ -30,10 +30,11 @@ mod wait;
 
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
+use std::env;
 use std::ffi::c_void;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use vello::Scene;
 use vello::peniko::ImageData;
@@ -46,6 +47,9 @@ use crate::graphics::renderer::Command;
 
 use pass::Pass;
 use shared::Shared;
+
+// AMANE_KEEP_HIDDEN=1 keeps a hidden window's gpu memory, as before the release on hide
+static KEEP_HIDDEN: LazyLock<bool> = LazyLock::new(|| env::var_os("AMANE_KEEP_HIDDEN").is_some());
 
 // Outlives the backend so cached GPU resources are released after every window.
 pub(crate) struct Session;
@@ -63,6 +67,10 @@ impl Drop for Session {
 pub struct Gpu {
     device: Device,
     queue: Queue,
+
+    // libwayland's display and surface the window draws into, to make its gpu surface again
+    display: *mut c_void,
+    handle: *mut c_void,
 
     surface: Surface<'static>,
     config: SurfaceConfiguration,
@@ -101,8 +109,9 @@ pub struct Gpu {
     input_images: HashMap<usize, (Arc<Bitmap>, Texture)>,
     input_images_read: HashSet<usize>,
 
-    // finished window-sized textures waiting to be reused
+    // finished window-sized textures waiting to be reused: given back this frame, and left from the last
     spare: Vec<Texture>,
+    stale: Vec<Texture>,
 
     // last frame's vello results in the order they were painted, and how far this frame got
     painted: Vec<Option<painted::Painted>>,
@@ -125,10 +134,10 @@ pub struct Gpu {
 
 impl Gpu {
     // the pointers are libwayland's display and surface, which have to outlive the gpu
-    pub fn new(display: *mut c_void, surface: *mut c_void) -> Self {
+    pub fn new(display: *mut c_void, handle: *mut c_void) -> Self {
         let instance = shared::instance(display);
 
-        let surface = target::create(&instance, display, surface);
+        let surface = target::create(&instance, display, handle);
 
         let Shared {
             adapter,
@@ -157,6 +166,9 @@ impl Gpu {
             device,
             queue,
 
+            display,
+            handle,
+
             surface,
             config,
 
@@ -178,6 +190,7 @@ impl Gpu {
             input_images: HashMap::new(),
             input_images_read: HashSet::new(),
             spare: Vec::new(),
+            stale: Vec::new(),
 
             painted: Vec::new(),
             painting: 0,
@@ -192,5 +205,46 @@ impl Gpu {
             box_blur,
             erase,
         }
+    }
+
+    /*
+     * lets go of what a hidden window holds on the gpu: its swapchain (a
+     * surface made again is unconfigured, and the next draw configures it),
+     * its canvas and spares, kept results, images, letters and shader inputs;
+     * the pipelines stay, they're small and showing again would make the same
+     */
+    pub fn release(&mut self) {
+        if *KEEP_HIDDEN {
+            return;
+        }
+
+        let instance = shared::instance(self.display);
+
+        self.surface = target::create(&instance, self.display, self.handle);
+
+        self.config.width = 0;
+        self.config.height = 0;
+
+        self.spare = Vec::new();
+        self.stale = Vec::new();
+        self.painted = Vec::new();
+        self.painting = 0;
+
+        self.reach = bounds::Reach::Nothing;
+        self.moved = Scene::new();
+
+        self.showing = None;
+
+        // nothing was drawn, so every image is unshown and goes the usual way
+        self.drawn.clear();
+        self.forget_unshown();
+
+        self.images = HashMap::new();
+        self.glyphs = HashMap::new();
+
+        self.input_images = HashMap::new();
+        self.input_images_read = HashSet::new();
+
+        self.quads.release();
     }
 }
