@@ -70,3 +70,6 @@ amane never dims, locks or blanks anything by itself. The shell decides,
 from `crossed`, `inhibited` and `Lock::start()`.
 
 There is no logind `SetIdleHint` yet.
+
+For the ScreenSaver server, `Bus` gains `Method::sender()`, the caller's unique bus name, so an
+inhibit can be released when its program leaves the bus.

@@ -1,11 +1,4 @@
-> **Fork** of [amane](https://github.com/MystiaFin/amane) for the [`amane-shell`](https://github.com/098765434/amane-shell)
-> bar. It adds xdg-popups, niri compositor services (`Windows`, `Gestures`, `Overview`, `WorkspaceSwitch`, `Desktop`), system services
-> (UPower battery, power profiles, idle, appearance, audio devices, notification hints), rounded
-> liquid-glass blur, a spring easing, and touchpad-scroll and keyboard-modifier input. The work lives
-> on the `ocbk` branch; see **[FORK.md](FORK.md#at-a-glance)** for every change at a glance and the
-> rebase/update workflow. The rest of this README is upstream's.
-
----
+> **Fork** of [amane](https://github.com/MystiaFin/amane) for [amane-shell](https://github.com/098765434/amane-shell), on branch `ocbk`: see [FORK.md](FORK.md). The rest of this README is upstream's.
 
 > [!NOTE]
 > **amane is on hiatus until mid-december 2026.** <br>

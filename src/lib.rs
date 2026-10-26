@@ -1,24 +1,8 @@
-//! amane — a Rust Wayland shell library (private fork).
+//! amane, a Rust Wayland shell library: the `ocbk` fork for amane-shell.
 //!
-//! This crate is a private fork of upstream Amane, extended for use in a
-//! niri shell. See `README.md` and `docs/` for the fork's scope and
-//! added features.
-//!
-//! Fork additions (so far):
-//! - [`Popup`] — xdg-popup surface role with layer-shell and nested
-//!   parenting, `xdg_positioner` configuration, grab semantics, and
-//!   per-popup dismiss callbacks. See [`docs/fork/windows/popups.md`](../docs/fork/windows/popups.md).
-//! - [`Windows`] — a service exposing the compositor's open windows
-//!   ([`WindowInfo`]: focused window, title, app-id) plus typed control
-//!   actions (focus/close/fullscreen/move, column nav, spawn, screenshot,
-//!   toggle overview). niri-complete. See
-//!   [`docs/fork/compositor/services.md`](../docs/fork/compositor/services.md).
-//! - [`Idle`] — idle levels from the compositor's ext-idle-notify, and
-//!   app inhibits through a served `org.freedesktop.ScreenSaver`. See
-//!   [`docs/fork/system/idle.md`](../docs/fork/system/idle.md).
-//! - [`Appearance`] — the desktop's light/dark preference and accent colour
-//!   from the XDG Settings portal. See
-//!   [`docs/fork/system/appearance.md`](../docs/fork/system/appearance.md).
+//! The fork adds popups, niri compositor services, app windows, blur shapes,
+//! parley text and more system services. Each is documented in
+//! [`docs/fork/README.md`](https://github.com/098765434/amane/blob/ocbk/docs/fork/README.md).
 
 #[cfg(target_env = "gnu")] // skip glibc tuning if there is no glibc
 mod allocator;

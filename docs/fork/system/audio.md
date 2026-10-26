@@ -53,3 +53,8 @@ A device that lands on the wrong kind can be checked with
 
 The device list re-reads on every sink, source and server event, which covers plugging, Bluetooth
 connects and default changes. See `examples/audio.rs`.
+
+## Fix: dropping the pulse context
+
+`dedcda4` also fixes an abort when a thread that had used audio exited: the pulse context is now
+dropped before its mainloop (`src/services/audio/pulse.rs`).
