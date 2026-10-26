@@ -90,7 +90,10 @@ scratch 1216x320 failed 0 tiles 940 lines 35954 seg_counts 37483 segments 37483 
 ```
 
 `failed 1` is an overflow. Every run waits for the GPU, so frame times are not representative
-with the feature on. (vello's `bump_estimate` feature gives a CPU-side bound instead; it
+with the feature on. The same build also prints a `wgpu buffers A+B textures A+B …` line after
+each frame and a `released: …` line after each hide: `A` is what is alive, `B` the free slots in
+wgpu's tables (cumulative, so a rising `B` with a steady `A` is churn, not a leak), and vello's
+own log (the image atlas size) on stderr. (vello's `bump_estimate` feature gives a CPU-side bound instead; it
 overshoots stroked scenes by 10×, so the readback is the one to trust.)
 
 **Measured.** `gradient` beside the live shell: 193 MB of VRAM with upstream's sizes, 65 MB with
@@ -134,9 +137,20 @@ Quick Settings), VRAM of the shell process:
 | launcher closed again | 267 | 186 |
 | Quick Settings open, then closed | 371, 354 | 225, 128 |
 
-What stays after the launcher closes (about 96 MB over the start) is vello's: its scratch set
-and the pool buffers that grew to the full-output scene's size classes. Dropping the renderer
-when idle (planned) is what frees those.
+`release()` ends by waiting for the GPU once (`device.poll(wait)`): wgpu frees what was dropped
+only when the device is polled, and a desktop that hid a window may draw nothing for a long
+while, so without it the window's textures stayed until the next frame of any window.
+
+What stays after the launcher closes (about 96 MB over the start) is partly vello's: its scratch
+set (29 MB) and the pool buffers for the scene. **Open:** Quick Settings costs about 190 MB of
+VRAM, 110 MB of GTT and 30 MB of heap to open, and about 120 MB of VRAM and all of the GTT
+stay after it hides. With upstream's scratch sizes it costs 128 MB more, so the fork's sizing
+holds; `AMANE_PRESENT=mailbox` makes no difference; vello's image atlas stays at 1×1; and
+`vello-stats` reports 43 vello buffers and 7 more textures than before alive afterwards, none of
+them a surface, spare, picture or atlas (those went). Whatever holds it is below wgpu's
+accounting (its Vulkan allocator's blocks, or Mesa's swapchain images, which it gives FIFO four
+of). The next step is a driver-level view (`VK_EXT_device_memory_report`, or RADV's
+`RADV_DEBUG=info`) rather than more guessing.
 
 ## Spare textures that outlive their frame are dropped
 
