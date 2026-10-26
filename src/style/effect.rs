@@ -71,6 +71,10 @@ impl Effect {
             })
     }
 
+    pub(crate) fn shaders(&self) -> impl Iterator<Item = &std::path::Path> {
+        self.passes.iter().map(|pass| pass.shader.as_path())
+    }
+
     pub(crate) fn reads_backdrop(&self) -> bool {
         self.passes
             .iter()

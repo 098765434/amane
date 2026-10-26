@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::animation::moving;
-use crate::graphics::{Area, Corners, Renderer, image};
+use crate::graphics::{Area, Corners, Renderer, image, shader_files};
 use crate::input::Target;
 use crate::style::Kind;
 use crate::{Fill, Image, Radius, Size, Widget};
@@ -12,8 +12,8 @@ use crate::{Fill, Image, Radius, Size, Widget};
 use super::{Rectangle, child, targets, transform};
 
 thread_local! {
-    // read once per shader file, a shader's source doesn't change while the shell runs
-    static READS_TIME: RefCell<HashMap<PathBuf, bool>> = RefCell::new(HashMap::new());
+    // read once per shader file, and again once shader files are saved
+    static READS_TIME: RefCell<(u64, HashMap<PathBuf, bool>)> = RefCell::new((0, HashMap::new()));
 }
 
 impl Widget for Rectangle {
@@ -68,6 +68,11 @@ fn draw_in_place(rectangle: &Rectangle, renderer: &mut Renderer, area: Area) {
 
         return;
     };
+
+    // like a rectangle's shader, a pass that reads time keeps the window drawing
+    if effect.shaders().any(reads_time) {
+        moving::set();
+    }
 
     // the effect's result is faded as one, like the drawing it replaces
     let mut affected = renderer.group();
@@ -175,7 +180,14 @@ pub fn inner_shadow(rectangle: &Rectangle, renderer: &mut Renderer, area: Area, 
  * one keeps the window drawing; any `time` word counts, even in a comment
  */
 pub fn reads_time(shader: &Path) -> bool {
-    READS_TIME.with_borrow_mut(|known| {
+    READS_TIME.with_borrow_mut(|(seen, known)| {
+        let generation = shader_files::generation();
+
+        if *seen != generation {
+            known.clear();
+            *seen = generation;
+        }
+
         if let Some(&reads) = known.get(shader) {
             return reads;
         }
