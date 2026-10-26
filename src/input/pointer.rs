@@ -113,19 +113,28 @@ impl Pointer {
 
     // motion
 
-    // tells the innermost target under the pointer where the pointer is on it
+    /*
+     * tells the innermost target under the pointer where the pointer is on
+     * it; true when that should redraw, false when it was only tracked
+     */
     pub fn report_motion(&self) -> bool {
-        let Some(index) = self.find_topmost(|target| target.handlers.motion.is_some()) else {
+        let Some(index) = self.find_topmost(|target| {
+            target.handlers.motion.is_some() || target.handlers.track.is_some()
+        }) else {
             return false;
         };
 
         let target = &self.targets[index];
 
+        let point = target.point(self.x, self.y);
+
+        if let Some(track) = &target.handlers.track {
+            track(point);
+        }
+
         let Some(motion) = &target.handlers.motion else {
             return false;
         };
-
-        let point = target.point(self.x, self.y);
 
         motion(point);
 

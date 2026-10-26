@@ -176,6 +176,23 @@ mod tests {
     }
 
     #[test]
+    fn tracked_motion_is_reported_without_a_redraw() {
+        let tracked = Rc::new(Cell::new(crate::Point::default()));
+        let root = block(40.0, 20.0).on_track({
+            let tracked = tracked.clone();
+            move |point| tracked.set(point)
+        });
+
+        let frame = build(&root, 200, 100, 1.0, ScaleFactor::new(1.0));
+        let mut pointer = Pointer::default();
+        pointer.set_targets(frame.targets);
+        pointer.move_to(10.0, 5.0);
+
+        assert!(!pointer.report_motion());
+        assert_eq!(tracked.get(), crate::Point { x: 10.0, y: 5.0 });
+    }
+
+    #[test]
     fn row_gives_the_rest_to_parent_sized_children() {
         let row = Row::new(children![
             block(100.0, 20.0),

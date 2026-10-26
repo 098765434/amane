@@ -40,6 +40,8 @@ pub struct Handlers {
     // the left button let go after a drag that started here, wherever the pointer is then
     pub release: Option<PointHandler>,
     pub motion: Option<PointHandler>,
+    // like motion, but only remembers where the pointer is, so it redraws nothing
+    pub track: Option<PointHandler>,
     pub drop: Option<DropHandler>,
     pub files_over: Option<FilesOverHandler>,
     pub text_drop: Option<TextDropHandler>,
