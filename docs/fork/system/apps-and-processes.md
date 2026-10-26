@@ -36,7 +36,7 @@ for action in app.actions() {
 
 `opens(file)` finds the file's kind from its name in the shared MIME database (`mime/globs2` in the XDG data dirs; a folder is `inode/directory`), and says yes when the app lists that kind or one it comes from (`mime/subclasses`; every `text/…` kind is `text/plain` too). An app with no `MimeType` opens nothing.
 
-`commands_with(files)` fills the files into the entry's `Exec`: `%F` and `%U` take them all, as paths and as `file://` links, while `%f` and `%u` take one, so there's a command per file. Every file is quoted for the shell. An `Exec` with none of them opens no files, and you get the plain command. `launch_with(files)` runs them. To have the compositor run them instead, hand each to `Windows::spawn(vec!["sh", "-c", command])`.
+`commands_with(files)` fills the files into the entry's `Exec`: `%F` and `%U` take them all, as paths and as `file://` links, while `%f` and `%u` take one, so there's a command per file. Every file is quoted for the shell. An `Exec` with none of them opens no files, and you get the plain command. `launch_with(files)` runs them. To have the compositor run them instead, hand each to `Windows::spawn(vec!["sh".into(), "-c".into(), command])`.
 
 ```rust,ignore
 let file = PathBuf::from("/home/me/notes.md");

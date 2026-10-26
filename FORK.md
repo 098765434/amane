@@ -25,7 +25,7 @@ series on top of upstream; everything else is stock.
 |---|---|---|---|---|
 | [xdg-popups](#xdg-popups) | feature | `19d012d` | [popups](docs/fork/windows/popups.md) | yes |
 | [`Windows` service + compositor actions](#compositor-services) | feature | `19d012d` | [compositor](docs/fork/compositor/services.md) | yes |
-| [`Gestures` / `Overview` / `WorkspaceSwitch` / `Desktop` services](#compositor-services) | feature (niri fork only) | `19d012d`, `14c6994` | [compositor](docs/fork/compositor/services.md) | no — needs the niri fork's IPC |
+| [`Gestures` / `Overview` / `WorkspaceSwitch` / `Desktop` services](#compositor-services) | feature (niri fork only) | `19d012d`, `14c6994`, `916aecd` | [compositor](docs/fork/compositor/services.md) | no — needs the niri fork's IPC |
 | [Battery via UPower + `PowerProfile`](#battery-and-power-profiles) | feature | `dd6f110` | [battery](docs/fork/system/battery.md), [power-profile](docs/fork/system/power-profile.md) | yes |
 | [`Idle` service](#idle) | feature | `2953df9` | [idle](docs/fork/system/idle.md) | yes |
 | [`Appearance` service](#appearance) | feature | `317943e`, `b1187e6` | [appearance](docs/fork/system/appearance.md) | yes |
@@ -33,16 +33,23 @@ series on top of upstream; everything else is stock.
 | [Notification timeout and hints](#notifications) | feature | `7a16b39` | [notifications](docs/fork/system/notifications.md) | yes |
 | [Blur regions and blur shapes](#blur) | feature | `db581d0`, `bcc53ac`, `2ea1d46` | [blur](docs/fork/graphics/blur.md) | regions yes; shapes need the niri fork |
 | [Drag release hook, drag cursor](#blur) | feature + fix | `db581d0`, `2e9f8e0` | [blur](docs/fork/graphics/blur.md#drag-release-hook) | yes |
-| [Spring easing, retargeting](#animation) | feature | `ba43071`, `289f191` | this file only (not in [animation](docs/src/animation.md) yet) | yes |
-| [Scroll source and finger lift](#input) | feature | `7f48e10` | [input](docs/src/input.md) | yes |
-| [Keyboard modifiers, Ctrl chords](#input) | feature | `e3b2efb`, `bc9729e`, `c24533c` | [input](docs/src/input.md) | yes |
-| [App categories, keywords, actions, `find_icon`](#apps) | feature | `0ebcfd2`, `7f48e10`, `bc9729e` | [apps](docs/src/apps.md) | yes |
-| [64 shader value rows](#fixes-and-internals) | internal | `16480b2` | [shaders](docs/src/shaders.md) | yes |
+| [Vibrancy](#blur) | feature (niri fork only) | `c74990b`, `6ef0c4e`, `1ba9c2d` | [blur](docs/fork/graphics/blur.md#vibrancy-niri-vibrancy-v1) | no — needs `niri-vibrancy-v1` |
+| `Path::svg`, `place`, `trim`, line joins | feature | `17fca64` | [canvas](docs/fork/graphics/canvas.md) | yes |
+| Parley text layout and typography | feature | `06ead81` | — | yes |
+| `on_track` | feature | `6b0099b` | [input](docs/fork/input/input.md) | yes |
+| Dock support: window columns, focus-free moves, files held over widgets, opening files | feature | `c029184` | [compositor](docs/fork/compositor/services.md), [apps](docs/fork/system/apps-and-processes.md) | mostly; `move_to` needs the niri fork |
+| App windows, clipboard, text input, single instance, activation, config, portals | feature | `31a3eb6` … `7c36e11` | [app windows](docs/fork/windows/app-windows.md) | yes |
+| Frame skip, GPU bounds, resting animations, renderer groups, frozen windows | internal | `e56b843`, `6d2123b`, `527c538`, `3f57058`, `916aecd` | [architecture](docs/fork/internals/architecture.md) | yes |
+| [Spring easing, retargeting](#animation) | feature | `ba43071`, `289f191` | this file only | yes |
+| [Scroll source and finger lift](#input) | feature | `7f48e10` | [input](docs/fork/input/input.md) | yes |
+| [Keyboard modifiers, Ctrl chords](#input) | feature | `e3b2efb`, `bc9729e`, `c24533c` | [input](docs/fork/input/input.md) | yes |
+| [App categories, keywords, actions, `find_icon`](#apps) | feature | `0ebcfd2`, `7f48e10`, `bc9729e`, `d9d3d46` | [apps](docs/fork/system/apps-and-processes.md) | yes |
+| [64 shader value rows](#fixes-and-internals) | internal | `16480b2` | [canvas](docs/fork/graphics/canvas.md) | yes |
 | [Glyph atlas fills mid-frame](#fixes-and-internals) | fix | `389fc29` | — | yes |
 | [Fork docs and housekeeping](#fixes-and-internals) | internal | `be25bb3`, `fe941a9`, `fe45a04`, `6bfdba8` | this file | no |
 
-Work not on `ocbk` yet: see [In progress](#in-progress). All fork-only docs are in
-[`docs/fork/`](docs/fork/README.md); changes to upstream's guide pages are in `docs/src/`.
+Planned work and its status: see [Status of planned work](#status-of-planned-work). All fork docs are in
+[`docs/fork/`](docs/fork/README.md); upstream's guide pages in `docs/src/` are unchanged.
 
 ## Features
 
@@ -71,7 +78,7 @@ positioner edge collision (`ConstraintAdjustment`) and outside-click dismiss.
 
 - **Files:** `src/services/{windows,window_info,gestures,overview,workspace_switch,desktop}.rs`,
   `src/compositor/`, `src/layer_window.rs` and `src/wayland/redraw.rs` (frozen).
-- **Review it:** `git show 19d012d 14c6994`
+- **Review it:** `git show 19d012d 14c6994 916aecd`
 
 ### Battery and power profiles
 
@@ -186,15 +193,15 @@ notification by itself; the server now advertises `persistence`.
 - `6bfdba8`, `bc9729e`, `c24533c` add docs for the features above, in `docs/src/` and the
   cheatsheet.
 
-## In progress
+## Status of planned work
 
 | Work | Where | Status |
 |---|---|---|
-| Resource optimization: cut idle wake-ups, per-frame CPU, VRAM, RAM and binary size | [`docs/fork/internals/optimization-plan.md`](docs/fork/internals/optimization-plan.md) | planned, not implemented |
-| Blur behind the bar + activation-token launching (`xdg-activation-v1`) + `write_niri_rules` | [`docs/fork/design/spec-write-own-layer-rules.md`](docs/fork/design/spec-write-own-layer-rules.md) (untracked) | draft; the blur part shipped as [blur regions](#blur), while activation tokens and writing layer rules are not started |
-| Presence and appearance | [`docs/fork/design/spec-presence-appearance.md`](docs/fork/design/spec-presence-appearance.md) (untracked) | draft spec, since implemented as [Idle](#idle) and [Appearance](#appearance) |
-| Dock support: `WindowInfo::column` (niri's `WindowLayoutsChanged`), `Windows::move_to` (to a workspace without the focus, then `MoveColumnToIndex` by id, which needs the niri fork), `Rectangle::on_files_over` (files held over a widget, read on enter, accept or refuse per spot), `DesktopApp::{mime_types, opens, commands_with, launch_with}` with a shared-mime-info lookup (`services/apps/mime.rs`) | `ocbk` | done with tests |
-| App windows: `app_id`, live title and min/max/maximized/fullscreen, `window_state()`, `on_close`, dialogs, `open_window_with`, `keep_alive` | [`docs/fork/windows/app-windows.md`](docs/fork/windows/app-windows.md), branch `app-windows` | phases 1 (windows), 2 (popups over windows, `open_popup`) 3 (key repeat, more keys, `on_shortcut`, `on_key_release`) 4 (clipboard, primary selection, text drops, drag out) 5 (selection, undo, multiline, IME in `TextInput`) 6 (socket per app, single instance, `ipc_call`, xdg-activation) and 7 (`Config`, `FileDialog`, `Notify`, double click) done and tested live on niri, later phases planned |
+| Resource optimization: cut idle wake-ups, per-frame CPU, VRAM, RAM and binary size | [`docs/fork/internals/optimization-plan.md`](docs/fork/internals/optimization-plan.md) | partly done: UPower signals (`dd6f110`), frame skip (`e56b843`), GPU bounds (`6d2123b`), renderer groups (`3f57058`), resting animations (`527c538`); the rest planned |
+| Blur behind the bar + activation-token launching (`xdg-activation-v1`) + `write_niri_rules` | [`docs/fork/design/spec-write-own-layer-rules.md`](docs/fork/design/spec-write-own-layer-rules.md) | implemented: blur as [blur regions](#blur) (`db581d0`) and shapes; activation tokens in `src/wayland/activation.rs` and `spawn_activated` (`82337f2`); the layer rules are generated by amane-shell instead of an amane API |
+| Presence and appearance | [`docs/fork/design/spec-presence-appearance.md`](docs/fork/design/spec-presence-appearance.md) | implemented as [Idle](#idle) (`2953df9`) and [Appearance](#appearance) (`317943e`, `b1187e6`) |
+| Dock support | `ocbk` (`c029184`) | done with tests |
+| App windows | [`docs/fork/windows/app-windows.md`](docs/fork/windows/app-windows.md), on `ocbk` | phases 1–7 done in amane (`31a3eb6` … `7c36e11`) and tested live on niri; phases 8–9 done in amane-shell |
 
 The local `power` branch is already merged into `ocbk` and can be deleted.
 

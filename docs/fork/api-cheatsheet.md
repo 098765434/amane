@@ -50,4 +50,31 @@ changes. Each section matches a section there.
 | `PowerProfile` | `present`, `active`, `available`, `degraded` | `set` |
 | `Idle` | `is_idle`, `crossed`, `levels`, `inhibited`, `inhibitors`, `running` | `set_levels` |
 | `Apps` | each `DesktopApp` adds `id`, `categories`, `keywords`, `actions`, `mime_types`, `opens(file)`, `commands_with(files)` | `launch_with(files)` on each `DesktopApp` |
-| `Appearance` | `present`, `scheme`, `prefers_dark`, `accent` | |
+| `Appearance` | `present`, `scheme`, `prefers_dark`, `accent`, `high_contrast`, `reduced_motion` | |
+| `Audio` | adds `outputs`, `inputs` (each an `AudioDevice`: `name`, `description`, `kind`, `default`), `output_kind`, `input_kind` | adds `set_output(name)`, `set_input(name)` |
+| `Notifications` | each `Notification` adds `timeout`, `icon_path`, `category`, `desktop_entry`, `transient` | adds `expire(id)` |
+| `Windows` | `list`, `focused`, `overview`; each `WindowInfo` has `id`, `app_id`, `title`, `focused`, `floating`, `workspace`, `column` | `focus`, `close`, `fullscreen`, `toggle_floating`, `move_to_workspace`, `move_to`, `focus_column_left`, `focus_column_right`, `spawn`, `screenshot`, `toggle_overview` |
+| `Overview` (niri fork) | `progress` | |
+| `Gestures` (niri fork) | `overview_progress`, `view_pos`, `active_column_idx`, `workspace_idx`, `active_workspace_idx`, `output` | |
+| `Backdrop` (niri fork) | `luminance(id)` | |
+
+## Layer windows and popups
+
+| Code | Does |
+|---|---|
+| `.blur_region(areas)` | the compositor blurs behind these rectangles |
+| `.blur_shapes(shapes)` | rounded, fading `BlurShape`s with a material and tint |
+| `.vibrant(true)` | grey content blends with the frosted backdrop (also on `Window` and `Popup`) |
+| `blur_fades()` / `material_available(name)` | whether shapes are drawn exactly; whether a material exists |
+| `Popup::new(namespace).size(w, h).anchor_rect(x, y, w, h)` | an xdg-popup; `.parent(..)`, `.parent_window(..)`, `.anchor(..)`, `.gravity(..)`, `.grab()`, `.on_dismiss(..)` |
+| `App::popup(view)` / `open_popup(view)` | a popup given at start-up; one opened from a handler |
+| `pointer_position()` | where the pointer last was in its window, for a context menu |
+
+## Canvas and shaders
+
+| Code | Does |
+|---|---|
+| `Path::svg(d)` | a path from an SVG `d` attribute, `None` if it doesn't parse |
+| `.place(x, y, scale)` / `.trim(start, end)` | scale and move a path; draw only a part of its length |
+| `.join(Join::Round)` | `Miter` (default), `Round` or `Bevel` corners |
+| `shader_values(rows)` | up to 64 rows (upstream: 16) |
