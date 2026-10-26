@@ -58,7 +58,8 @@ The crate doc at the top of `src/lib.rs` is a few fork lines linking here.
 | App windows, keyboard, clipboard, text input, single instance, activation, platform helpers | `31a3eb6`, `b485d59`, `1ac9e4c`, `72b699e`, `21bca54`, `82337f2`, `76c02f1`, `301b3ae`, `7c36e11` | `src/window.rs`, `src/wayland/{normal,clipboard,text_input,activation}.rs`, `src/{clipboard,config,portal,notify}.rs`, `src/widgets/text_input/`; `examples/{app_window,text_editor}.rs` | yes |
 | Render and redraw work | `e56b843`, `6d2123b`, `3f57058`, `527c538`, `45e0edc`, `0856be2`, `65f1d33` | `src/graphics/gpu/{present,bounds}.rs`, `src/graphics/renderer.rs`, `src/changes.rs`, `src/services/{network,write,windows}.rs` | yes |
 | Glyph atlas filling mid-frame | `389fc29` | `src/graphics/gpu/{atlas,paint}.rs`, `src/wayland/{redraw,update}.rs` | yes |
-| vello's scratch buffers sized for a shell (fork of vello), `vello-stats` | `6fd7bd5` | `Cargo.toml` (`[patch.crates-io]`), `flake.nix`, `src/graphics/gpu/flush.rs`; [memory](internals/memory.md) | the sizing belongs upstream in vello, not amane |
+| vello's scratch buffers sized for a shell (fork of vello), `vello-stats` | `6fd7bd5`, `3e9d18c` | `Cargo.toml` (`[patch.crates-io]`), `flake.nix`, `src/graphics/gpu/flush.rs`; [memory](internals/memory.md) | the sizing belongs upstream in vello, not amane |
+| Hidden windows release their GPU memory, spares age out, Fifo presents | `3e9d18c` | `src/graphics/gpu.rs`, `src/graphics/gpu/{pool,present,target,atlas,quads}.rs`, `src/wayland/update.rs`; [memory](internals/memory.md) | yes |
 | Fork docs and housekeeping | `be25bb3`, `fe941a9`, `fe45a04`, `6bfdba8`, `033b216`, `81aa6c4`, and the `docs(fork)` commits | `FORK.md`, `docs/fork/` | no |
 
 `389fc29` stops letters being dropped when the glyph atlas fills mid-frame: the queued letters
