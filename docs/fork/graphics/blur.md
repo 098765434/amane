@@ -2,11 +2,22 @@
 
 A layer window can tell the compositor where to blur behind it: as plain
 rectangles (`blur_region`) or as rounded, fading shapes, each optionally drawn
-with a liquid-glass material (`blur_shapes`). The usage summary is in
-[Layer windows](../../src/layer_windows.md#blur-behind-the-window); this page covers
-how it works.
+with a liquid-glass material (`blur_shapes`). Its content can also blend with
+the frosted backdrop (`vibrant`). The compositor side is in the niri fork's
+[blur shapes](https://github.com/098765434/niri/blob/ocbk/docs/fork/effects/blur-shapes.md),
+[vibrancy](https://github.com/098765434/niri/blob/ocbk/docs/fork/effects/vibrancy.md) and
+[materials](https://github.com/098765434/niri/blob/ocbk/docs/fork/effects/materials.md) docs.
 
-```rust
+## Usage
+
+```rust,ignore
+.blur_region(vec![InputArea { x: 0, y: 0, width: 200, height: 40 }])   // the compositor blurs here
+.blur_shapes(vec![BlurShape::new(8.0, 8.0, 164.0, 74.0, 28.0)])        // or in these rounded shapes
+```
+
+`blur_region` asks the compositor to blur behind rectangles (`ext-background-effect`). `blur_shapes` asks for rounded rectangles, each of which can fade with `.alpha(..)` and name a compositor material with `.material(..)`. To follow a layer that moves, use `.scale_about(..)`, `.offset(..)` and `.fade(..)`. niri from the amane fork draws shapes exactly (`niri-blur-shapes-v1`). Elsewhere amane sends them as a region of strips that step in at the corners, and leaves out any shape less than half visible, since a region can't fade. `amane::blur_fades()` tells which of the two you got, and `amane::material_available(name)` whether the compositor offers a material. Leave both unset to let the compositor's own rules decide; an empty list blurs nowhere. See `examples/blur_shapes.rs`.
+
+```rust,ignore
 LayerWindow::new()
     .width(200.0)
     .height(90.0)
@@ -17,6 +28,10 @@ LayerWindow::new()
             .tint(Color::rgba(255, 255, 255, 40)),
     ])
 ```
+
+A **blur shape** is a rounded rectangle the compositor blurs behind, with its own opacity.
+
+The rest of this page covers how it works.
 
 ## Blur region — `ext-background-effect-v1`
 
@@ -35,7 +50,7 @@ LayerWindow::new()
 `LayerWindow::blur_shapes(Vec<BlurShape>)` sends rounded rectangles, each with
 its own corner radius, alpha, material and tint. Shapes take the place of a blur
 region. The protocol is private to the niri fork
-([098765434/niri](https://github.com/098765434/niri), `docs/fork/blur-shapes.md`);
+([niri fork: blur shapes](https://github.com/098765434/niri/blob/ocbk/docs/fork/effects/blur-shapes.md));
 it is vendored at `protocols/niri-blur-shapes-v1.xml`.
 
 | API | Meaning |

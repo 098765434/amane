@@ -5,6 +5,8 @@ devices, what kind each one is, and switching the default, so a shell can offer 
 show a headphones icon while headphones are in use. Everything else in
 [the Audio page](../../src/audio.md) is unchanged.
 
+## Usage
+
 ```rust
 use amane::{Audio, AudioKind, Service};
 
@@ -31,7 +33,7 @@ Audio::set_output("bluez_output.AA_BB_CC_DD_EE_FF.1");
 | `AudioDevice::kind()` | `Internal`, `Speaker`, `Headphones`, `Headset`, `Display`, `Car`, `Phone`, `Webcam` or `Microphone` |
 | `AudioDevice::default()` | `true` for the current default |
 
-## How the kind is found
+## Design / internals: how the kind is found
 
 First match wins (`src/services/audio/device.rs`, unit-tested):
 

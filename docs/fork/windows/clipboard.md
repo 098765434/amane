@@ -36,7 +36,7 @@ Rectangle::new()
     .on_text_drop(|text| Notes::write().append(&text))
 ```
 
-Files go to `on_drop` instead ([Input](input.md#files-from-other-programs)).
+Files go to `on_drop` instead ([Input](../input/input.md#files-from-other-programs)).
 
 ## Dragging out
 

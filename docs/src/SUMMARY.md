@@ -17,7 +17,6 @@
 - [Scaling](scaling.md)
 - [State and Services](services.md)
 - [Input](input.md)
-- [Clipboard and Drag and Drop](clipboard.md)
 - [Animation](animation.md)
 
 # Widgets
@@ -53,8 +52,6 @@
 - [Commands and Files](processes.md)
 - [IPC](ipc.md)
 - [D-Bus](dbus.md)
-- [Settings Files](config.md)
-- [Desktop Dialogs and Notifications](portals.md)
 
 ---
 

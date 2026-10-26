@@ -3,6 +3,8 @@
 `PowerProfile` reads and sets the system power profile through
 **power-profiles-daemon**: `power-saver`, `balanced` or `performance`.
 
+## Usage
+
 ```rust
 let profile = PowerProfile::read();
 
@@ -26,7 +28,7 @@ if profile.present() {
 | `degraded()` | why performance is held back (`PerformanceDegraded`), or `None` |
 | `PowerProfile::set(name)` | switches the profile (sets `ActiveProfile`) on the worker thread |
 
-## How it works
+## Design / internals
 
 The daemon answers under `net.hadess.PowerProfiles` (`/net/hadess/PowerProfiles`).
 Newer versions also answer under `org.freedesktop.UPower.PowerProfiles`
