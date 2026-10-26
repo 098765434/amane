@@ -13,8 +13,12 @@ pub struct Write<S: 'static> {
 }
 
 impl<S> Write<S> {
-    // finishes without waking any window, for a poll that found nothing new
-    pub(crate) fn quiet(&mut self) {
+    /*
+     * finishes without waking any window, for a write that changed nothing
+     * a window shows (a poll that found nothing new, a field only kept for
+     * later)
+     */
+    pub fn quiet(&mut self) {
         self.quiet = true;
     }
 }
