@@ -39,7 +39,8 @@ use std::sync::{Arc, LazyLock};
 use vello::Scene;
 use vello::peniko::ImageData;
 use vello::wgpu::{
-    BlendState, Device, Queue, Sampler, Surface, SurfaceConfiguration, Texture, TextureFormat,
+    BlendState, Device, PollType, Queue, Sampler, Surface, SurfaceConfiguration, Texture,
+    TextureFormat,
 };
 
 use crate::graphics::image::Bitmap;
@@ -256,5 +257,27 @@ impl Gpu {
         self.input_images_read = HashSet::new();
 
         self.quads.release();
+
+        /*
+         * wgpu only frees what was dropped when the device is polled, and a
+         * desktop that hid a window may draw nothing for a long while; waiting
+         * for the gpu here, once, gives the window's memory back now
+         */
+        let _ = self.device.poll(PollType::wait_indefinitely());
+
+        #[cfg(feature = "vello-stats")]
+        if crate::timing::enabled()
+            && let Some(report) = shared::instance(self.display).generate_report()
+        {
+            let hub = report.hub_report();
+
+            eprintln!(
+                "released: wgpu buffers {}+{} textures {}+{}",
+                hub.buffers.num_kept_from_user,
+                hub.buffers.num_released_from_user,
+                hub.textures.num_kept_from_user,
+                hub.textures.num_released_from_user,
+            );
+        }
     }
 }

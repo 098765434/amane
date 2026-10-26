@@ -100,6 +100,26 @@ impl Gpu {
 
         self.showing = Some((kept, width, height));
 
+        // what wgpu holds for the process after this frame: alive, and dropped but not yet freed
+        #[cfg(feature = "vello-stats")]
+        if crate::timing::enabled()
+            && let Some(report) = super::shared::instance(self.display).generate_report()
+        {
+            let hub = report.hub_report();
+
+            eprintln!(
+                "wgpu buffers {}+{} textures {}+{} views {}+{} bind_groups {}+{}",
+                hub.buffers.num_kept_from_user,
+                hub.buffers.num_released_from_user,
+                hub.textures.num_kept_from_user,
+                hub.textures.num_released_from_user,
+                hub.texture_views.num_kept_from_user,
+                hub.texture_views.num_released_from_user,
+                hub.bind_groups.num_kept_from_user,
+                hub.bind_groups.num_released_from_user,
+            );
+        }
+
         true
     }
 
