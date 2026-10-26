@@ -16,8 +16,14 @@ pub fn run(folder: Option<&str>) -> ExitCode {
 
     // catches typos, and new shells come from `amane new <folder>` instead
     if !folder.join("src").join("main.rs").exists() {
-        eprintln!("failed to target {}: no src/main.rs there", folder.display());
-        eprintln!("to create a shell in it, run `amane new {}`", folder.display());
+        eprintln!(
+            "failed to target {}: no src/main.rs there",
+            folder.display()
+        );
+        eprintln!(
+            "to create a shell in it, run `amane new {}`",
+            folder.display()
+        );
 
         return ExitCode::FAILURE;
     }

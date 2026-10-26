@@ -68,7 +68,9 @@ fn startup(example: bool) -> ExitCode {
 
 fn usage() -> ExitCode {
     eprintln!("usage:");
-    eprintln!("  amane new [folder]                   create a shell, in ~/.config/amane by default");
+    eprintln!(
+        "  amane new [folder]                   create a shell, in ~/.config/amane by default"
+    );
     eprintln!("  amane new [folder] --example         create a full example bar instead");
     eprintln!("  amane target [folder]                show or set the folder your shell lives in");
     eprintln!("  amane dev                           rebuild and restart on every save");
@@ -83,7 +85,9 @@ fn usage() -> ExitCode {
     );
     eprintln!("  amane clean --yes                    the same, without asking first");
     eprintln!("  amane ipc call <name> [arguments...] call a handler in the running shell");
-    eprintln!("  amane ipc call --app <id> <name> ...  the same, in the running app with that app-id");
+    eprintln!(
+        "  amane ipc call --app <id> <name> ...  the same, in the running app with that app-id"
+    );
 
     ExitCode::FAILURE
 }
