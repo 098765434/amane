@@ -31,6 +31,7 @@ as upstream has them; everything the fork adds is here.
 | Backdrop | niri's luminance readings behind each shape | `Backdrop` | [blur](graphics/blur.md#blur-shapes--niri-blur-shapes-v1) | — | done, niri fork |
 | Vibrancy | grey content blended with the frosted backdrop | `vibrant` | [blur](graphics/blur.md#vibrancy-niri-vibrancy-v1) | — | done, niri fork |
 | Canvas paths | SVG paths, placing, trimming, line joins; 64 shader rows | `Path::svg`, `Join` | [canvas](graphics/canvas.md) | `examples/stroke_clock.rs` | done |
+| Shader effects | multi-pass WGSL over a rectangle's drawing; hot reload; compile errors | `Effect`, `Input`, `shader_errors` | [effects](graphics/effects.md) | `examples/effect.rs` | done |
 | Text styling | parley layout: italic, line height, spacing, case, decoration, align, direction, axes | `Case`, `Decoration`, `TextAlign`, `TextDirection`, `Weight::Number` | [text](graphics/text.md) | `examples/text.rs` | done |
 | Animation | spring easing that keeps its speed, `retime` | `Easing::Spring`, `Animation::retime` | [animation](graphics/animation.md) | — | done |
 | `on_track` | pointer motion that redraws nothing; also scroll source, modifiers, shortcuts, double clicks | `on_track`, `Scroll`, `modifiers` | [input](input/input.md) | — | done |
