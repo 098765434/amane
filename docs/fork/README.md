@@ -64,7 +64,8 @@ as upstream has them; everything the fork adds is here.
   [ipc](system/ipc.md).
 - **Internals:** how the fork changes amane inside, and the resource plan.
   [architecture](internals/architecture.md) (sources, `on_track`, frame skip, GPU bounds, frozen
-  windows), [optimization-plan](internals/optimization-plan.md).
+  windows), [memory](internals/memory.md) (what a process holds in GPU memory and RAM, the vello
+  fork's shell-sized scratch buffers, how to measure), [optimization-plan](internals/optimization-plan.md).
 
 ## API cheatsheet
 

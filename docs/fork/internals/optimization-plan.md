@@ -33,6 +33,7 @@ Related render and redraw work done since, outside the phases above:
 | A backdrop reading redraws only the windows that read that shape's | `e71c91e` |
 | A window title change redraws only what shows a title | `45e0edc` |
 | `Overview`, `WorkspaceSwitch` and `Desktop` split out of `Gestures`, and frozen layer windows | `14c6994`, `916aecd` |
+| vello's scratch buffers sized for a shell, through a fork of vello (−130 MB of VRAM per process at the first vello run; see [memory](memory.md)) | see memory.md |
 
 The rest is still planned: event-driven network, media, bluetooth, brightness and palette;
 pausing unread services; the allocator thread; popup reconcile; text and layout caches; GPU
