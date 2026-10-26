@@ -89,13 +89,15 @@ cargo run --features vello-stats --example canvas 2>&1 | grep ^scratch
 scratch 1216x320 failed 0 tiles 940 lines 35954 seg_counts 37483 segments 37483 ptcl 0 bin 14 blend 0
 ```
 
-`failed 1` is an overflow. `ptcl` is not counted by vello 0.11, so it reads 0. Every run waits
-for the GPU, so frame times are not representative with the feature on. (vello's `bump_estimate`
-feature gives a CPU-side bound instead; it overshoots stroked scenes by 10×, so the readback is
-the one to trust.)
+`failed 1` is an overflow. Every run waits for the GPU, so frame times are not representative
+with the feature on. (vello's `bump_estimate` feature gives a CPU-side bound instead; it
+overshoots stroked scenes by 10×, so the readback is the one to trust.)
 
 **Measured.** `gradient` beside the live shell: 193 MB of VRAM with upstream's sizes, 65 MB with
-the fork's, stable over 25 s of animation. RSS unchanged.
+the fork's, stable over 25 s of animation. RSS unchanged. The shell itself, run beside the live
+one with the desktop showing, the launcher and Quick Settings opened: 231 vello runs, none
+failed. The largest took 38.7k tiles and 104k ptcl entries (Quick Settings, 686×1386), and 3.5k
+segments and 1.1k lines (the widgets layer at full output). Every limit is 7× or more above.
 
 **Later.** Upstream has moved to the sparse-strips renderers (`vello_cpu`, `vello_gpu`), which
 have no such buffers. Moving amane to `vello_gpu` once it has feature parity and a stable API
