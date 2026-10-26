@@ -85,6 +85,7 @@ fn paint(shape: &dyn Shape, renderer: &mut Renderer, area: Area) {
             style.stroke_thickness,
             style.stroke_color,
             style.cap,
+            style.join,
         );
     }
 

@@ -1,29 +1,10 @@
 use vello::kurbo::{Affine, BezPath};
 use vello::peniko;
 
-use crate::graphics::path::Segment;
 use crate::graphics::{BezierPath, Color, Transform};
 
 pub(super) fn bezier(path: &BezierPath) -> BezPath {
-    let mut bezier = BezPath::new();
-
-    for segment in &path.segments {
-        match *segment {
-            Segment::MoveTo(x, y) => bezier.move_to(point(x, y)),
-
-            Segment::LineTo(x, y) => bezier.line_to(point(x, y)),
-
-            Segment::QuadTo(x1, y1, x, y) => bezier.quad_to(point(x1, y1), point(x, y)),
-
-            Segment::CubicTo(x1, y1, x2, y2, x, y) => {
-                bezier.curve_to(point(x1, y1), point(x2, y2), point(x, y))
-            }
-
-            Segment::Close => bezier.close_path(),
-        }
-    }
-
-    bezier
+    path.to_kurbo()
 }
 
 pub(super) fn affine(transform: Transform) -> Affine {
@@ -39,8 +20,4 @@ pub(super) fn affine(transform: Transform) -> Affine {
 
 pub(super) fn paint(color: Color) -> peniko::Color {
     peniko::Color::from_rgba8(color.r, color.g, color.b, color.a)
-}
-
-fn point(x: f32, y: f32) -> (f64, f64) {
-    (f64::from(x), f64::from(y))
 }
