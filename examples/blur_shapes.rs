@@ -33,20 +33,22 @@ fn view() -> LayerWindow {
                 .height(Parent)
                 .fill(Color::TRANSPARENT)
                 .padding(GAP)
-                .child(Row::new(children![
-                Rectangle::new()
-                    .width(CARD)
-                    .height(CARD)
-                    .radius(RADIUS)
-                    .fill(tint),
-                Rectangle::new()
-                    .width(CARD)
-                    .height(CARD)
-                    .radius(RADIUS)
-                    .fill(tint)
-                    .opacity(0.5),
-            ])
-            .gap(GAP)),
+                .child(
+                    Row::new(children![
+                        Rectangle::new()
+                            .width(CARD)
+                            .height(CARD)
+                            .radius(RADIUS)
+                            .fill(tint),
+                        Rectangle::new()
+                            .width(CARD)
+                            .height(CARD)
+                            .radius(RADIUS)
+                            .fill(tint)
+                            .opacity(0.5),
+                    ])
+                    .gap(GAP),
+                ),
         )
 }
 
