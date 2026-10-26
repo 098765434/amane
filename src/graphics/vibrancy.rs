@@ -122,6 +122,11 @@ fn inverted(mut command: Command) -> Command {
     command
 }
 
+// whether `faded` goes on the same layer as `color`, so fading by it looks the same
+pub(crate) fn same_layer(color: Color, faded: Color) -> bool {
+    grey_layer(color) == grey_layer(faded)
+}
+
 fn grey_layer(color: Color) -> Layer {
     let channels = [color.red(), color.green(), color.blue()];
 

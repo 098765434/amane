@@ -3,7 +3,7 @@ mod effect;
 mod shape;
 mod text;
 
-use super::{Area, Corners, Transform};
+use super::{Area, Color, Corners, Transform, vibrancy};
 
 pub use command::Command;
 pub use effect::VALUE_ROWS;
@@ -44,6 +44,11 @@ impl Renderer {
     }
 
     pub fn blend(&mut self, group: Renderer, opacity: f32) {
+        // nothing shows, so nothing is drawn
+        if opacity <= 0.0 || group.commands.is_empty() {
+            return;
+        }
+
         let cuts = group
             .commands
             .iter()
@@ -56,10 +61,18 @@ impl Renderer {
             return;
         }
 
-        self.commands.push(Command::Group {
-            commands: group.commands,
-            opacity,
-        });
+        // one shape can't overlap itself, so its colour takes the opacity and no group is needed
+        let mut commands = group.commands;
+
+        if let [only] = commands.as_mut_slice()
+            && fade(only, opacity)
+        {
+            self.commands.append(&mut commands);
+
+            return;
+        }
+
+        self.commands.push(Command::Group { commands, opacity });
     }
 
     // what the group drew only shows inside the rounded rectangle
@@ -89,6 +102,38 @@ impl Renderer {
     }
 }
 
+/*
+ * a single shape faded by its own colour, the way a group at `opacity` would
+ * show it; false (and untouched) for one that can't be, or whose faded colour
+ * would land on another vibrancy layer
+ */
+fn fade(command: &mut Command, opacity: f32) -> bool {
+    if opacity > 1.0 {
+        return false;
+    }
+
+    let (Command::Rectangle { color, .. }
+    | Command::Border { color, .. }
+    | Command::Glyph { color, .. }
+    | Command::Fill { color, .. }
+    | Command::Stroke { color, .. }
+    | Command::Shadow { color, .. }) = command
+    else {
+        return false;
+    };
+
+    let alpha = (f32::from(color.alpha()) * opacity).round() as u8;
+    let faded = Color::rgba(color.red(), color.green(), color.blue(), alpha);
+
+    if !vibrancy::same_layer(*color, faded) {
+        return false;
+    }
+
+    *color = faded;
+
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -112,5 +157,50 @@ mod tests {
 
         assert_eq!(area, Area::new(0.0, 0.0, 200.0, 100.0));
         assert_eq!(transform.map(area.width, area.height), (375.0, 187.5));
+    }
+
+    fn drawn(root: &Rectangle) -> Vec<Command> {
+        crate::frame::build(root, 100, 100, 1.0, ScaleFactor::new(1.0))
+            .renderer
+            .finish()
+    }
+
+    #[test]
+    fn invisible_draws_nothing() {
+        let root = Rectangle::new()
+            .width(Parent)
+            .height(Parent)
+            .fill(Color::BLUE)
+            .opacity(0.0);
+
+        assert!(drawn(&root).is_empty());
+    }
+
+    #[test]
+    fn one_faded_shape_takes_the_opacity_in_its_colour() {
+        let root = Rectangle::new()
+            .width(Parent)
+            .height(Parent)
+            .fill(Color::rgb(0, 0, 255))
+            .opacity(0.5);
+
+        let commands = drawn(&root);
+        let [Command::Rectangle { color, .. }] = commands.as_slice() else {
+            panic!("expected one rectangle, no group");
+        };
+
+        assert_eq!(color.alpha(), 128);
+    }
+
+    #[test]
+    fn white_that_would_turn_vibrant_stays_a_group() {
+        // opaque white is the window's, translucent white the lighter layer's
+        let root = Rectangle::new()
+            .width(Parent)
+            .height(Parent)
+            .fill(Color::rgb(255, 255, 255))
+            .opacity(0.4);
+
+        assert!(matches!(drawn(&root).as_slice(), [Command::Group { .. }]));
     }
 }
