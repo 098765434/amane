@@ -1,4 +1,8 @@
 # Spec: Presence & appearance for the Amane fork
+
+> **Status: implemented** in `2953df9` (Idle) and `317943e`, `b1187e6` (Appearance). Kept as
+> design history; the current docs are [Idle](../system/idle.md) and
+> [Appearance](../system/appearance.md). The "draft" status line below is the original.
  
 Status: draft · Target: `098765434/amane` (`ocbk`) + `amane-shell` · Group 3 of 3
 (ambient system state the bar *reacts to*: whether the user is present, and the system's

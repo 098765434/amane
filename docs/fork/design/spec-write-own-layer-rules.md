@@ -1,4 +1,12 @@
 # Spec: Blur behind the bar & activation-token launching for the Amane fork
+
+> **Status: implemented.** Part A shipped as blur regions in `db581d0`, then as blur shapes
+> over the niri fork's `niri-blur-shapes-v1` in `bcc53ac` and `2ea1d46`
+> ([Blur](../graphics/blur.md)). Part B shipped in `82337f2`: `src/wayland/activation.rs`,
+> `spawn_activated` ([Launching apps](../system/apps-and-processes.md#launching-apps)). §A.6, amane writing its own niri
+> layer rules, was not built as an amane API: amane-shell generates its layer rules instead
+> ([layer rules](https://github.com/098765434/amane-shell/blob/main/docs/integration/layer-rules.md)).
+> Kept as design history; the "draft" status line below is the original.
  
 Status: draft · Target: `098765434/amane` (`ocbk`) + `amane-shell` · Two small library
 features built on Wayland protocols niri already serves. **No niri changes are required**
