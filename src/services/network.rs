@@ -12,7 +12,7 @@ use crate::{Service, Value};
 pub use access_point::AccessPoint;
 pub use link::Link;
 
-#[derive(Default, PartialEq)]
+#[derive(Default)]
 pub struct Network {
     link: Link,
 
@@ -51,7 +51,7 @@ impl Service for Network {
 
             let fresh = fetch();
 
-            if *Self::read() == fresh {
+            if Self::read().shows_same(&fresh) {
                 continue;
             }
 
@@ -60,7 +60,39 @@ impl Service for Network {
     }
 }
 
+// a signal shows as the nearest of five wedges (kit's wifi_glyph), 20 apart
+fn step(strength: u8) -> u16 {
+    (u16::from(strength.min(100)) * 5 + 50) / 100
+}
+
 impl Network {
+    /*
+     * whether `other` shows the same: strength wavers all the time, and a
+     * change within a step would redraw everything that shows the network
+     * for nothing
+     */
+    fn shows_same(&self, other: &Self) -> bool {
+        let same_points = self.access_points.len() == other.access_points.len()
+            && self
+                .access_points
+                .iter()
+                .zip(&other.access_points)
+                .all(|(a, b)| {
+                    a.ssid == b.ssid
+                        && step(a.strength) == step(b.strength)
+                        && a.secured == b.secured
+                        && a.active == b.active
+                        && a.saved == b.saved
+                });
+
+        same_points
+            && self.link == other.link
+            && self.ssid == other.ssid
+            && step(self.strength) == step(other.strength)
+            && self.wifi_enabled == other.wifi_enabled
+            && self.connecting == other.connecting
+    }
+
     pub fn connected(&self) -> bool {
         self.link != Link::Offline
     }
@@ -190,4 +222,31 @@ fn fetch() -> Network {
     network.strength = access_point.get("Strength").number() as u8;
 
     network
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn at(strength: u8) -> Network {
+        Network {
+            link: Link::Wifi,
+            ssid: String::from("home"),
+            strength,
+            ..Network::default()
+        }
+    }
+
+    #[test]
+    fn a_signal_wavering_within_its_wedge_shows_the_same() {
+        assert!(at(52).shows_same(&at(68)));
+        assert!(
+            !at(68).shows_same(&at(71)),
+            "70 is where the next wedge starts"
+        );
+        assert!(!at(52).shows_same(&Network {
+            ssid: String::from("work"),
+            ..at(52)
+        }));
+    }
 }
