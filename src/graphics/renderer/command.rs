@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use crate::graphics::font::Face;
 use crate::graphics::{Area, BezierPath, Cap, Color, Corners, Gradient, Join, Transform};
+use crate::style::Effect;
 
 #[derive(Clone, PartialEq)]
 pub enum Command {
@@ -122,5 +123,15 @@ pub enum Command {
         radius: Corners,
         transform: Transform,
         commands: Vec<Command>,
+    },
+
+    // commands drawn on their own, run through the effect's passes over the area, then laid over the rest
+    Effect {
+        commands: Vec<Command>,
+        effect: Effect,
+        // the effect's image inputs in the order they come, none while one is decoding
+        images: Vec<Option<Arc<Bitmap>>>,
+        area: Area,
+        transform: Transform,
     },
 }

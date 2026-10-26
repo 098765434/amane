@@ -21,6 +21,17 @@ impl Gpu {
         canvas
     }
 
+    // passes only draw over their area, so the rest has to read as nothing
+    pub(super) fn take_field(&mut self, width: u32, height: u32) -> Texture {
+        let Some(field) = self.take(width, height, texture::FIELD) else {
+            return texture::field(&self.device, width, height);
+        };
+
+        self.clear(&field);
+
+        field
+    }
+
     // vello overwrites every pixel of it, so no clearing needed
     pub(super) fn take_scratch(&mut self, width: u32, height: u32) -> Texture {
         match self.take(width, height, texture::SCRATCH) {

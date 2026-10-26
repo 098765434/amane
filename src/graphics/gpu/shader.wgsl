@@ -17,6 +17,9 @@ struct Placement {
 struct Corner {
     @builtin(position) position: vec4<f32>,
     @location(0) uv: vec2<f32>,
+
+    // where the corner is on the whole canvas, 0 to 1, for effect passes reading their inputs
+    @location(1) canvas_uv: vec2<f32>,
 }
 
 @vertex
@@ -42,5 +45,7 @@ fn vertex(@builtin(vertex_index) index: u32) -> Corner {
     let gpu_x = x / placement.canvas.x * 2.0 - 1.0;
     let gpu_y = 1.0 - y / placement.canvas.y * 2.0;
 
-    return Corner(vec4<f32>(gpu_x, gpu_y, 0.0, 1.0), uv);
+    let canvas_uv = vec2<f32>(x, y) / placement.canvas.xy;
+
+    return Corner(vec4<f32>(gpu_x, gpu_y, 0.0, 1.0), uv, canvas_uv);
 }

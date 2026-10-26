@@ -48,6 +48,7 @@ pub use blur::{BlurShape, blur_fades, material_available};
 pub use dbus::{Argument, Bus, Method, Signal, Value};
 pub use files::watch_file;
 pub use full::Full;
+pub use graphics::shader_files::shader_errors;
 pub use graphics::{Cap, Color, Gradient, Join, Weight};
 pub use input::cursor_names::{
     Crosshair, Default, Grab, Grabbing, Move, NotAllowed, Pointer, ResizeBottom, ResizeBottomLeft,
@@ -77,7 +78,7 @@ pub use services::{
     PamResult, PowerDevice, PowerProfile, Scheme, Service, Timeout, Urgency, WarningLevel,
     WindowInfo, Windows, Workspace, WorkspaceSwitch, Workspaces,
 };
-pub use style::{Fill, Image, Mask, Radius, Shadow};
+pub use style::{Effect, Fill, Image, Input, Mask, Radius, Shadow};
 pub use widgets::{
     Arc, Canvas, Case, Circle, Column, Decoration, Line, Path, Rectangle, Row, ScrollArea, Shape,
     Stack, Text, TextAlign, TextDirection, TextInput, Widget,

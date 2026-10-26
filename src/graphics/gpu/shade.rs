@@ -1,16 +1,17 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::LazyLock;
 use std::time::Instant;
 
 use vello::wgpu::util::{BufferInitDescriptor, DeviceExt};
 use vello::wgpu::{
-    BindGroupDescriptor, BindGroupEntry, Buffer, BufferUsages, LoadOp, Operations,
-    RenderPassColorAttachment, RenderPassDescriptor, StoreOp, Texture,
+    BindGroupDescriptor, BindGroupEntry, BindingResource, Buffer, BufferUsages, LoadOp, Operations,
+    RenderPassColorAttachment, RenderPassDescriptor, StoreOp, Texture, TextureView,
 };
 
-use crate::graphics::{self, Area, Transform, VALUE_ROWS};
+use crate::graphics::{self, Area, Transform, VALUE_ROWS, shader_files};
+use crate::style::INPUTS;
 
-use super::shader::Shader;
+use super::shader::{Kind, Loaded, Shader};
 use super::{Gpu, texture};
 
 // every shader's time counts from when the first one was drawn
@@ -33,14 +34,14 @@ impl Gpu {
         transform: Transform,
     ) {
         let Some(outline) = outline else {
-            self.draw_shader(canvas, shader, values, area, transform);
+            self.draw_shader(canvas, shader, Kind::Plain, values, area, transform, &[]);
 
             return;
         };
 
         let layer = self.take_canvas(canvas.width(), canvas.height());
 
-        self.draw_shader(&layer, shader, values, area, transform);
+        self.draw_shader(&layer, shader, Kind::Plain, values, area, transform, &[]);
 
         self.trim(&layer, outline, transform);
 
@@ -49,22 +50,77 @@ impl Gpu {
         self.give_back(layer);
     }
 
-    fn draw_shader(
+    /*
+     * compiled the first time a path is drawn, and again once its file is
+     * saved; false when the file has never compiled, so there's nothing to draw
+     */
+    pub(super) fn load_shader(&mut self, path: &Path, kind: Kind) -> bool {
+        let generation = shader_files::generation();
+
+        let kept = self.shaders.get(path).and_then(|kinds| kinds.get(&kind));
+
+        if let Some(loaded) = kept
+            && loaded.generation == generation
+        {
+            return loaded.shader.is_some();
+        }
+
+        shader_files::watch(path);
+
+        let compiled = Shader::load(&self.device, path, kind);
+
+        let loaded = self
+            .shaders
+            .entry(path.to_path_buf())
+            .or_default()
+            .entry(kind)
+            .or_insert(Loaded {
+                shader: None,
+                generation,
+            });
+
+        loaded.generation = generation;
+
+        match compiled {
+            Ok(shader) => {
+                loaded.shader = Some(shader);
+
+                shader_files::report(path, None);
+            }
+
+            Err(error) => {
+                eprintln!("amane: {error}");
+
+                shader_files::report(path, Some(error));
+            }
+        }
+
+        loaded.shader.is_some()
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn draw_shader(
         &mut self,
         layer: &Texture,
-        shader: &Path,
+        path: &Path,
+        kind: Kind,
         values: &[[f32; 4]],
         area: Area,
         transform: Transform,
+        inputs: &[&Texture],
     ) {
-        // compiled the first time a path is drawn, then kept
-        if !self.shaders.contains_key(shader) {
-            let compiled = Shader::load(&self.device, shader);
-
-            self.shaders.insert(PathBuf::from(shader), compiled);
+        if !self.load_shader(path, kind) {
+            return;
         }
 
-        let shader = &self.shaders[shader];
+        let Some(shader) = self
+            .shaders
+            .get(path)
+            .and_then(|kinds| kinds.get(&kind))
+            .and_then(|loaded| loaded.shader.as_ref())
+        else {
+            return;
+        };
 
         let time = START.elapsed().as_secs_f32();
 
@@ -87,27 +143,70 @@ impl Gpu {
 
         let values = self.uniform_rows(rows);
 
-        let inputs = self.device.create_bind_group(&BindGroupDescriptor {
+        // how many real pixels one logical pixel covers, for passes that reach in logical pixels
+        let scale = transform.even_scale().unwrap_or_else(|| {
+            (transform.sx * transform.sy - transform.kx * transform.ky)
+                .abs()
+                .sqrt()
+        });
+
+        let scale = self.uniform([scale, 0.0, 0.0, 0.0]);
+
+        let mut entries = vec![
+            BindGroupEntry {
+                binding: 0,
+                resource: size.as_entire_binding(),
+            },
+            BindGroupEntry {
+                binding: 1,
+                resource: time.as_entire_binding(),
+            },
+            BindGroupEntry {
+                binding: 2,
+                resource: placement.as_entire_binding(),
+            },
+            BindGroupEntry {
+                binding: 3,
+                resource: values.as_entire_binding(),
+            },
+        ];
+
+        if kind != Kind::Plain {
+            entries.push(BindGroupEntry {
+                binding: 4,
+                resource: scale.as_entire_binding(),
+            });
+        }
+
+        let inputs_group = self.device.create_bind_group(&BindGroupDescriptor {
             label: None,
             layout: &shader.inputs,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: size.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: time.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: placement.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 3,
-                    resource: values.as_entire_binding(),
-                },
-            ],
+            entries: &entries,
+        });
+
+        let textures_group = shader.textures.as_ref().map(|layout| {
+            // inputs the pass wasn't given read as clear
+            let views: Vec<TextureView> = (0..INPUTS)
+                .map(|index| texture::view(inputs.get(index).copied().unwrap_or(&self.blank)))
+                .collect();
+
+            let mut entries = vec![BindGroupEntry {
+                binding: 0,
+                resource: BindingResource::Sampler(&self.input_sampler),
+            }];
+
+            for (index, view) in views.iter().enumerate() {
+                entries.push(BindGroupEntry {
+                    binding: index as u32 + 1,
+                    resource: BindingResource::TextureView(view),
+                });
+            }
+
+            self.device.create_bind_group(&BindGroupDescriptor {
+                label: None,
+                layout,
+                entries: &entries,
+            })
         });
 
         let target = texture::view(layer);
@@ -132,7 +231,11 @@ impl Gpu {
 
             pass.set_pipeline(&shader.pipeline);
 
-            pass.set_bind_group(0, &inputs, &[]);
+            pass.set_bind_group(0, &inputs_group, &[]);
+
+            if let Some(textures) = &textures_group {
+                pass.set_bind_group(1, textures, &[]);
+            }
 
             // the six corners of the rectangle's two triangles
             pass.draw(0..6, 0..1);
