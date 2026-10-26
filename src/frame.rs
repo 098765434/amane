@@ -1,9 +1,9 @@
-use std::any::TypeId;
+
 use std::collections::HashSet;
 
 use crate::Widget;
 use crate::animation::moving;
-use crate::changes;
+use crate::changes::{self, Source};
 use crate::graphics::{Area, Renderer, Transform};
 use crate::input::Target;
 use crate::scale::ScaleFactor;
@@ -14,7 +14,7 @@ pub struct Frame {
     pub targets: Vec<Target>,
 
     // services read while drawing, on top of the ones the view read
-    pub reads: HashSet<TypeId>,
+    pub reads: HashSet<Source>,
 
     // something the view or a widget drew has not arrived yet, so another frame is needed
     pub moving: bool,
@@ -29,7 +29,7 @@ pub fn run_view<T>(
     width: u32,
     height: u32,
     scale_factor: ScaleFactor,
-) -> (T, HashSet<TypeId>) {
+) -> (T, HashSet<Source>) {
     // anything read or set moving before belongs to another window
     changes::take_read();
 

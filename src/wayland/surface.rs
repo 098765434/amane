@@ -1,4 +1,4 @@
-use std::any::TypeId;
+
 use std::collections::HashSet;
 use std::time::Instant;
 
@@ -15,6 +15,7 @@ use wayland_client::{
     protocol::{wl_compositor::WlCompositor, wl_output::WlOutput, wl_surface::WlSurface},
 };
 
+use crate::changes::Source;
 use crate::graphics::Gpu;
 use crate::input::{KeyHandlers, Pointer};
 use crate::popup::PopupView;
@@ -61,7 +62,7 @@ pub struct OpenWindow {
     pub last_frame: Option<Instant>,
 
     // the services the last view read, a change to any of them draws the window again
-    pub reads: HashSet<TypeId>,
+    pub reads: HashSet<Source>,
 
     // both come from the last drawn view, so input matches what is on screen
     pub pointer: Pointer,

@@ -9,8 +9,19 @@ use crate::timing;
 static WAKE: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
 
 /*
- * which services changed since the windows last looked, and whether
- * something changed that no service names, which every window may show
+ * what a window's drawing can depend on: a service, or the compositor's
+ * reading behind one blur shape, which only the windows that asked for that
+ * shape's reading show
+ */
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Source {
+    Service(TypeId),
+    Backdrop(u32),
+}
+
+/*
+ * which sources changed since the windows last looked, and whether
+ * something changed that no source names, which every window may show
  */
 static CHANGED: Mutex<Changes> = Mutex::new(Changes {
     services: None,
@@ -18,13 +29,13 @@ static CHANGED: Mutex<Changes> = Mutex::new(Changes {
 });
 
 struct Changes {
-    services: Option<HashSet<TypeId>>,
+    services: Option<HashSet<Source>>,
     everything: bool,
 }
 
 // what the window being drawn right now has read
 thread_local! {
-    static READ: RefCell<HashSet<TypeId>> = RefCell::new(HashSet::new());
+    static READ: RefCell<HashSet<Source>> = RefCell::new(HashSet::new());
 }
 
 pub fn set_waker(wake: impl Fn() + Send + Sync + 'static) {
@@ -78,12 +89,17 @@ pub fn wake() {
 
 // only the windows that read this service are drawn again
 pub fn mark(service: TypeId) {
+    mark_source(Source::Service(service));
+}
+
+// only the windows that read this source are drawn again
+pub fn mark_source(source: Source) {
     let mut changes = CHANGED.lock().unwrap_or_else(PoisonError::into_inner);
 
     changes
         .services
         .get_or_insert_with(HashSet::new)
-        .insert(service);
+        .insert(source);
 
     drop(changes);
 
@@ -91,7 +107,7 @@ pub fn mark(service: TypeId) {
 }
 
 // none means every window should draw
-pub fn take() -> Option<HashSet<TypeId>> {
+pub fn take() -> Option<HashSet<Source>> {
     let mut changes = CHANGED.lock().unwrap_or_else(PoisonError::into_inner);
 
     let services = changes.services.take().unwrap_or_default();
@@ -104,11 +120,15 @@ pub fn take() -> Option<HashSet<TypeId>> {
 }
 
 pub fn note_read(service: TypeId) {
-    READ.with_borrow_mut(|read| read.insert(service));
+    note_source(Source::Service(service));
+}
+
+pub fn note_source(source: Source) {
+    READ.with_borrow_mut(|read| read.insert(source));
 }
 
 // what was read since the last call, which starts a fresh list
-pub fn take_read() -> HashSet<TypeId> {
+pub fn take_read() -> HashSet<Source> {
     READ.take()
 }
 
