@@ -33,6 +33,11 @@ impl OpenWindow {
         // a later change to one of these services draws this window again
         self.reads = reads;
 
+        // a frozen window that shows keeps its last frame, with what was sent with it
+        if content.frozen() && self.width != 0 && self.height != 0 {
+            return;
+        }
+
         let viewed = Instant::now();
 
         let name = &content.name();

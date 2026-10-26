@@ -3,6 +3,7 @@ mod mango;
 mod niri;
 mod sway;
 
+use std::collections::HashMap;
 use std::env;
 
 use crate::{WindowInfo, Workspace};
@@ -59,6 +60,8 @@ pub(crate) struct Gesture {
     pub active_workspace_idx: usize,
     /// Name of the focused output the values above belong to.
     pub output: String,
+    /// Each output's desktop obscured: nothing under the workspaces shows there.
+    pub obscured: HashMap<String, bool>,
 }
 
 // each compositor sets its own variable for the programs it starts
