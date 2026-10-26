@@ -22,6 +22,7 @@ dependencies = [
  "chrono",
  "inotify",
  "libpulse-binding",
+ "log",
  "parley",
  "png",
  "resvg",
@@ -2220,7 +2221,7 @@ dependencies = [
 [[package]]
 name = "vello_encoding"
 version = "0.11.0"
-source = "git+https://github.com/098765434/vello?branch=ocbk#8bbfc3f8d9a69302ae2a5c35546515364ec30876"
+source = "git+https://github.com/098765434/vello?branch=ocbk#b6f075ab80228650bdbbf2ad6b49e30416aafa73"
 dependencies = [
  "bytemuck",
  "guillotiere",

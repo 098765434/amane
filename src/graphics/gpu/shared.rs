@@ -1,5 +1,6 @@
 use std::cell::{Cell, OnceCell, RefCell};
 use std::ffi::c_void;
+use std::num::NonZeroUsize;
 use std::process;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -67,7 +68,34 @@ pub fn clear() {
     drop(SHARED.with_borrow_mut(Option::take));
 }
 
+// vello's log on stderr, for its image atlas size, when amane is built to count what vello takes
+#[cfg(feature = "vello-stats")]
+fn hear_vello() {
+    struct Stderr;
+
+    impl log::Log for Stderr {
+        fn enabled(&self, metadata: &log::Metadata) -> bool {
+            metadata.target().starts_with("vello")
+        }
+
+        fn log(&self, record: &log::Record) {
+            if self.enabled(record.metadata()) {
+                eprintln!("{}: {}", record.target(), record.args());
+            }
+        }
+
+        fn flush(&self) {}
+    }
+
+    if crate::timing::enabled() && log::set_logger(&Stderr).is_ok() {
+        log::set_max_level(log::LevelFilter::Debug);
+    }
+}
+
 fn open(instance: &Instance, surface: &Surface) -> Shared {
+    #[cfg(feature = "vello-stats")]
+    hear_vello();
+
     let adapter_options = RequestAdapterOptions {
         compatible_surface: Some(surface),
         ..RequestAdapterOptions::default()
@@ -110,9 +138,11 @@ fn open(instance: &Instance, surface: &Surface) -> Shared {
         process::exit(1);
     });
 
-    // area anti-aliasing matches how edges looked with the cpu renderer
+    // area anti-aliasing matches how edges looked with the cpu renderer; one thread
+    // compiles the shaders, instead of one per cpu for a start that's a second either way
     let vello_options = RendererOptions {
         antialiasing_support: AaSupport::area_only(),
+        num_init_threads: NonZeroUsize::new(1),
         ..RendererOptions::default()
     };
 

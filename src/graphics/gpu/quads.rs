@@ -53,3 +53,15 @@ pub struct Quads {
     waiting: Vec<f32>,
     runs: Vec<Run>,
 }
+
+impl Quads {
+    // lets go of everything a hidden window drew with: its images, its letters and the room for quads
+    pub fn release(&mut self) {
+        self.pictures.clear();
+
+        self.atlas.release();
+
+        self.waiting = Vec::new();
+        self.runs = Vec::new();
+    }
+}

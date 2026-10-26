@@ -273,6 +273,10 @@ impl OpenWindow {
         // showing again needs a buffer, even for the same frame
         self.gpu.forget_shown();
 
+        // a hidden window holds nothing on the gpu; showing again makes it all afresh
+        self.gpu.release();
+        self.vibrant_layers = None;
+
         // nothing is drawn until showing the window brings a new configure
         self.width = 0;
         self.height = 0;
