@@ -49,7 +49,7 @@ The crate doc at the top of `src/lib.rs` is a few fork lines linking here.
 | Vibrancy | `c74990b`, `6ef0c4e`, `1ba9c2d` | `src/graphics/vibrancy.rs`, `src/wayland/vibrancy.rs`, `protocols/niri-vibrancy-v1.xml` | no, needs the niri fork |
 | Paths: `Path::svg`, `place`, `trim`, joins | `17fca64` | `src/widgets/shape/path.rs`, `src/graphics/{path,join}.rs`; `examples/stroke_clock.rs` | yes |
 | 64 shader value rows | `16480b2` | `src/graphics/renderer/effect.rs`, `src/graphics/gpu/shader.rs` | yes |
-| Shader effects, shader hot reload and errors | `d421b31` | `src/style/effect.rs`, `src/graphics/{shader_files.rs,gpu/effect.rs,gpu/shade.rs,gpu/shader.rs}`; `examples/effect.rs` | yes |
+| Shader effects (backdrop and image inputs), shader hot reload and errors | `d421b31`, `254c8ee` | `src/style/effect.rs`, `src/graphics/{shader_files.rs,gpu/effect.rs,gpu/shade.rs,gpu/shader.rs}`; `examples/effect.rs` | yes |
 | Parley text | `06ead81` | `src/widgets/text.rs`, `src/widgets/text/{style,layout}.rs`, `src/graphics/font.rs`; `examples/text.rs` | yes |
 | Spring easing, retargeting, `retime` | `ba43071`, `289f191`, `527c538` | `src/animation.rs` | yes |
 | Scroll source, modifiers, Ctrl chords | `7f48e10`, `e3b2efb`, `bc9729e`, `c24533c` | `src/input.rs`, `src/input/modifiers.rs`, `src/wayland/{pointer,keyboard}.rs` | yes |
