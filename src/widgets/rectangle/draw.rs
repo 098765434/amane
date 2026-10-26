@@ -70,7 +70,7 @@ fn draw_in_place(rectangle: &Rectangle, renderer: &mut Renderer, area: Area) {
     };
 
     // like a rectangle's shader, a pass that reads time keeps the window drawing
-    if effect.shaders().any(reads_time) {
+    if effect.shaders().any(reads_time) && !shader_files::shader_time_paused() {
         moving::set();
     }
 
@@ -98,7 +98,7 @@ fn paint(rectangle: &Rectangle, renderer: &mut Renderer, area: Area, radius: Cor
         renderer.shader(area, shader, radius, &rectangle.shader_values);
 
         // the shader's time moves on, so the window keeps drawing new frames
-        if reads_time(shader) {
+        if reads_time(shader) && !shader_files::shader_time_paused() {
             moving::set();
         }
     }
@@ -156,6 +156,7 @@ pub fn drop_shadow(rectangle: &Rectangle, renderer: &mut Renderer, area: Area, r
     }
 
     let shadow_area = shadow.place(area);
+    let radius = radius.map(|corner| shadow.corners(corner));
 
     renderer.shadow(shadow_area, radius, shadow.tint(), shadow.blur);
 }

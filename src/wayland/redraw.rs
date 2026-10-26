@@ -100,6 +100,7 @@ impl OpenWindow {
             presented: Instant::now(),
         };
 
+        timing::record(name, self.last_frame, &timing);
         timing::log(name, self.width, self.height, self.last_frame, &timing);
 
         self.last_frame = Some(started);

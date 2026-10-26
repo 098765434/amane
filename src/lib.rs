@@ -42,13 +42,16 @@ pub use clipboard::{Clipboard, DragData, PrimarySelection};
 pub use config::{Config, Settings};
 pub use notify::Notify;
 pub use portal::FileDialog;
+pub use timing::{FrameStats, frame_stats};
 // for deriving Settings without depending on serde yourself: #[serde(crate = "amane::serde")]
 pub use app::App;
 pub use blur::{BlurShape, blur_fades, material_available};
 pub use dbus::{Argument, Bus, Method, Signal, Value};
 pub use files::watch_file;
 pub use full::Full;
-pub use graphics::shader_files::shader_errors;
+pub use graphics::shader_files::{
+    pause_shader_time, shader_errors, shader_time, shader_time_paused,
+};
 pub use graphics::{Cap, Color, Gradient, Join, Weight};
 pub use input::cursor_names::{
     Crosshair, Default, Grab, Grabbing, Move, NotAllowed, Pointer, ResizeBottom, ResizeBottomLeft,

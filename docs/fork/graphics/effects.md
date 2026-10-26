@@ -86,6 +86,26 @@ version and puts the error in `shader_errors()`. A file that never compiled draw
 effect, the drawing is shown without the effect instead. The error is also printed to stderr. A
 missing file is an error, not a panic, for rectangle shaders too.
 
+## The shader clock
+
+Every shader's `time` is `amane::shader_time()`. `amane::pause_shader_time(Some(t))` holds it at
+`t` seconds: shaders that read `time` stop redrawing every frame, and moving the held time
+redraws once. `pause_shader_time(None)` lets the clock run on from where it was held.
+`shader_time_paused()` says which. Use it for still screenshots and for scrubbing an animation.
+
+## Frame stats
+
+`amane::frame_stats(window) -> Option<FrameStats>` gives a window's last frames, averaged over up
+to 30: `fps`, `view_ms`, `draw_ms` and `present_ms`. `present_ms` is the time to hand the frame to
+the GPU and show it, not the GPU's own work. Pass a layer window's namespace, or a normal window's
+name as `current_window()` gives it. Stats are kept whether `AMANE_FRAMES` is set or not.
+
+## Shadow spread
+
+`Shadow::spread(px)` works like CSS's spread. A drop shadow grows by it on every side, and its
+corners round out by as much. An inner shadow's hole shrinks by it, so the shadow reaches further
+in.
+
 ## How it works
 
 `Command::Effect` is routed like a faded group (`gpu/paint.rs`): its commands draw onto a canvas

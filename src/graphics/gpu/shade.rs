@@ -1,6 +1,4 @@
 use std::path::Path;
-use std::sync::LazyLock;
-use std::time::Instant;
 
 use vello::wgpu::util::{BufferInitDescriptor, DeviceExt};
 use vello::wgpu::{
@@ -13,9 +11,6 @@ use crate::style::INPUTS;
 
 use super::shader::{Kind, Loaded, Shader};
 use super::{Gpu, texture};
-
-// every shader's time counts from when the first one was drawn
-static START: LazyLock<Instant> = LazyLock::new(Instant::now);
 
 impl Gpu {
     /*
@@ -122,7 +117,7 @@ impl Gpu {
             return;
         };
 
-        let time = START.elapsed().as_secs_f32();
+        let time = shader_files::shader_time();
 
         let size = self.uniform([area.width, area.height, 0.0, 0.0]);
         let time = self.uniform([time, 0.0, 0.0, 0.0]);
