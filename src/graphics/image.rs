@@ -30,6 +30,15 @@ pub struct Bitmap {
     pub pixels: Arc<Vec<u8>>,
 }
 
+// the same pixels, not equal ones: comparing frames shouldn't read every pixel
+impl PartialEq for Bitmap {
+    fn eq(&self, other: &Self) -> bool {
+        self.width == other.width
+            && self.height == other.height
+            && Arc::ptr_eq(&self.pixels, &other.pixels)
+    }
+}
+
 impl Bitmap {
     // one clear pixel, for a texture slot that has to hold something
     pub fn empty() -> Self {

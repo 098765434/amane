@@ -86,7 +86,7 @@ impl OpenWindow {
 
         let drawn = Instant::now();
 
-        let presented = self.present(frame.renderer, vibrant);
+        let presented = self.present(frame.renderer, vibrant, frame.moving);
 
         let timing = Timing {
             started,
@@ -152,9 +152,10 @@ impl OpenWindow {
     /*
      * false when the gpu skipped the frame, so nothing was committed; the window
      * is measured in logical pixels, the buffer in real ones, and the scale goes
-     * out with the commit that presenting the frame makes
+     * out with the commit that presenting the frame makes; a frame the same
+     * as the one on screen only commits, for the settings sent with it
      */
-    fn present(&mut self, renderer: Renderer, vibrant: bool) -> bool {
+    fn present(&mut self, renderer: Renderer, vibrant: bool, moving: bool) -> bool {
         let (buffer_width, buffer_height) = match &self.fractional {
             // a buffer at the exact scale, shown back at the window's size
             Some(fractional) => {
@@ -181,7 +182,14 @@ impl OpenWindow {
 
         let commands = renderer.finish();
 
-        let commands = self.draw_vibrant_layers(commands, vibrant, (buffer_width, buffer_height));
+        let commands =
+            self.draw_vibrant_layers(commands, vibrant, moving, (buffer_width, buffer_height));
+
+        if !moving && self.gpu.shows(&commands, buffer_width, buffer_height) {
+            self.role.commit();
+
+            return true;
+        }
 
         self.gpu.draw(commands, buffer_width, buffer_height)
     }
@@ -195,6 +203,7 @@ impl OpenWindow {
         &mut self,
         commands: Vec<Command>,
         vibrant: bool,
+        moving: bool,
         buffer: (u32, u32),
     ) -> Vec<Command> {
         let Some(kit) = &self.vibrancy_kit else {
@@ -220,8 +229,10 @@ impl OpenWindow {
 
         layers
             .lighter
-            .draw(split.lighter, size, buffer, whole_scale);
-        layers.darker.draw(split.darker, size, buffer, whole_scale);
+            .draw(split.lighter, size, buffer, whole_scale, moving);
+        layers
+            .darker
+            .draw(split.darker, size, buffer, whole_scale, moving);
 
         split.window
     }

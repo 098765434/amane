@@ -95,6 +95,17 @@ impl Face {
     }
 }
 
+// the same font file at the same sliders and faked style, for telling frames apart
+impl PartialEq for Face {
+    fn eq(&self, other: &Self) -> bool {
+        self.font.key == other.font.key
+            && self.font.offset == other.font.offset
+            && std::ptr::eq(self.coords, other.coords)
+            && self.skew.map(f32::to_bits) == other.skew.map(f32::to_bits)
+            && self.embolden == other.embolden
+    }
+}
+
 // the face a run laid out by parley draws with
 pub fn face(data: &FontData, coords: &[i16], synthesis: Synthesis) -> Face {
     Face {
