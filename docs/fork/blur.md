@@ -76,14 +76,16 @@ example: `examples/blur_shapes.rs`.)
 ## Vibrancy: `niri-vibrancy-v1`
 
 `LayerWindow::vibrant(true)`, `Popup::vibrant(true)` and `Window::vibrant(true)` ask for a
-window's grey content to blend with what the compositor frosted behind it, instead of being
+window's vibrant content to blend with what the compositor frosted behind it, instead of being
 painted over it. These are Apple's vibrant labels on a material.
 
 A vibrant window's draw commands are split three ways (`src/graphics/vibrancy.rs`):
 
-- light grey glyphs, rectangles, borders, fills and strokes go on a **lighter** layer;
-- dark grey ones go on a **darker** layer;
-- everything else stays on the window: colour, images, gradients, shadows, blurs, cuts and
+- glyphs, rectangles, borders, fills and strokes in translucent white go on a **lighter**
+  layer;
+- ones in translucent black go on a **darker** layer;
+- everything else stays on the window: colour, opaque or off-white greys (a material's tint,
+  the window's background, a switch's knob), images, gradients, shadows, blurs, cuts and
   shaders.
 
 Groups and clips are kept around whatever of theirs goes on each layer. Each layer is a synced

@@ -1,9 +1,9 @@
 /*
- * a vibrant window's drawing split three ways for niri-vibrancy: its light
- * grey content goes on a layer the compositor adds to what's behind it
- * (plus-lighter), its dark grey content on one it takes away from it
- * (plus-darker), and everything else (colour, images, shadows, effects)
- * stays on the window; groups and clips are kept around whatever of theirs
+ * a vibrant window's drawing split three ways for niri-vibrancy: its
+ * translucent white content goes on a layer the compositor adds to what's
+ * behind it (plus-lighter), its translucent black content on one it takes
+ * away from it (plus-darker), and everything else (colour, other greys,
+ * images, shadows, effects) stays on the window; groups and clips are kept around whatever of theirs
  * goes on each layer;
  *
  * the compositor subtracts the darker layer as it is drawn, so that layer
@@ -14,8 +14,8 @@
 use super::Color;
 use super::renderer::Command;
 
-// how far apart a colour's channels may be and still count as grey
-const GREY: u8 = 8;
+// how far a channel may be from pure white or black and still count as it
+const NEAR: u8 = 7;
 
 #[derive(Default)]
 pub struct Layers {
@@ -86,7 +86,9 @@ fn push_wrapped(layers: &mut Layers, inner: Layers, wrap: impl Fn(Vec<Command>) 
     }
 }
 
-// only flat grey shapes and letters are vibrant, as Apple keeps vibrancy to greyscale content
+// only flat shapes and letters in translucent white or black are vibrant: Apple's
+// vibrant labels and fills. A material's tint or an opaque background is grey too,
+// but it is painted, not blended
 fn layer_of(command: &Command) -> Layer {
     let color = match command {
         Command::Glyph { color, .. }
@@ -126,14 +128,14 @@ fn grey_layer(color: Color) -> Layer {
     let lowest = channels.iter().copied().min().unwrap_or(0);
     let highest = channels.iter().copied().max().unwrap_or(0);
 
-    if color.alpha() == 0 || highest - lowest > GREY {
-        return Layer::Window;
-    }
-
-    if lowest >= 128 {
+    if color.alpha() == 0 || color.alpha() == 255 {
+        Layer::Window
+    } else if lowest >= 255 - NEAR {
         Layer::Lighter
-    } else {
+    } else if highest <= NEAR {
         Layer::Darker
+    } else {
+        Layer::Window
     }
 }
 
@@ -170,6 +172,18 @@ mod tests {
     }
 
     #[test]
+    fn tints_and_opaque_greys_stay_on_the_window() {
+        for color in [
+            Color::rgba(20, 20, 20, 199),
+            Color::rgba(246, 246, 246, 204),
+            Color::rgb(255, 255, 255),
+            Color::rgb(0, 0, 0),
+        ] {
+            assert_eq!(grey_layer(color), Layer::Window, "{color:?}");
+        }
+    }
+
+    #[test]
     fn the_darker_layer_holds_how_far_it_darkens() {
         let layers = split(vec![rectangle(Color::rgba(0, 0, 0, 128))]);
 
@@ -188,7 +202,7 @@ mod tests {
     fn groups_are_kept_around_each_layers_share() {
         let layers = split(vec![Command::Group {
             commands: vec![
-                rectangle(Color::rgb(250, 250, 250)),
+                rectangle(Color::rgba(255, 255, 255, 140)),
                 rectangle(Color::rgb(200, 30, 30)),
             ],
             opacity: 0.5,
