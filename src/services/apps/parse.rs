@@ -60,6 +60,7 @@ fn parse(text: &str, icon_folders: &[Vec<PathBuf>]) -> Option<DesktopApp> {
         .collect();
 
     Some(DesktopApp {
+        id: String::new(),
         name,
         exec,
         exec_codes,

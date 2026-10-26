@@ -27,13 +27,14 @@ impl Modifiers {
     }
 }
 
-pub(crate) fn set(ctrl: bool, shift: bool, alt: bool, logo: bool) {
+// whether that changed what's held
+pub(crate) fn set(ctrl: bool, shift: bool, alt: bool, logo: bool) -> bool {
     let bits = (u8::from(ctrl) * CTRL)
         | (u8::from(shift) * SHIFT)
         | (u8::from(alt) * ALT)
         | (u8::from(logo) * LOGO);
 
-    STATE.store(bits, Ordering::Relaxed);
+    STATE.swap(bits, Ordering::Relaxed) != bits
 }
 
 pub fn get() -> Modifiers {

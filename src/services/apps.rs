@@ -91,14 +91,15 @@ fn scan() -> Vec<DesktopApp> {
                 continue;
             };
 
-            if !seen.insert(id) {
+            if !seen.insert(id.clone()) {
                 continue;
             }
 
-            let Some(app) = parse::read(&path, &icon_folders) else {
+            let Some(mut app) = parse::read(&path, &icon_folders) else {
                 continue;
             };
 
+            app.id = id;
             apps.push(app);
         }
     }
