@@ -1,7 +1,7 @@
 # Input (fork additions)
 
-What the fork adds to upstream's [Input](../../src/input.md) page: drag release, files from other
-programs, scroll sources, double clicks, more keys, key repeat and release, modifiers and
+What the fork adds to upstream's [Input](../../src/input.md) page: `on_track`, drag release, files
+from other programs, scroll sources, double clicks, more keys, key repeat and release, modifiers and
 shortcuts. Everything else on that page is unchanged.
 
 ## Usage
@@ -13,11 +13,26 @@ All of these are methods on `Rectangle`, next to upstream's `on_click`, `on_hove
 
 | Method | Runs | Gets |
 |---|---|---|
+| `on_track` | on every movement while the pointer is over it, like `on_move`, without redrawing the window | a `Point` |
 | `on_release` | once, when the left button is let go after a drag that started on it, wherever the pointer is then | a `Point` |
 | `on_drop` | when files dragged in from another program are let go over it (upstream, missing from its table) | the files, a `Vec<PathBuf>` |
 | `on_files_over` | while files from another program are held over it, and once more when they leave or are let go | an `Option<Point>` (`None` once they've gone) and the files; it answers `true` when they can be let go there |
 
 `on_release` comes before `on_click`, so a widget that is both clicked and dragged can tell a drag's end from a click and ignore the click.
+
+### Following the pointer without redrawing
+
+`on_move` redraws its window on every pointer move, which a handler that only records where the
+pointer is doesn't need. `on_track` is told about every move the same way, and the move redraws
+nothing unless an `on_move` handler is there too (`6b0099b`). A Service the handler writes still
+wakes that Service's readers, as any write does.
+
+```rust,ignore
+// remember where a right click will anchor its menu, without drawing a frame per move
+Rectangle::new()
+    .on_track(|point| Menu::write().anchor = point)
+    .on_click(|button| if button == Button::Right { open_menu() })
+```
 
 ### Files from other programs
 

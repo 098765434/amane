@@ -5,15 +5,18 @@ the overview of the whole fork, with every commit, is [FORK.md](../../FORK.md).
 
 | Doc | Covers | Status |
 |---|---|---|
-| [compositor/services.md](compositor/services.md) | `Workspaces`, `Windows`, `Overview`, `Gestures` services, compositor actions | implemented |
+| [compositor/services.md](compositor/services.md) | `Workspaces`, `Windows`, `Overview`, `Gestures`, `WorkspaceSwitch`, `Desktop` services, frozen windows, compositor actions | implemented |
 | [windows/popups.md](windows/popups.md) | xdg-popups | implemented |
 | [windows/app-windows.md](windows/app-windows.md) | Normal windows for real apps: app-id, live settings, state, close veto, dialogs | implemented (phases 1–7 here, 8–9 in amane-shell) |
+| [windows/activation.md](windows/activation.md) | `spawn_activated`, activation tokens | implemented |
 | [windows/clipboard.md](windows/clipboard.md) | Clipboard, primary selection, text drops, dragging out | implemented |
 | [windows/config.md](windows/config.md) | `Config<T>` settings files | implemented |
 | [windows/portals.md](windows/portals.md) | `FileDialog`, `Notify` | implemented |
 | [graphics/blur.md](graphics/blur.md) | Blur regions, blur shapes, `Backdrop`, vibrancy, drag release hook | implemented |
 | [graphics/canvas.md](graphics/canvas.md) | `Path::svg`, `place`, `trim`, line joins, 64 shader rows | implemented |
-| [input/input.md](input/input.md) | Drag release, files over, scroll source, double clicks, keys, modifiers, shortcuts | implemented |
+| [graphics/text.md](graphics/text.md) | Parley text layout, typography | implemented |
+| [graphics/animation.md](graphics/animation.md) | Spring easing, `retime`, `Easing::apply` | implemented |
+| [input/input.md](input/input.md) | `on_track`, drag release, files over, scroll source, double clicks, keys, modifiers, shortcuts | implemented |
 | [input/text-input.md](input/text-input.md) | Selection, editing keys, undo, multiline, IME | implemented |
 | [system/battery.md](system/battery.md) | `Battery` via UPower | implemented |
 | [system/power-profile.md](system/power-profile.md) | `PowerProfile` service | implemented |

@@ -35,12 +35,12 @@ series on top of upstream; everything else is stock.
 | [Drag release hook, drag cursor](#blur) | feature + fix | `db581d0`, `2e9f8e0` | [blur](docs/fork/graphics/blur.md#drag-release-hook) | yes |
 | [Vibrancy](#blur) | feature (niri fork only) | `c74990b`, `6ef0c4e`, `1ba9c2d` | [blur](docs/fork/graphics/blur.md#vibrancy-niri-vibrancy-v1) | no — needs `niri-vibrancy-v1` |
 | `Path::svg`, `place`, `trim`, line joins | feature | `17fca64` | [canvas](docs/fork/graphics/canvas.md) | yes |
-| Parley text layout and typography | feature | `06ead81` | — | yes |
-| `on_track` | feature | `6b0099b` | [input](docs/fork/input/input.md) | yes |
+| Parley text layout and typography | feature | `06ead81` | [text](docs/fork/graphics/text.md) | yes |
+| `on_track` | feature | `6b0099b` | [input](docs/fork/input/input.md#following-the-pointer-without-redrawing) | yes |
 | Dock support: window columns, focus-free moves, files held over widgets, opening files | feature | `c029184` | [compositor](docs/fork/compositor/services.md), [apps](docs/fork/system/apps-and-processes.md) | mostly; `move_to` needs the niri fork |
 | App windows, clipboard, text input, single instance, activation, config, portals | feature | `31a3eb6` … `7c36e11` | [app windows](docs/fork/windows/app-windows.md) | yes |
 | Frame skip, GPU bounds, resting animations, renderer groups, frozen windows | internal | `e56b843`, `6d2123b`, `527c538`, `3f57058`, `916aecd` | [architecture](docs/fork/internals/architecture.md) | yes |
-| [Spring easing, retargeting](#animation) | feature | `ba43071`, `289f191` | this file only | yes |
+| [Spring easing, retargeting](#animation) | feature | `ba43071`, `289f191` | [animation](docs/fork/graphics/animation.md) | yes |
 | [Scroll source and finger lift](#input) | feature | `7f48e10` | [input](docs/fork/input/input.md) | yes |
 | [Keyboard modifiers, Ctrl chords](#input) | feature | `e3b2efb`, `bc9729e`, `c24533c` | [input](docs/fork/input/input.md) | yes |
 | [App categories, keywords, actions, `find_icon`](#apps) | feature | `0ebcfd2`, `7f48e10`, `bc9729e`, `d9d3d46` | [apps](docs/fork/system/apps-and-processes.md) | yes |

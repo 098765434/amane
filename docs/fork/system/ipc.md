@@ -21,7 +21,7 @@ So the shell and your apps listen side by side, and only one copy of each runs. 
 - runs `App::on_activate(handler)` with the new launch's arguments, like a file to open, or
 - without `on_activate`, brings its window to the front, opening it again if it was closed (an app kept running by `App::keep_alive`).
 
-When the launch came from a launcher with an activation token, the running copy's window takes the focus with it ([Launching apps](apps-and-processes.md#launching-apps)). From a terminal there's no token, and the compositor decides.
+When the launch came from a launcher with an activation token, the running copy's window takes the focus with it ([Activation](../windows/activation.md)). From a terminal there's no token, and the compositor decides.
 
 ```rust,ignore
 fn main() {

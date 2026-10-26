@@ -60,15 +60,15 @@ let icon = Apps::find_icon("org.gnome.Nautilus");
 |---|---|---|
 | `amane::spawn_activated(command)` | like `spawn`, letting the program take the focus | no |
 
-A launcher, a dock or a button that opens an app should use `spawn_activated` instead of `spawn`:
+A launcher, a dock or a button that opens an app should use `spawn_activated` instead of `spawn`,
+and call it from input:
 
 ```rust,ignore
 .on_click(|_| amane::spawn_activated("firefox"))
 ```
 
-It asks the compositor for an activation token for the click that's being handled, and starts the program with it in `XDG_ACTIVATION_TOKEN`. The program's window can then take the focus. If the program is already running, it can use the token to come to the front, as Amane apps do ([IPC](ipc.md#one-copy-at-a-time)). Without `xdg-activation` in the compositor it's the same as `spawn`. `DesktopApp::launch` and `launch_with` launch this way.
-
-Call it from input, since the token stands for that input.
+`DesktopApp::launch` and `launch_with` launch this way. How the token works, and how an amane app
+uses one, is in [Activation](../windows/activation.md).
 
 ### Watching files
 

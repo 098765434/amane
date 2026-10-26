@@ -37,6 +37,7 @@ changes. Each section matches a section there.
 | Code | Gets |
 |---|---|
 | `.on_scroll(\|scroll\| ...)` | `Scroll { x, y, source, stop }`: `x`, `y` in lines, positive `y` is down; `source` is `Wheel`, `Finger`, `Continuous` or `Tilt`; `stop` when the fingers lift; `pixels()` |
+| `.on_track(\|point\| ...)` | `Point` on every move, like `on_move`, without a redraw |
 | `.on_release(\|point\| ...)` | `Point`, once when a drag's button is let go (before `on_click`) |
 | `.on_drop(\|files\| ...)` | the `Vec<PathBuf>` dragged in from another program |
 | `.on_files_over(\|at, files\| ...)` | `Option<Point>` and the held files; answer `true` if they can be let go there |
@@ -57,6 +58,8 @@ changes. Each section matches a section there.
 | `Overview` (niri fork) | `progress` | |
 | `Gestures` (niri fork) | `overview_progress`, `view_pos`, `active_column_idx`, `workspace_idx`, `active_workspace_idx`, `output` | |
 | `Backdrop` (niri fork) | `luminance(id)` | |
+| `WorkspaceSwitch` (niri fork) | `output`, `workspace_idx`, `active_workspace_idx` | |
+| `Desktop` (niri fork) | `obscured(output)` | |
 
 ## Layer windows and popups
 
@@ -64,6 +67,7 @@ changes. Each section matches a section there.
 |---|---|
 | `.blur_region(areas)` | the compositor blurs behind these rectangles |
 | `.blur_shapes(shapes)` | rounded, fading `BlurShape`s with a material and tint |
+| `.frozen(true)` | keeps the last frame up and draws nothing, e.g. while `Desktop::obscured` |
 | `.vibrant(true)` | grey content blends with the frosted backdrop (also on `Window` and `Popup`) |
 | `blur_fades()` / `material_available(name)` | whether shapes are drawn exactly; whether a material exists |
 | `Popup::new(namespace).size(w, h).anchor_rect(x, y, w, h)` | an xdg-popup; `.parent(..)`, `.parent_window(..)`, `.anchor(..)`, `.gravity(..)`, `.grab()`, `.on_dismiss(..)` |
@@ -78,3 +82,25 @@ changes. Each section matches a section there.
 | `.place(x, y, scale)` / `.trim(start, end)` | scale and move a path; draw only a part of its length |
 | `.join(Join::Round)` | `Miter` (default), `Round` or `Bevel` corners |
 | `shader_values(rows)` | up to 64 rows (upstream: 16) |
+
+## Text
+
+| Code | Does |
+|---|---|
+| `.weight(650)` | any weight, `Weight::Number(n)`; exact on a variable font |
+| `.italic(true)` | italic |
+| `.line_height(1.4)` | line spacing as a multiple of the size |
+| `.letter_spacing(-0.2)` | pixels after every letter |
+| `.case(Case::Upper)` | `AsWritten`, `Upper`, `Lower`, `Capitalize` |
+| `.decoration(Decoration::Underline)` | `None`, `Underline`, `StrikeThrough` |
+| `.align(TextAlign::Center)` | `Start`, `Center`, `End`, `Justify` |
+| `.direction(TextDirection::RightToLeft)` | `Auto`, `LeftToRight`, `RightToLeft` |
+| `.variation(b"wdth", 87.5)` | a variable font axis |
+
+## Animation
+
+| Code | Does |
+|---|---|
+| `.easing(Easing::Spring { bounce: 0.2 })` | a damped spring, `bounce` 0 to 0.9; keeps its speed when retargeted |
+| `animation.retime(duration)` | the same target over a new duration, from where it is |
+| `Easing::apply(progress)` | eased progress, 0 to 1, for things you move yourself |

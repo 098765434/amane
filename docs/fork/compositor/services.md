@@ -10,6 +10,14 @@ Everything here is exposed as a `Service` (read with `::read()` inside a
 view, which subscribes the surface to changes) plus static control methods,
 matching the rest of Amane's service layer.
 
+The niri side of the fork's events and actions is documented in the niri fork:
+[IPC events](https://github.com/098765434/niri/blob/ocbk/docs/fork/ipc/events.md)
+(`OverviewProgress`, `ViewOffsetChanged`, `WorkspaceSwitchProgress`, `DesktopObscured`),
+[IPC actions](https://github.com/098765434/niri/blob/ocbk/docs/fork/ipc/actions.md)
+(`MoveColumnToIndex` by window id) and the
+[desktop layer](https://github.com/098765434/niri/blob/ocbk/docs/fork/layout/desktop-layer.md);
+the index is [niri `docs/fork/README.md`](https://github.com/098765434/niri/blob/ocbk/docs/fork/README.md).
+
 ## Services
 
 ### `Workspaces`
@@ -99,6 +107,46 @@ collapses the 60–144 Hz stream into one redraw per refresh. Because the
 values are continuous, feed them straight into widget geometry — niri has
 already done the easing.
 
+### `WorkspaceSwitch` (fork addition, niri only)
+
+The focused output's workspace switch alone: the same `output`, `workspace_idx` and
+`active_workspace_idx` as `Gestures`, without the overview and the view scroll.
+
+```rust
+let switch = WorkspaceSwitch::read();
+
+let offset = switch.workspace_idx() - switch.active_workspace_idx() as f64; // -1.0 .. 1.0 mid-switch
+```
+
+Read this one when a view follows workspace switches only: an event that leaves the switch where
+it was (a column scroll, the overview) is quiet, so it doesn't redraw the view. Under stock niri
+the values stay at 0.
+
+### `Desktop` (fork addition, niri only)
+
+Whether each output's desktop is **obscured**: nothing under its workspaces shows, as with the
+overview fully open or windows covering the screen. It follows the niri fork's
+`DesktopObscured` event, per output; elsewhere no output is ever obscured.
+
+```rust
+fn widgets() -> LayerWindow {
+    let output = "eDP-1";               // the output this window is on
+    let hidden = Desktop::read().obscured(output);
+
+    LayerWindow::new()
+        .layer(Layer::Background)
+        .namespace("amane-desktop")     // matched by niri's `layer-rule { desktop true }`
+        .frozen(hidden)
+        .child(clock())
+}
+```
+
+`LayerWindow::frozen(true)` keeps a layer window's last frame on screen, settings and all, and
+draws and commits nothing. Its view still runs when something it read changes, so a frozen view
+should read only what tells it when to thaw (here `Desktop`); the first frame after thawing
+draws everything afresh. A window not shown yet ignores it. This is how a view on niri's desktop
+layer stops animating while it can't be seen.
+
 ## Control actions (fork addition)
 
 Typed requests to the compositor, each dispatched on a shared worker thread
@@ -111,7 +159,7 @@ so a slow socket never stalls drawing (like `Workspaces::focus`):
 | `Windows::fullscreen(id)` | `FullscreenWindow` |
 | `Windows::toggle_floating(id)` | `ToggleWindowFloating` |
 | `Windows::move_to_workspace(id, ws)` | `MoveWindowToWorkspace` (the focus follows) |
-| `Windows::move_to(id, ws, index)` | `MoveWindowToWorkspace` with `focus: false` when `ws` is `Some`, then `MoveColumnToIndex` with the window's id: its column to `index` (from 1), the focus staying put. **Needs the niri fork**; stock niri ignores `window_id` and moves the focused column |
+| `Windows::move_to(id, ws, index)` | `MoveWindowToWorkspace` with `focus: false` when `ws` is `Some`, then `MoveColumnToIndex` with the window's id: its column to `index` (from 1), the focus staying put. **Needs the niri fork** ([actions](https://github.com/098765434/niri/blob/ocbk/docs/fork/ipc/actions.md)); stock niri ignores `window_id` and moves the focused column |
 | `Windows::focus_column_left()` | `FocusColumnLeft` |
 | `Windows::focus_column_right()` | `FocusColumnRight` |
 | `Windows::spawn(cmd)` | `Spawn` |
@@ -121,6 +169,9 @@ so a slow socket never stalls drawing (like `Workspaces::focus`):
 `Windows::spawn(cmd)` asks the *compositor* to launch a command, so it is
 tracked like any keybinding-launched program; use the crate-level
 [`spawn`](../../../src/process.rs) when the shell should own the child itself.
+
+Frozen windows are `src/layer_window.rs` and `src/wayland/redraw.rs`: a frozen window's
+redraw stops after the view, before drawing (`916aecd`).
 
 ## How it works
 
@@ -132,8 +183,10 @@ keep only the slice they need:
 - `compositor::listen(|workspaces| …)` — the workspace list, re-emitted
   after every relevant event.
 - `compositor::listen_windows(|windows| …)` — the window list.
-- `compositor::listen_gestures(|gesture| …)` — the live gesture snapshot
-  (niri only; a no-op on other backends).
+- `compositor::listen_gestures(|gesture| …)` — the live gesture snapshot, with each
+  output's `obscured` flag (niri only; a no-op on other backends). `Gestures`, `Overview`,
+  `WorkspaceSwitch` and `Desktop` each listen to it and keep only their slice, calling
+  `quiet()` when their slice didn't change.
 
 All parse the same niri event set
 ([src/compositor/niri.rs](../../../src/compositor/niri.rs)) —
@@ -141,7 +194,7 @@ All parse the same niri event set
 `WindowsChanged`, `WindowOpenedOrChanged`, `WindowClosed`,
 `WindowFocusChanged`, `WindowLayoutsChanged` (windows only; the workspace
 listener skips it), `OverviewOpenedOrClosed`, and the fork's
-`OverviewProgress` / `ViewOffsetChanged` / `WorkspaceSwitchProgress` — and
+`OverviewProgress` / `ViewOffsetChanged` / `WorkspaceSwitchProgress` / `DesktopObscured` — and
 ignore the rest. An event that changes nothing a
 service reads (e.g. a workspace event seen by the window listener) leaves
 its list equal, and the service calls `quiet()` to redraw nothing.
@@ -154,7 +207,7 @@ stream.
 
 ## Backend support
 
-| | Workspaces | `focus_workspace` | Windows | actions | Gestures, Overview |
+| | Workspaces | `focus_workspace` | Windows | actions | Gestures, Overview, WorkspaceSwitch, Desktop |
 | --- | --- | --- | --- | --- | --- |
 | niri | ✅ | ✅ | ✅ | ✅ | ✅ |
 | hyprland | ✅ | ✅ | — | — | — |
