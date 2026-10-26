@@ -3,7 +3,7 @@ mod effect;
 mod shape;
 mod text;
 
-use super::{Area, Color, Corners, Transform, vibrancy};
+use super::{Area, Color, Corners, Transform, image, vibrancy};
 use crate::style::Effect;
 
 pub use command::Command;
@@ -99,9 +99,16 @@ impl Renderer {
             return;
         }
 
+        // loaded here, so a window waiting on a decode is the one woken when it's done
+        let images = effect
+            .images()
+            .map(|(path, blur)| image::load(path, None, blur))
+            .collect();
+
         self.commands.push(Command::Effect {
             commands: group.commands,
             effect: effect.clone(),
+            images,
             area,
             transform: self.transform,
         });

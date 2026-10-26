@@ -77,6 +77,8 @@ impl Gpu {
 
         self.forget_unpainted();
 
+        self.forget_unread_inputs();
+
         // presenting attaches the frame to the wayland surface and commits it
         self.queue.present(frame);
 

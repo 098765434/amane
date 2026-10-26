@@ -129,6 +129,8 @@ pub enum Command {
     Effect {
         commands: Vec<Command>,
         effect: Effect,
+        // the effect's image inputs in the order they come, none while one is decoding
+        images: Vec<Option<Arc<Bitmap>>>,
         area: Area,
         transform: Transform,
     },

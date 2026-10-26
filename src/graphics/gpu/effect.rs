@@ -4,6 +4,9 @@ use vello::wgpu::{
     TextureUsages,
 };
 
+use std::sync::Arc;
+
+use crate::graphics::image::Bitmap;
 use crate::graphics::{Area, Transform};
 use crate::style::{Effect, Input};
 
@@ -15,10 +18,12 @@ impl Gpu {
      * each pass draws over the area and its margin into a texture of its own,
      * reading the content or earlier passes; the last pass is laid on the canvas
      */
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn run_effect(
         &mut self,
         content: &Texture,
         effect: &Effect,
+        images: &[Option<Arc<Bitmap>>],
         area: Area,
         transform: Transform,
         canvas: &Texture,
@@ -50,6 +55,22 @@ impl Gpu {
             return;
         }
 
+        // copied before the result is laid over it, which would change what's read
+        let backdrop = effect.reads_backdrop().then(|| {
+            let backdrop = self.take_canvas(width, height);
+
+            self.lay(canvas, &backdrop, 1.0, false);
+
+            backdrop
+        });
+
+        let images: Vec<Option<Texture>> = images
+            .iter()
+            .map(|image| image.as_ref().map(|image| self.input_image(image)))
+            .collect();
+
+        let blank = self.blank.clone();
+
         let margin = effect.margin;
 
         let reach = Area::new(
@@ -61,6 +82,9 @@ impl Gpu {
 
         let mut results: Vec<Texture> = Vec::with_capacity(effect.passes.len());
 
+        // images are counted across every pass, in the order the effect lists them
+        let mut next_image = images.iter();
+
         for (index, pass) in effect.passes.iter().enumerate() {
             let kind = kind(index);
 
@@ -69,14 +93,20 @@ impl Gpu {
                 _ => self.take_field(width, height),
             };
 
-            let inputs: Vec<&Texture> = pass
-                .inputs
-                .iter()
-                .map(|input| match input {
+            let mut inputs: Vec<&Texture> = Vec::with_capacity(pass.inputs.len());
+
+            for input in &pass.inputs {
+                let texture = match input {
                     Input::Content => content,
                     Input::Pass(earlier) => &results[*earlier],
-                })
-                .collect();
+                    Input::Backdrop => backdrop.as_ref().unwrap_or(&blank),
+                    Input::Image { .. } => {
+                        next_image.next().and_then(Option::as_ref).unwrap_or(&blank)
+                    }
+                };
+
+                inputs.push(texture);
+            }
 
             self.draw_shader(
                 &target,
@@ -100,6 +130,61 @@ impl Gpu {
         for result in results {
             self.give_back(result);
         }
+
+        if let Some(backdrop) = backdrop {
+            self.give_back(backdrop);
+        }
+    }
+
+    // an image input's pixels, sent to the gpu the first frame it's read and kept while it is
+    fn input_image(&mut self, image: &Arc<Bitmap>) -> Texture {
+        let key = Arc::as_ptr(image) as usize;
+
+        self.input_images_read.insert(key);
+
+        if let Some((_, texture)) = self.input_images.get(&key) {
+            return texture.clone();
+        }
+
+        let size = Extent3d {
+            width: image.width(),
+            height: image.height(),
+            depth_or_array_layers: 1,
+        };
+
+        let texture = self.device.create_texture(&TextureDescriptor {
+            label: None,
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Rgba8Unorm,
+            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+
+        self.queue.write_texture(
+            texture.as_image_copy(),
+            &image.pixels,
+            TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(image.width() * 4),
+                rows_per_image: None,
+            },
+            size,
+        );
+
+        self.input_images
+            .insert(key, (image.clone(), texture.clone()));
+
+        texture
+    }
+
+    // image inputs no effect read this frame are let go
+    pub(super) fn forget_unread_inputs(&mut self) {
+        let read = std::mem::take(&mut self.input_images_read);
+
+        self.input_images.retain(|key, _| read.contains(key));
     }
 }
 

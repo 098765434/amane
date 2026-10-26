@@ -96,6 +96,10 @@ pub struct Gpu {
     input_sampler: Sampler,
     blank: Texture,
 
+    // image inputs on the gpu, kept with their pixels so the key stays theirs, and the ones read this frame
+    input_images: HashMap<usize, (Arc<Bitmap>, Texture)>,
+    input_images_read: HashSet<usize>,
+
     // finished window-sized textures waiting to be reused
     spare: Vec<Texture>,
 
@@ -169,6 +173,8 @@ impl Gpu {
             shaders_seen: crate::graphics::shader_files::generation(),
             input_sampler,
             blank,
+            input_images: HashMap::new(),
+            input_images_read: HashSet::new(),
             spare: Vec::new(),
 
             painted: Vec::new(),

@@ -131,6 +131,7 @@ impl Gpu {
         if let Command::Effect {
             commands,
             effect,
+            images,
             area,
             transform,
         } = command
@@ -139,7 +140,7 @@ impl Gpu {
 
             self.run_clipped(commands, &own, clips);
 
-            self.run_effect(&own, &effect, area, transform, canvas);
+            self.run_effect(&own, &effect, &images, area, transform, canvas);
 
             self.give_back(own);
 

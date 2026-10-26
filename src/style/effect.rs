@@ -24,16 +24,59 @@ pub(crate) struct Pass {
 }
 
 // what a pass reads as input0, input1 and so on
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Input {
     // the rectangle's fill and children, drawn on their own
     Content,
 
     // what an earlier pass wrote, counted from 0
     Pass(usize),
+
+    /*
+     * what the window drew before the rectangle, under it and around it;
+     * inside a faded group or a clip, only what that group drew
+     */
+    Backdrop,
+
+    // an image file at its own size, blurred by `blur` pixels; clear until it's decoded
+    Image { path: PathBuf, blur: u32 },
+}
+
+impl Input {
+    pub fn image(path: impl Into<PathBuf>) -> Self {
+        Self::Image {
+            path: path.into(),
+            blur: 0,
+        }
+    }
+
+    // blurred once when it's decoded, which costs less than blurring in a pass every frame
+    pub fn blurred_image(path: impl Into<PathBuf>, blur: u32) -> Self {
+        Self::Image {
+            path: path.into(),
+            blur,
+        }
+    }
 }
 
 impl Effect {
+    // the image files the passes read, in the order they come
+    pub(crate) fn images(&self) -> impl Iterator<Item = (&PathBuf, u32)> {
+        self.passes
+            .iter()
+            .flat_map(|pass| &pass.inputs)
+            .filter_map(|input| match input {
+                Input::Image { path, blur } => Some((path, *blur)),
+                _ => None,
+            })
+    }
+
+    pub(crate) fn reads_backdrop(&self) -> bool {
+        self.passes
+            .iter()
+            .any(|pass| pass.inputs.contains(&Input::Backdrop))
+    }
+
     pub fn new() -> Self {
         Self::default()
     }

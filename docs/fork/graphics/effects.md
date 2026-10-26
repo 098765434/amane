@@ -28,11 +28,27 @@ Rectangle::new()
 
 | Method | Does |
 |---|---|
-| `Effect::pass(path, inputs)` | adds a pass; `inputs` become `input0`..`input3`, each `Input::Content` (the rectangle's fill and children, drawn on their own) or `Input::Pass(n)` for an earlier pass |
+| `Effect::pass(path, inputs)` | adds a pass; `inputs` become `input0`..`input3` (see below) |
 | `.values(rows)` | up to 64 rows of four numbers, read by every pass as `values` |
 | `.margin(px)` | logical pixels the passes reach past the rectangle, for blurs and glows that spill out |
 | `Rectangle::effect(effect)` | runs the rectangle's fill and children through it; `opacity` fades the result |
 | `amane::shader_errors()` | each shader file that failed to load or compile, with naga's message pointing into that file |
+
+A pass can read four kinds of input:
+
+| Input | Is |
+|---|---|
+| `Input::Content` | the rectangle's fill and children, drawn on their own |
+| `Input::Pass(n)` | what an earlier pass wrote |
+| `Input::Backdrop` | what the window drew before the rectangle, under it and around it, so a surface can reflect or bend its surroundings |
+| `Input::image(path)`, `Input::blurred_image(path, px)` | an image file at its own size, blurred once when it's decoded; clear until then |
+
+The backdrop is copied before the result is laid down, which costs one canvas copy, and only
+when a pass reads it. It holds only what *this window* drew. Inside a faded group or a clip that
+holds the effect, it is just what that group drew, so keep the backdrop's fill inside the same
+clip as the effect. Other windows and the wallpaper are never readable from a Wayland client.
+For the wallpaper, read its file as an image and place it with the window's position on the
+output.
 
 `examples/effect.rs` blurs text and a pill into a glow. Run it from the project folder, because
 the shader paths are relative to it.
@@ -52,7 +68,7 @@ canvas (0 to 1), and read inputs there with
 `textureSampleLevel(input0, input_sampler, canvas_uv, 0.0)`. One real pixel is
 `1.0 / placement.canvas.xy`, so a blur of `r` logical pixels reaches `r * scale` of them.
 
-- **Inputs hold premultiplied color.** Content is what amane drew. Passes before the last one
+- **Content, backdrop and passes hold premultiplied color; images hold plain color.** Content is what amane drew. Passes before the last one
   are stored exactly as written, in `Rgba16Float`, so they can hand on fine steps or values past
   0 and 1.
 - **The last pass returns plain, not premultiplied, color,** like a rectangle shader.
@@ -74,7 +90,9 @@ missing file is an error, not a panic, for rectangle shaders too.
 
 `Command::Effect` is routed like a faded group (`gpu/paint.rs`): its commands draw onto a canvas
 of their own. `gpu/effect.rs` then runs the passes, each into a pooled texture (`take_field` for
-`Rgba16Float`, `take_canvas` for the last pass), and lays the result over the canvas. A clip that
+`Rgba16Float`, `take_canvas` for the last pass), and lays the result over the canvas. Image
+inputs are loaded by the renderer, so the window waiting on a decode is the one woken. The GPU
+uploads each image once and drops it after a frame that didn't read it. A clip that
 holds an effect draws on its own canvas too, so the clip trims the result.
 
 Shaders are cached per file and per kind (`Plain`, `Pass`, `Last`) in `gpu/shade.rs`. A global
