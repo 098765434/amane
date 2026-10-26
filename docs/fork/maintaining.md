@@ -60,6 +60,7 @@ The crate doc at the top of `src/lib.rs` is a few fork lines linking here.
 | Glyph atlas filling mid-frame | `389fc29` | `src/graphics/gpu/{atlas,paint}.rs`, `src/wayland/{redraw,update}.rs` | yes |
 | vello's scratch buffers sized for a shell (fork of vello), `vello-stats` | `6fd7bd5`, `3e9d18c` | `Cargo.toml` (`[patch.crates-io]`), `flake.nix`, `src/graphics/gpu/flush.rs`; [memory](internals/memory.md) | the sizing belongs upstream in vello, not amane |
 | Hidden windows release their GPU memory, spares age out, Fifo presents | `3e9d18c` | `src/graphics/gpu.rs`, `src/graphics/gpu/{pool,present,target,atlas,quads}.rs`, `src/wayland/update.rs`; [memory](internals/memory.md) | yes |
+| `vello N` in the frame log; an empty vibrant layer unmaps and releases | `767c1d0`, `6dbdb9f` | `src/timing.rs`, `src/wayland/{redraw,vibrancy}.rs` | the log yes; the layer needs the niri fork |
 | Fork docs and housekeeping | `be25bb3`, `fe941a9`, `fe45a04`, `6bfdba8`, `033b216`, `81aa6c4`, and the `docs(fork)` commits | `FORK.md`, `docs/fork/` | no |
 
 `389fc29` stops letters being dropped when the glyph atlas fills mid-frame: the queued letters
