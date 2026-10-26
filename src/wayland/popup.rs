@@ -2,6 +2,9 @@ use std::collections::HashSet;
 use std::mem;
 use std::sync::{Arc, PoisonError};
 
+use smithay_client_toolkit::reexports::protocols::xdg::shell::client::{
+    xdg_positioner, xdg_surface,
+};
 use smithay_client_toolkit::shell::{
     WaylandSurface,
     xdg::{
@@ -9,14 +12,13 @@ use smithay_client_toolkit::shell::{
         popup::{Popup as SctkPopup, PopupConfigure, PopupHandler},
     },
 };
-use smithay_client_toolkit::reexports::protocols::xdg::shell::client::{xdg_positioner, xdg_surface};
 use wayland_client::Proxy;
 use wayland_client::protocol::wl_surface::WlSurface;
 use wayland_client::{Connection, QueueHandle};
 
+use crate::Popup;
 use crate::graphics::Gpu;
 use crate::input::{KeyHandlers, Pointer};
-use crate::Popup;
 use crate::popup::{Anchor, ConstraintAdjustment, Gravity, OPENING, PopupView};
 
 use super::{
@@ -82,7 +84,11 @@ impl WaylandState {
 
         // Make a stable snapshot of the view fns before iterating (so a view
         // closure that mutates runtime doesn't invalidate indices).
-        let views: Vec<PopupView> = self.popup_views.iter().map(|slot| slot.view.clone()).collect();
+        let views: Vec<PopupView> = self
+            .popup_views
+            .iter()
+            .map(|slot| slot.view.clone())
+            .collect();
 
         for view_fn in views {
             let popup = view_fn();
@@ -189,7 +195,8 @@ impl WaylandState {
     fn open_popup(&mut self, view_fn: PopupView, popup: Popup) {
         // Find a parent xdg_surface. First try the requested normal window, then
         // the requested namespace; if None, fall back to any live Role::Layer window.
-        let parent_surface = self.find_parent_xdg_surface(popup.parent, popup.parent_window.as_deref());
+        let parent_surface =
+            self.find_parent_xdg_surface(popup.parent, popup.parent_window.as_deref());
 
         let Some(parent) = parent_surface else {
             if std::env::var_os("AMANE_DEBUG").is_some() {
@@ -247,7 +254,10 @@ impl WaylandState {
             Ok(p) => p,
             Err(e) => {
                 if std::env::var_os("AMANE_DEBUG").is_some() {
-                    eprintln!("popup open failed: ns={} from_surface: {e}", popup.namespace);
+                    eprintln!(
+                        "popup open failed: ns={} from_surface: {e}",
+                        popup.namespace
+                    );
                 }
                 return;
             }
@@ -267,9 +277,7 @@ impl WaylandState {
             use smithay_client_toolkit::shell::wlr_layer::LayerSurface;
             // scoped lookup to find the LayerSurface object
             if let Some(found) = self.windows.iter().find_map(|w| match &w.role {
-                Role::Layer { surface, .. } if surface.wl_surface() == &ls => {
-                    Some(surface.clone())
-                }
+                Role::Layer { surface, .. } if surface.wl_surface() == &ls => Some(surface.clone()),
                 _ => None,
             }) {
                 let _ = LayerSurface::get_popup(&found, sctk_popup.xdg_popup());
@@ -321,8 +329,7 @@ impl WaylandState {
         self.popup_dismiss_handlers
             .retain(|(ns, _)| *ns != popup.namespace);
         if let Some(cb) = popup.on_dismiss.clone() {
-            self.popup_dismiss_handlers
-                .push((popup.namespace, cb));
+            self.popup_dismiss_handlers.push((popup.namespace, cb));
         }
 
         // Create the OpenWindow backing it.
@@ -367,12 +374,14 @@ impl WaylandState {
             fractional,
             blur_effect: None,
             blur_shapes_object: None,
+            vibrant_layers: None,
 
             role,
 
             compositor: self.compositor.wl_compositor().clone(),
             background_effect: self.background_effect.clone(),
             blur_shapes_manager: self.blur_shapes.clone(),
+            vibrancy_kit: self.vibrancy_kit.clone(),
             qh: self.qh.clone(),
         };
 
@@ -457,7 +466,9 @@ impl PopupHandler for WaylandState {
         // Fire on_dismiss callback.
         let namespace = self.windows.iter().find_map(|w| match &w.role {
             Role::Popup {
-                namespace, popup: p, ..
+                namespace,
+                popup: p,
+                ..
             } if p.wl_surface() == &surface => Some(*namespace),
             _ => None,
         });

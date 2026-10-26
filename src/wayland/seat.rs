@@ -65,7 +65,8 @@ impl SeatHandler for WaylandState {
                 self.keyboard_device = Some(keyboard);
 
                 if let Some(manager) = &self.text_input_manager {
-                    self.input_method = Some(super::text_input::InputMethod::new(manager, &seat, qh));
+                    self.input_method =
+                        Some(super::text_input::InputMethod::new(manager, &seat, qh));
                 }
             }
 

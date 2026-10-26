@@ -93,12 +93,14 @@ impl WaylandState {
             fractional,
             blur_effect: None,
             blur_shapes_object: None,
+            vibrant_layers: None,
 
             role,
 
             compositor: self.compositor.wl_compositor().clone(),
             background_effect: self.background_effect.clone(),
             blur_shapes_manager: self.blur_shapes.clone(),
+            vibrancy_kit: self.vibrancy_kit.clone(),
 
             qh: self.qh.clone(),
         };

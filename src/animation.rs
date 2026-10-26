@@ -48,7 +48,9 @@ pub enum Easing {
      * a damped spring that settles within the duration; `bounce` 0 arrives
      * without overshooting, higher overshoots and wobbles more (up to 0.9)
      */
-    Spring { bounce: f32 },
+    Spring {
+        bounce: f32,
+    },
 }
 
 impl<T: Blend> Animation<T> {

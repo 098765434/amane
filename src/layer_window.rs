@@ -24,6 +24,9 @@ pub struct LayerWindow {
     pub(crate) blur_region: Option<Vec<InputArea>>,
     pub(crate) blur_shapes: Option<Vec<BlurShape>>,
 
+    // its grey content blended with what's behind it, see vibrant
+    pub(crate) vibrant: bool,
+
     pub(crate) root: Option<Box<dyn Widget>>,
 
     pub(crate) keys: KeyHandlers,
@@ -209,6 +212,17 @@ impl LayerWindow {
         self
     }
 
+    /*
+     * its light and dark grey content blended with what the compositor
+     * frosted behind it rather than painted over it, on a compositor with
+     * niri-vibrancy: Apple's vibrant labels on a material
+     */
+    pub fn vibrant(mut self, vibrant: bool) -> Self {
+        self.vibrant = vibrant;
+
+        self
+    }
+
     // keys only arrive while the window has keyboard focus, see Keyboard
     pub fn on_key(mut self, handler: impl Fn(Key) + 'static) -> Self {
         self.keys.press = Some(Rc::new(handler));
@@ -268,6 +282,7 @@ impl LayerWindowNeedsHeight {
             input_region: None,
             blur_region: None,
             blur_shapes: None,
+            vibrant: false,
 
             root: None,
 

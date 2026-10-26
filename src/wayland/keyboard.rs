@@ -252,6 +252,9 @@ mod tests {
         assert_eq!(to_key(&event(Keysym::s, Some("s"))), Key::Character('s'));
 
         // ctrl makes the key type a control character, the keysym still names it
-        assert_eq!(to_key(&event(Keysym::s, Some("\u{13}"))), Key::Character('s'));
+        assert_eq!(
+            to_key(&event(Keysym::s, Some("\u{13}"))),
+            Key::Character('s')
+        );
     }
 }

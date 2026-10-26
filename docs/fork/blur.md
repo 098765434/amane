@@ -73,6 +73,32 @@ blur never runs ahead of the pixels it sits behind (`389fc29`).
 (`src/blur.rs`, `src/services/backdrop.rs`, `src/wayland/blur_shapes.rs`, `src/wayland/update.rs`;
 example: `examples/blur_shapes.rs`.)
 
+## Vibrancy: `niri-vibrancy-v1`
+
+`LayerWindow::vibrant(true)`, `Popup::vibrant(true)` and `Window::vibrant(true)` ask for a
+window's grey content to blend with what the compositor frosted behind it, instead of being
+painted over it. These are Apple's vibrant labels on a material.
+
+A vibrant window's draw commands are split three ways (`src/graphics/vibrancy.rs`):
+
+- light grey glyphs, rectangles, borders, fills and strokes go on a **lighter** layer;
+- dark grey ones go on a **darker** layer;
+- everything else stays on the window: colour, images, gradients, shadows, blurs, cuts and
+  shaders.
+
+Groups and clips are kept around whatever of theirs goes on each layer. Each layer is a synced
+`wl_subsurface` over the window (`src/wayland/vibrancy.rs`), with an empty input region and its
+own `Gpu`. niri draws the lighter layer plus-lighter and the darker one plus-darker. The layers
+are drawn before the window, so they show in the window's own commit. A layer with nothing on
+it is drawn empty once, then left alone.
+
+The split goes by colour rather than by what the content is, so white text on an accent disc
+lands on the lighter layer, where adding it to the blue keeps it white. The darker layer's
+multiply would make it vanish.
+
+Without the protocol (or with `AMANE_NO_VIBRANCY=1`) the window draws everything itself, as
+before. A window that stops being vibrant drops its layers.
+
 ## Drag release hook
 
 `Rectangle::on_release(|pos| ..)` runs once the left button is let go after a

@@ -1,7 +1,7 @@
 mod appearance;
 mod apps;
-pub(crate) mod backdrop;
 mod audio;
+pub(crate) mod backdrop;
 mod battery;
 mod bluetooth;
 mod brightness;
@@ -33,9 +33,9 @@ use std::time::Duration;
 use crate::changes;
 
 pub use appearance::{Appearance, Scheme};
-pub use backdrop::Backdrop;
 pub use apps::{Apps, DesktopAction, DesktopApp};
 pub use audio::{Audio, AudioDevice, AudioKind};
+pub use backdrop::Backdrop;
 pub use battery::{Battery, BatteryState, DeviceKind, PowerDevice, WarningLevel};
 pub use bluetooth::{Bluetooth, BluetoothDevice};
 pub use brightness::Brightness;

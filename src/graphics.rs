@@ -10,6 +10,7 @@ mod outline;
 mod path;
 mod renderer;
 mod transform;
+pub(crate) mod vibrancy;
 mod weight;
 
 pub use cap::Cap;
@@ -20,6 +21,7 @@ pub(crate) use gpu::Session as GpuSession;
 pub use gradient::Gradient;
 pub use outline::Outline;
 pub use path::{BezierPath, PathBuilder};
+pub(crate) use renderer::Command;
 pub use renderer::{Renderer, VALUE_ROWS};
 pub use transform::Transform;
 pub use weight::Weight;
