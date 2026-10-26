@@ -34,9 +34,22 @@ parley = "0.12"
 [dev-dependencies]
 chrono = "0.4"
 
+[features]
+# with AMANE_FRAMES=1, read back what each vello run took of the scratch
+# buffers, to check a scene against the shell-sized limits (see
+# docs/fork/internals/memory.md); slow, as every run waits for the gpu
+vello-stats = ["vello/debug_layers"]
+
 [lints.clippy]
 # keep the zero-denominator guard explicit
 manual_checked_ops = "allow"
 
 [workspace]
 members = ["cli", "cli/template/example"]
+
+# vello's scratch buffers sized for a shell, not paris-30k: about 26 MB a set
+# instead of 165, and the renderer keeps every set. A shell using amane as a
+# git dependency repeats this in its own root manifest; a patch only applies
+# from there. See docs/fork/internals/memory.md.
+[patch.crates-io]
+vello_encoding = { git = "https://github.com/098765434/vello", branch = "ocbk" }

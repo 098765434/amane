@@ -86,6 +86,13 @@ impl Gpu {
             antialiasing_method: AaConfig::Area,
         };
 
+        #[cfg(feature = "vello-stats")]
+        if crate::timing::enabled() {
+            self.render_counted(scene, &scratch, &params);
+
+            return scratch;
+        }
+
         self.vello
             .borrow_mut()
             .render_to_texture(
@@ -98,6 +105,62 @@ impl Gpu {
             .expect("failed to draw scene");
 
         scratch
+    }
+
+    /*
+     * the scene drawn the slow way, reading back what it took of vello's
+     * scratch buffers, to check a scene against the fork's shell-sized limits;
+     * `failed 1` means a buffer overflowed and the run came out blank
+     */
+    #[cfg(feature = "vello-stats")]
+    fn render_counted(&mut self, scene: &Scene, scratch: &Texture, params: &RenderParams) {
+        use std::pin::pin;
+        use std::task::{Context, Poll, Waker};
+
+        let view = texture::view(scratch);
+        let mut vello = self.vello.borrow_mut();
+
+        #[expect(deprecated, reason = "the only way to read the bump counters back")]
+        let mut render = pin!(vello.render_to_texture_async(
+            &self.device,
+            &self.queue,
+            scene,
+            &view,
+            params,
+            vello::low_level::DebugLayers::none(),
+        ));
+
+        // the readback's future waits on a mapping that only completes when the device is polled
+        let mut context = Context::from_waker(Waker::noop());
+
+        let counted = loop {
+            match render.as_mut().poll(&mut context) {
+                Poll::Ready(result) => break result.expect("failed to draw scene"),
+                Poll::Pending => {
+                    self.device
+                        .poll(vello::wgpu::PollType::wait_indefinitely())
+                        .expect("failed to wait for the gpu");
+                }
+            }
+        };
+
+        let Some(used) = counted else {
+            return;
+        };
+
+        eprintln!(
+            "scratch {}x{} failed {} tiles {} lines {} seg_counts {} segments {} ptcl {} bin {} blend {}",
+            params.width,
+            params.height,
+            used.failed,
+            used.tile,
+            used.lines,
+            used.seg_counts,
+            used.segments,
+            used.ptcl,
+            used.binning,
+            used.blend,
+        );
     }
 
     // vello's result laid only over its part of the canvas

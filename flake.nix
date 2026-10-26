@@ -33,7 +33,15 @@
 
         src = ./.;
 
-        cargoLock.lockFile = ./Cargo.lock;
+        # vello_encoding comes from the fork in Cargo.toml's [patch.crates-io];
+        # Nix needs its content hash. After a rev bump the first build prints
+        # the expected `sha256-…` on mismatch.
+        cargoLock = {
+          lockFile = ./Cargo.lock;
+          outputHashes = {
+            "vello_encoding-0.11.0" = "sha256-sLIDkOcrV/vU5P01Ek35hmluT21cGhiETPKieMN4rsA=";
+          };
+        };
 
         cargoBuildFlags = [ "-p" "amane-cli" ];
 
