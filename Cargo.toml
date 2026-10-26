@@ -54,8 +54,10 @@ manual_checked_ops = "allow"
 members = ["cli", "cli/template/example"]
 
 # vello's scratch buffers sized for a shell, not paris-30k: about 29 MB a set
-# instead of 165, and the renderer keeps every set. A shell using amane as a
-# git dependency repeats this in its own root manifest; a patch only applies
+# instead of 165 (vello_encoding), and a renderer that lets the set go when
+# idle instead of keeping it for life (vello). A shell using amane as a git
+# dependency repeats both lines in its own root manifest; a patch only applies
 # from there. See docs/fork/internals/memory.md.
 [patch.crates-io]
+vello = { git = "https://github.com/098765434/vello", branch = "ocbk" }
 vello_encoding = { git = "https://github.com/098765434/vello", branch = "ocbk" }

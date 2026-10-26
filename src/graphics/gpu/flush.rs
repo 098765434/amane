@@ -77,6 +77,9 @@ impl Gpu {
     pub(super) fn render(&mut self, scene: &Scene, width: u32, height: u32) -> Texture {
         self.runs += 1;
 
+        self.vello_used.set(std::time::Instant::now());
+        self.vello_released.set(false);
+
         self.keep_atlas(scene);
 
         let scratch = self.take_scratch(width, height);

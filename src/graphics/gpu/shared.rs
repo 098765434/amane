@@ -1,13 +1,15 @@
 use std::cell::{Cell, OnceCell, RefCell};
+use std::env;
 use std::ffi::c_void;
 use std::num::NonZeroUsize;
 use std::process;
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
+use std::time::{Duration, Instant};
 
 use vello::wgpu::{
     Adapter, Device, DeviceDescriptor, DeviceLostReason, Instance, InstanceDescriptor, MemoryHints,
-    Queue, RequestAdapterOptions, Surface,
+    PollType, Queue, RequestAdapterOptions, Surface,
 };
 use vello::{AaSupport, RendererOptions};
 
@@ -28,6 +30,10 @@ pub struct Shared {
 
     // how many times vello dropped its image atlas, which every window's images were in
     pub atlas_drops: Rc<Cell<u64>>,
+
+    // when vello last drew, and whether its scratch was let go since; see release_idle_scratch
+    pub vello_used: Rc<Cell<Instant>>,
+    pub vello_released: Rc<Cell<bool>>,
 }
 
 // every window draws on the main thread, so thread locals are enough
@@ -35,6 +41,53 @@ thread_local! {
     static INSTANCE: OnceCell<Instance> = const { OnceCell::new() };
 
     static SHARED: RefCell<Option<Shared>> = const { RefCell::new(None) };
+}
+
+/*
+ * vello keeps the scratch buffers of its last run (29 MB with the fork's
+ * sizes, plus the scene uploads) for the next, which on a desktop may be
+ * minutes away. AMANE_VELLO_IDLE is the seconds without a run after which
+ * they're let go, 30 by default; 0 keeps them for life, as upstream does
+ */
+pub static VELLO_IDLE: LazyLock<Option<Duration>> = LazyLock::new(|| {
+    let seconds = env::var("AMANE_VELLO_IDLE")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(30u64);
+
+    (seconds > 0).then(|| Duration::from_secs(seconds))
+});
+
+// drops vello's scratch if nothing drew through it for the idle time; the timer calls this
+pub fn release_idle_scratch() {
+    let Some(idle) = *VELLO_IDLE else {
+        return;
+    };
+
+    SHARED.with_borrow(|shared| {
+        let Some(shared) = shared else {
+            return;
+        };
+
+        if shared.vello_released.get() || shared.vello_used.get().elapsed() < idle {
+            return;
+        }
+
+        shared.vello.borrow_mut().release_scratch();
+
+        // wgpu frees what was dropped only when the device is polled, and an idle desktop may not draw for a while
+        shared
+            .device
+            .poll(PollType::wait_indefinitely())
+            .expect("failed to wait for the gpu");
+
+        shared.vello_released.set(true);
+
+        #[cfg(feature = "vello-stats")]
+        if crate::timing::enabled() {
+            eprintln!("released vello's scratch after {:?} idle", idle);
+        }
+    });
 }
 
 /*
@@ -154,5 +207,7 @@ fn open(instance: &Instance, surface: &Surface) -> Shared {
         queue,
         vello: Rc::new(RefCell::new(vello)),
         atlas_drops: Rc::new(Cell::new(0)),
+        vello_used: Rc::new(Cell::new(Instant::now())),
+        vello_released: Rc::new(Cell::new(false)),
     }
 }

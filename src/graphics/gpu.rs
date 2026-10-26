@@ -35,6 +35,7 @@ use std::ffi::c_void;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, LazyLock};
+use std::time::Instant;
 
 use vello::Scene;
 use vello::peniko::ImageData;
@@ -48,6 +49,7 @@ use crate::graphics::renderer::Command;
 
 use pass::Pass;
 use shared::Shared;
+pub(crate) use shared::{VELLO_IDLE, release_idle_scratch};
 
 // AMANE_KEEP_HIDDEN=1 keeps a hidden window's gpu memory, as before the release on hide
 static KEEP_HIDDEN: LazyLock<bool> = LazyLock::new(|| env::var_os("AMANE_KEEP_HIDDEN").is_some());
@@ -130,6 +132,10 @@ pub struct Gpu {
     // how many times this frame went through vello, for the frame log
     runs: u32,
 
+    // shared with every window: when vello last drew, for letting its scratch go when idle
+    vello_used: Rc<Cell<Instant>>,
+    vello_released: Rc<Cell<bool>>,
+
     composite: Pass,
     present: Pass,
     box_blur: Pass,
@@ -149,6 +155,8 @@ impl Gpu {
             queue,
             vello,
             atlas_drops,
+            vello_used,
+            vello_released,
         } = shared::get(&instance, &surface);
 
         let config = target::configure(&surface, &adapter);
@@ -185,6 +193,8 @@ impl Gpu {
             quads,
             atlas_drops,
             atlas_seen: 0,
+            vello_used,
+            vello_released,
 
             shaders: HashMap::new(),
             shaders_seen: crate::graphics::shader_files::generation(),
