@@ -10,10 +10,13 @@ fn vertex(@builtin(vertex_index) index: u32) -> @builtin(position) vec4<f32> {
     return vec4<f32>(x, y, 0.0, 1.0);
 }
 
-// settings x is the opacity, y is 1 when the source still needs its colors premultiplied
+/*
+ * settings x is the opacity, y is 1 when the source still needs its colors premultiplied,
+ * zw is where the source's corner sits on the target
+ */
 @fragment
 fn composite(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-    var color = textureLoad(source, vec2<i32>(position.xy), 0);
+    var color = textureLoad(source, vec2<i32>(position.xy - settings.zw), 0);
 
     if settings.y == 1.0 {
         color = vec4<f32>(color.rgb * color.a, color.a);

@@ -2,10 +2,12 @@ use vello::Scene;
 use vello::wgpu::Texture;
 
 use super::Gpu;
+use super::bounds::Place;
 
 // what vello drew at one place in the frame, kept with the scene that drew it
 pub struct Painted {
     scene: Scene,
+    place: Place,
     result: Texture,
 }
 
@@ -16,20 +18,12 @@ pub struct Painted {
  */
 impl Gpu {
     // last frame's result for the scene painted at this place, if nothing changed
-    pub(super) fn unchanged(
-        &self,
-        index: usize,
-        scene: &Scene,
-        canvas: &Texture,
-    ) -> Option<&Texture> {
+    pub(super) fn unchanged(&self, index: usize, scene: &Scene, place: Place) -> Option<&Texture> {
         let Some(Some(painted)) = self.painted.get(index) else {
             return None;
         };
 
-        let same_size =
-            painted.result.width() == canvas.width() && painted.result.height() == canvas.height();
-
-        if !same_size || !same(&painted.scene, scene) {
+        if painted.place != place || !same(&painted.scene, scene) {
             return None;
         }
 
@@ -37,7 +31,7 @@ impl Gpu {
     }
 
     // scenes with images or gradients point at textures that can change, so those are never kept
-    pub(super) fn keep(&mut self, index: usize, scene: &Scene, result: Texture) {
+    pub(super) fn keep(&mut self, index: usize, scene: &Scene, place: Place, result: Texture) {
         if self.painted.len() <= index {
             self.painted.resize_with(index + 1, || None);
         }
@@ -47,6 +41,7 @@ impl Gpu {
         let painted = if resources.patches.is_empty() && resources.glyph_runs.is_empty() {
             Some(Painted {
                 scene: scene.clone(),
+                place,
                 result,
             })
         } else {
