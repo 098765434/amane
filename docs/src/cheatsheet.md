@@ -55,34 +55,12 @@ use amane::*;
 | `Window::new()` | a normal app window |
 | `.title("Settings")` | window title, `"amane"` by default |
 | `.size(480.0, 320.0)` | size it opens at, 640 by 480 by default |
-| `.app_id("amane-settings")` | what the compositor and docks know it by, `App::app_id` by default |
-| `.resizable(true)` | lets the user resize it, `true` by default |
-| `.min_size(w, h)` / `.max_size(w, h)` | limits for the user's resizing |
-| `.maximized(true)` / `.fullscreen(true)` | asks the compositor, again only when the answer changes |
-| `.parent("name")` / `.modal(true)` | a dialog over another normal window |
+| `.resizable(true)` | lets the user resize it, `false` by default |
 | `.on_key(handler)` | handles keys, `Fn(Key)` |
-| `.on_shortcut(handler)` | chords with Ctrl/Alt/Super, before a focused text input, `Fn(Key) -> bool` |
-| `.on_key_release(handler)` | keys going up, `Fn(Key)` |
-| `Clipboard::copy(text)` / `Clipboard::paste(then)` | the Ctrl+C/Ctrl+V clipboard; `then` runs once the text arrives |
-| `PrimarySelection::copy` / `::paste` | the middle-click selection |
-| `Rectangle::on_text_drop(handler)` / `.drag_out(data)` | text dragged in; dragging `DragData` out |
-| `Config::<T>::read()` / `::change(edit)` | a settings file in `~/.config`, shared live between programs |
-| `FileDialog::open(title)...show(then)` | the desktop's file dialog through the portal |
-| `Notify::new(summary).body(..).send()` | sends a desktop notification |
-| `click_count()` | 1, 2 or 3 for the click being handled |
-| `.on_close(handler)` | asked when the user closes it, `Fn() -> bool`; `false` keeps it open |
 | `.child(widget)` | the window's content |
 | `open_window("name", view)` | opens a normal window later. Does nothing if that name is open. |
-| `open_window_with(name, closure)` | the same, with a view that carries its own data |
-| `close_window("name")` | closes it, without asking `on_close` |
-| `minimize_window("name")` | asks the compositor to minimize it |
+| `close_window("name")` | closes it |
 | `window_size()` | the real size of the window being drawn, `(f32, f32)` |
-| `window_state()` | `focused`, `maximized`, `fullscreen`, `tiled`, `resizing`, `server_decorated` |
-| `current_window()` | the name of the normal window being drawn |
-| `App::app_id("id")` / `App::keep_alive()` | the app's default app-id and IPC socket; keep running with no windows |
-| `App::on_activate(handler)` | the app was launched again, `fn(&[String])` with that launch's arguments |
-| `ipc_call(app_id, name, args)` | calls another app's IPC handler, returns its reply |
-| `spawn_activated(command)` | starts a program with an activation token, for launchers |
 
 ## Sizes
 
@@ -149,14 +127,10 @@ use amane::*;
 |---|---|
 | `.on_click(\|button\| ...)` | `Button::Left`, `Right`, `Middle` |
 | `.on_hover(\|inside\| ...)` | `true` on enter, `false` on leave |
-| `.on_scroll(\|scroll\| ...)` | `Scroll { x, y, source, stop }`: `x`, `y` in lines, positive `y` is down; `source` is `Wheel`, `Finger`, `Continuous` or `Tilt`; `stop` when the fingers lift; `pixels()` |
+| `.on_scroll(\|scroll\| ...)` | `Scroll { x, y }` in lines, positive `y` is down |
 | `.on_move(\|point\| ...)` | `Point { x, y }` from the top-left corner |
 | `.on_drag(\|point\| ...)` | `Point`, from a left press until release |
-| `.on_release(\|point\| ...)` | `Point`, once when a drag's button is let go (before `on_click`) |
-| `.on_drop(\|files\| ...)` | the `Vec<PathBuf>` dragged in from another program |
-| `.on_files_over(\|at, files\| ...)` | `Option<Point>` and the held files; answer `true` if they can be let go there |
 | `.cursor(Pointer)` | `Default`, `Pointer`, `Text`, `Grab`, `Grabbing`, `Move`, `NotAllowed`, `Wait`, `Crosshair`, `Resize...` |
-| `modifiers()` | the keys held now: `ctrl`, `shift`, `alt`, `logo`; `command()` for Ctrl, Alt or Super. `Ctrl`+letter reaches `on_key` as `Character(letter)` |
 
 ## Text
 
@@ -260,10 +234,8 @@ use amane::*;
 
 | Service | Reads | Controls |
 |---|---|---|
-| `Battery` | `present`, `percent`, `charging`, `full`, `state`, `on_ac`, `warning`, `time_to_empty`, `time_to_full`, `icon`, `peripherals` | |
-| `PowerProfile` | `present`, `active`, `available`, `degraded` | `set` |
+| `Battery` | `present`, `percent`, `charging`, `full` | |
 | `Cpu` | `percent` | |
-| `Idle` | `is_idle`, `crossed`, `levels`, `inhibited`, `inhibitors`, `running` | `set_levels` |
 | `Memory` | `percent`, `used_kib`, `total_kib` | |
 | `Brightness` | `present`, `percent` | `set` |
 | `Audio` | `volume`, `muted`, `microphone_volume`, `microphone_muted` | `set_volume`, `toggle_mute`, `set_microphone_volume`, `toggle_microphone_mute` |
@@ -272,8 +244,7 @@ use amane::*;
 | `Media` | `players`, `active`, `title`, `artist`, `art_url`, `playing`, `position`, `length` | `play_pause`, `next`, `previous` |
 | `Notifications` | `list`, `running` | `click`, `invoke`, `dismiss`, `clear` |
 | `Workspaces` | `list` | `focus` |
-| `Apps` | `list` (each `DesktopApp` has `name`, `exec`, `icon_path`, `description`, `categories`, `keywords`, `mime_types`, `opens(file)`, `commands_with(files)`) | `launch`, `launch_with(files)` on each `DesktopApp` |
-| `Appearance` | `present`, `scheme`, `prefers_dark`, `accent` | |
+| `Apps` | `list` | `launch` on each `DesktopApp` |
 | `Palette` | `colors`, `dominant`, `accent`, `background`, `foreground`, `on_accent`, `light` | `open` |
 | [`Pam`](pam.md) | `active`, `messages`, `prompt`, `result` | `start`, `respond`, `abort` |
 | [`Lock`](lock_screen.md) | `checking`, `failed` | `start`, `unlock`, `authenticate`, `abort` |

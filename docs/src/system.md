@@ -33,7 +33,7 @@ fn view() -> LayerWindow {
 
 ## Battery
 
-Read from UPower when it's running, and updated as soon as the battery changes. Without UPower it's read from the kernel (`/sys/class/power_supply`) every 5 seconds.
+Read from the kernel (`/sys/class/power_supply`), every 5 seconds.
 
 | Function | Gives |
 |---|---|
@@ -41,14 +41,6 @@ Read from UPower when it's running, and updated as soon as the battery changes. 
 | `percent()` | charge, 0 to 100 |
 | `charging()` | `true` while charging |
 | `full()` | plugged in and not charging, usually because it's full |
-| `state()` | a `BatteryState`, like `Charging` or `Discharging` |
-| `on_ac()` | `true` while plugged in |
-| `warning()` | a `WarningLevel`, `Low` and `Critical` when the battery runs out (UPower only) |
-| `time_to_empty()`, `time_to_full()` | how long is left, or `None` while unknown (UPower only) |
-| `icon()` | a freedesktop icon name (UPower only) |
-| `peripherals()` | mice, keyboards and headsets with their own battery (UPower only) |
-
-The power profile toggle is the `PowerProfile` Service: `active()`, `available()`, `degraded()`, and `PowerProfile::set(name)`.
 
 On a desktop, `present()` is `false` and everything else reads 0. Hide the battery widget there:
 
@@ -126,35 +118,3 @@ fn scrolled(scroll: Scroll) {
 ```
 
 `set` runs on a background thread, so a slow answer never freezes the shell.
-
-## Idle
-
-The compositor says when the user has been away from the mouse and keyboard (ext-idle-notify), and amane serves `org.freedesktop.ScreenSaver`, so a browser playing a video can ask not to idle. Nothing is dimmed or locked for you: the shell decides.
-
-| Function | Gives |
-|---|---|
-| `is_idle()` | `true` while the user has been away longer than at least one level |
-| `crossed(level)` | `true` while the user has been away longer than this `Duration` |
-| `inhibited()` | `true` while a program asked not to idle. Check it before dimming or locking. |
-| `Idle::set_levels(&[..])` | the levels to watch, 2 and 5 minutes by default |
-
-```rust
-let idle = Idle::read();
-
-let dimmed = idle.crossed(Duration::from_secs(120)) && !idle.inhibited();
-```
-
-See [docs/fork/system/idle.md](../fork/system/idle.md) for how it works.
-
-## Appearance
-
-The desktop's light/dark preference and accent colour, from the XDG Settings portal. It updates as soon as the desktop changes them.
-
-| Function | Gives |
-|---|---|
-| `present()` | `false` without xdg-desktop-portal |
-| `scheme()` | `Scheme::Dark`, `Scheme::Light` or `Scheme::NoPreference` |
-| `prefers_dark()` | `true` when the scheme is `Dark` |
-| `accent()` | the accent `Color`, or `None` when the desktop has none |
-
-See [docs/fork/system/appearance.md](../fork/system/appearance.md) for how it works.

@@ -5,7 +5,6 @@ This page covers running other programs and watching files: the glue for anythin
 | Function | Does | Waits? |
 |---|---|---|
 | `amane::spawn(command)` | starts a command and moves on | no |
-| `amane::spawn_activated(command)` | the same, letting the program take the focus | no |
 | `amane::output(command)` | runs a command and returns what it printed | yes, until it exits |
 | `amane::lines(command)` | runs a long-running command and gives each line it prints | yes, for each line |
 | `amane::watch_file(path)` | gives one item every time a file changes | yes, for each change |
@@ -21,18 +20,6 @@ All commands run through `sh -c`, so pipes, globs, `~`, and `&&` work like in a 
 ```
 
 `spawn` returns right away, so it's safe in input handlers.
-
-## Launching apps
-
-A launcher, a dock or a button that opens an app should use `spawn_activated` instead:
-
-```rust,ignore
-.on_click(|_| amane::spawn_activated("firefox"))
-```
-
-It asks the compositor for an activation token for the click that's being handled, and starts the program with it in `XDG_ACTIVATION_TOKEN`. The program's window can then take the focus. If the program is already running, it can use the token to come to the front, as Amane apps do ([IPC](ipc.md#one-copy-at-a-time)). Without `xdg-activation` in the compositor it's the same as `spawn`. `DesktopApp::launch` and `launch_with` launch this way.
-
-Call it from input, since the token stands for that input.
 
 ## Reading a command's output
 
@@ -151,6 +138,6 @@ fn view() -> LayerWindow {
 
 Try `echo hello > /tmp/amane-note` while the bar runs.
 
-`watch_file` gives an item each time the file is written, created, replaced, deleted or moved away. Editors usually save by writing a new file and renaming it over the old one, which would end a watch on the file itself, so Amane watches the folder and picks out your file's changes. The file doesn't have to exist yet when you start watching, but its folder does.
+`watch_file` gives an item each time the file is written, created, or replaced. Editors usually save by writing a new file and renaming it over the old one, which would end a watch on the file itself, so Amane watches the folder and picks out your file's changes. The file doesn't have to exist yet when you start watching, but its folder does.
 
 Reading the file is up to you, in the loop, as above.

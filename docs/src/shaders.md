@@ -46,7 +46,7 @@ The GPU runs `main` once for every pixel of the rectangle, all at the same time.
 | `uv` | `vec2<f32>` | where the pixel is, from `(0, 0)` at the top left to `(1, 1)` at the bottom right |
 | `size` | `vec2<f32>` | the rectangle's size in pixels |
 | `time` | `f32` | seconds since the first shader was drawn |
-| `values` | `array<vec4<f32>, 64>` | numbers you pass from Rust, see [Passing values from Rust](#passing-values-from-rust) |
+| `values` | `array<vec4<f32>, 16>` | numbers you pass from Rust, see [Passing values from Rust](#passing-values-from-rust) |
 
 The color you return is red, green, blue, and alpha, each from 0 to 1.
 
@@ -60,7 +60,7 @@ Any `time` counts, even in a comment. Leave the word out of shaders that don't a
 
 ## Passing values from Rust
 
-`shader_values` passes up to 64 rows of 4 numbers from your view to the shader, as `values`. Rows you don't pass are 0.
+`shader_values` passes up to 16 rows of 4 numbers from your view to the shader, as `values`. Rows you don't pass are 0.
 
 ```rust,ignore
 Rectangle::new()
@@ -92,7 +92,7 @@ fn main(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
 }
 ```
 
-The values come from the view, so they can come from a Service or an Animation, like an audio level or a hover position. More than 64 rows panics.
+The values come from the view, so they can come from a Service or an Animation, like an audio level or a hover position. More than 16 rows panics.
 
 ## GLSL
 
@@ -109,7 +109,7 @@ void main() {
 }
 ```
 
-`values` is available in GLSL too, as `vec4 values[64]`.
+`values` is available in GLSL too, as `vec4 values[16]`.
 
 Any other extension is read as WGSL.
 
