@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
-use swash::FontRef;
 use vello::wgpu::{
     Device, Extent3d, Origin3d, Queue, TexelCopyBufferLayout, TexelCopyTextureInfo, Texture,
     TextureAspect, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
 
+use crate::graphics::font::Face;
 use crate::graphics::letter;
 
 const SIZE: u32 = 1024;
@@ -24,7 +24,7 @@ pub struct Letter {
     pub top: f32,
 }
 
-// the font, the letter and its size in pixels
+// the face, the letter and its size in pixels
 type Key = (u64, u16, u32);
 
 /*
@@ -102,20 +102,14 @@ impl Atlas {
     }
 
     // none for a letter without pixels, like a space
-    pub fn letter(
-        &mut self,
-        queue: &Queue,
-        font: FontRef<'static>,
-        id: u16,
-        size: f32,
-    ) -> Option<Letter> {
-        let key = (font.key.value(), id, size.to_bits());
+    pub fn letter(&mut self, queue: &Queue, face: Face, id: u16, size: f32) -> Option<Letter> {
+        let key = (face.key(), id, size.to_bits());
 
         if let Some(letter) = self.letters.get(&key) {
             return *letter;
         }
 
-        let Some(pixels) = letter::rasterize(font, id, size) else {
+        let Some(pixels) = letter::rasterize(face, id, size) else {
             self.letters.insert(key, None);
 
             return None;

@@ -1,7 +1,6 @@
 use vello::wgpu::{CommandEncoder, Device, Queue, Texture};
 
-use swash::FontRef;
-
+use crate::graphics::font::Face;
 use crate::graphics::gpu::picture;
 use crate::graphics::image::Bitmap;
 use crate::graphics::{Area, Color, Corners};
@@ -70,7 +69,7 @@ impl Quads {
         queue: &Queue,
         encoder: &mut CommandEncoder,
         canvas: &Texture,
-        font: FontRef<'static>,
+        face: Face,
         id: u16,
         size: f32,
         color: Color,
@@ -78,7 +77,7 @@ impl Quads {
         y: f32,
         clips: Clips,
     ) {
-        let mut placed = self.atlas.letter(queue, font, id, size);
+        let mut placed = self.atlas.letter(queue, face, id, size);
 
         if placed.is_none() && self.atlas.is_full() {
             self.draw(device, encoder, canvas);
@@ -90,7 +89,7 @@ impl Quads {
 
             self.atlas.empty();
 
-            placed = self.atlas.letter(queue, font, id, size);
+            placed = self.atlas.letter(queue, face, id, size);
         }
 
         let Some(letter) = placed else {

@@ -7,6 +7,7 @@ use super::{Area, Corners, Transform};
 
 pub use command::Command;
 pub use effect::VALUE_ROWS;
+pub use text::Placed;
 
 /*
  * collects what widgets draw as commands,

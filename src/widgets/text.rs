@@ -1,20 +1,22 @@
-mod lines;
+mod layout;
+mod style;
 
-use swash::FontRef;
+use std::rc::Rc;
 
-use crate::graphics::{Area, Renderer, font};
+use crate::graphics::{Area, Corners, Renderer};
 use crate::{Color, Size, Weight};
 
 use super::Widget;
 
-use lines::Rules;
+use layout::{Arranged, Rules};
+use style::Style;
+
+pub use style::{Case, Decoration, TextAlign, TextDirection};
 
 pub struct Text {
     content: String,
-    size: f32,
     color: Color,
-    font: Option<String>,
-    weight: Weight,
+    style: Style,
     rules: Rules,
 
     // sized by the letters' own shapes instead of their advance, so an icon centers exactly
@@ -25,17 +27,15 @@ impl Text {
     pub fn new(content: impl Into<String>) -> Self {
         Self {
             content: content.into(),
-            size: 16.0,
             color: Color::BLACK,
-            font: None,
-            weight: Weight::Regular,
+            style: Style::default(),
             rules: Rules::default(),
             tight: false,
         }
     }
 
     pub fn size(mut self, size: f32) -> Self {
-        self.size = size;
+        self.style.size = size;
 
         self
     }
@@ -47,13 +47,65 @@ impl Text {
     }
 
     pub fn font(mut self, family: &str) -> Self {
-        self.font = Some(String::from(family));
+        self.style.font = Some(String::from(family));
 
         self
     }
 
     pub fn weight(mut self, weight: impl Into<Weight>) -> Self {
-        self.weight = weight.into();
+        self.style.weight = weight.into();
+
+        self
+    }
+
+    pub fn italic(mut self, italic: bool) -> Self {
+        self.style.italic = italic;
+
+        self
+    }
+
+    // the distance between lines as a multiple of the size, like css's unitless line-height
+    pub fn line_height(mut self, multiple: f32) -> Self {
+        self.style.line_height = Some(multiple);
+
+        self
+    }
+
+    // extra room after every letter in pixels; negative draws letters closer
+    pub fn letter_spacing(mut self, pixels: f32) -> Self {
+        self.style.letter_spacing = pixels;
+
+        self
+    }
+
+    pub fn case(mut self, case: Case) -> Self {
+        self.style.case = case;
+
+        self
+    }
+
+    pub fn decoration(mut self, decoration: Decoration) -> Self {
+        self.style.decoration = decoration;
+
+        self
+    }
+
+    // where lines sit across the width the text is given; only text that wraps or elides has spare width
+    pub fn align(mut self, align: TextAlign) -> Self {
+        self.style.align = align;
+
+        self
+    }
+
+    pub fn direction(mut self, direction: TextDirection) -> Self {
+        self.style.direction = direction;
+
+        self
+    }
+
+    // a variable font's slider by its four-letter tag, like b"wdth" or b"opsz"
+    pub fn variation(mut self, tag: &[u8; 4], value: f32) -> Self {
+        self.style.variations.push((*tag, value));
 
         self
     }
@@ -84,15 +136,19 @@ impl Text {
 
     // how tall it is once laid out in this width, for wrapped text whose height depends on it
     pub fn height_in(&self, width: f32) -> f32 {
-        let font = self.face();
-
-        let arranged = lines::arrange(&self.content, font, self.size, width, self.rules);
-
-        lines::stack_height(font, self.size, arranged.len())
+        self.arranged(Some(width)).height
     }
 
-    fn face(&self) -> FontRef<'static> {
-        font::load_weighted(self.font.as_deref(), self.weight)
+    // laid out at a width when it fits itself to one, else at its own
+    fn arranged(&self, width: Option<f32>) -> Rc<Arranged> {
+        let fitted = self.rules.wrap || self.rules.elide;
+
+        layout::arrange(
+            &self.content,
+            &self.style,
+            self.rules,
+            width.filter(|_| fitted),
+        )
     }
 }
 
@@ -103,13 +159,15 @@ impl Widget for Text {
             return Size::Parent;
         }
 
+        let arranged = self.arranged(None);
+
         if self.tight {
-            let (left, right) = lines::ink(&self.content, self.face(), self.size);
+            let (left, right) = arranged.ink();
 
             return Size::Fixed(right - left);
         }
 
-        Size::Fixed(lines::measure(&self.content, self.face(), self.size))
+        Size::Fixed(arranged.width)
     }
 
     fn height(&self) -> Size {
@@ -117,40 +175,46 @@ impl Widget for Text {
          * the width is only known when drawing,
          * so wrapped text without a line limit cannot know its height yet
          */
-        let count = match (self.rules.wrap, self.rules.max_lines) {
-            (false, _) => 1,
-            (true, Some(count)) => count,
-            (true, None) => return Size::Parent,
-        };
+        match (self.rules.wrap, self.rules.max_lines) {
+            (true, None) => Size::Parent,
 
-        Size::Fixed(lines::stack_height(self.face(), self.size, count))
+            // as tall as its line limit, however many lines it fills
+            (true, Some(count)) => {
+                let line = layout::arrange("", &self.style, Rules::default(), None);
+
+                let more = count.saturating_sub(1) as f32;
+
+                Size::Fixed(line.height + line.spacing * more)
+            }
+
+            (false, _) => Size::Fixed(self.arranged(None).height),
+        }
     }
 
     fn draw(&self, renderer: &mut Renderer, area: Area) {
-        let font = self.face();
+        let arranged = self.arranged(Some(area.width));
 
         // the ink starts at the area's left edge, not the pen
-        let area = if self.tight {
-            let (left, _) = lines::ink(&self.content, font, self.size);
-
-            Area::new(area.x - left, area.y, area.width, area.height)
-        } else {
-            area
+        let left = match self.tight {
+            true => area.x - arranged.ink().0,
+            false => area.x,
         };
 
-        let arranged = lines::arrange(&self.content, font, self.size, area.width, self.rules);
+        for line in &arranged.lines {
+            let baseline = area.y + line.baseline;
 
-        let line_height = lines::height(font, self.size);
-        let spacing = lines::spacing(font, self.size);
+            renderer.text(&line.letters, self.color, left, baseline);
 
-        let mut top = area.y;
+            for stroke in &line.strokes {
+                let stroke_area = Area::new(
+                    left + stroke.x,
+                    baseline + stroke.y,
+                    stroke.width,
+                    stroke.thickness,
+                );
 
-        for line in arranged {
-            let line_area = Area::new(area.x, top, area.width, line_height);
-
-            renderer.text(&line, font, self.size, self.color, line_area);
-
-            top += spacing;
+                renderer.rectangle(stroke_area, self.color, Corners::default());
+            }
         }
     }
 }
