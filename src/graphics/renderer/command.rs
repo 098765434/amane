@@ -5,6 +5,7 @@ use std::sync::Arc;
 use crate::graphics::font::Face;
 use crate::graphics::{Area, BezierPath, Cap, Color, Corners, Gradient, Transform};
 
+#[derive(Clone, PartialEq)]
 pub enum Command {
     // one letter as a picture, at a whole device pixel; x and y are where its baseline starts
     Glyph {

@@ -41,6 +41,7 @@ use vello::wgpu::{
 };
 
 use crate::graphics::image::Bitmap;
+use crate::graphics::renderer::Command;
 
 use pass::Pass;
 use shader::Shader;
@@ -94,6 +95,9 @@ pub struct Gpu {
     // last frame's vello results in the order they were painted, and how far this frame got
     painted: Vec<Option<painted::Painted>>,
     painting: usize,
+
+    // the commands and buffer size of the frame on screen, none before one shows
+    showing: Option<(Vec<Command>, u32, u32)>,
 
     // the frame's jobs not mailed yet; none between frames and right after mailing
     pending: RefCell<Option<CommandEncoder>>,
@@ -153,6 +157,8 @@ impl Gpu {
 
             painted: Vec::new(),
             painting: 0,
+
+            showing: None,
 
             pending: RefCell::new(None),
 
