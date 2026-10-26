@@ -1,9 +1,14 @@
 /*
  * a vibrant window's drawing split three ways for niri-vibrancy: its light
  * grey content goes on a layer the compositor adds to what's behind it
- * (plus-lighter), its dark grey content on one it multiplies with it, and
- * everything else (colour, images, shadows, effects) stays on the window;
- * groups and clips are kept around whatever of theirs goes on each layer
+ * (plus-lighter), its dark grey content on one it takes away from it
+ * (plus-darker), and everything else (colour, images, shadows, effects)
+ * stays on the window; groups and clips are kept around whatever of theirs
+ * goes on each layer;
+ *
+ * the compositor subtracts the darker layer as it is drawn, so that layer
+ * holds how far each pixel darkens: a grey c at alpha a goes on it as
+ * 1 - c at alpha a, which darkens by a(1 - c), Apple's plus-darker
  */
 
 use super::Color;
@@ -60,7 +65,7 @@ pub fn split(commands: Vec<Command>) -> Layers {
             command => match layer_of(&command) {
                 Layer::Window => layers.window.push(command),
                 Layer::Lighter => layers.lighter.push(command),
-                Layer::Darker => layers.darker.push(command),
+                Layer::Darker => layers.darker.push(inverted(command)),
             },
         }
     }
@@ -94,6 +99,25 @@ fn layer_of(command: &Command) -> Layer {
     };
 
     grey_layer(color)
+}
+
+// a darker-layer command with its colour turned into how far it darkens
+fn inverted(mut command: Command) -> Command {
+    if let Command::Glyph { color, .. }
+    | Command::Rectangle { color, .. }
+    | Command::Border { color, .. }
+    | Command::Fill { color, .. }
+    | Command::Stroke { color, .. } = &mut command
+    {
+        *color = Color::rgba(
+            255 - color.red(),
+            255 - color.green(),
+            255 - color.blue(),
+            color.alpha(),
+        );
+    }
+
+    command
 }
 
 fn grey_layer(color: Color) -> Layer {
@@ -143,6 +167,16 @@ mod tests {
         assert_eq!(layers.lighter.len(), 1);
         assert_eq!(layers.darker.len(), 1);
         assert_eq!(layers.window.len(), 1);
+    }
+
+    #[test]
+    fn the_darker_layer_holds_how_far_it_darkens() {
+        let layers = split(vec![rectangle(Color::rgba(0, 0, 0, 128))]);
+
+        let [Command::Rectangle { color, .. }] = layers.darker.as_slice() else {
+            panic!("the darker layer has the rectangle");
+        };
+        assert_eq!(*color, Color::rgba(255, 255, 255, 128));
     }
 
     #[test]
