@@ -6,6 +6,8 @@ use super::{exec, mime};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DesktopApp {
+    // the desktop file's id, like "org.mozilla.firefox.desktop"; set once it's read
+    pub(crate) id: String,
     pub(crate) name: String,
     pub(crate) exec: String,
     // the Exec line as written, with its %f style placeholders
@@ -29,6 +31,12 @@ pub struct DesktopAction {
 }
 
 impl DesktopApp {
+    // the desktop file's id, its path under applications/ with / as -, which stays the
+    // same while the app is installed: a key to remember it by
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
     pub fn name(&self) -> &str {
         &self.name
     }

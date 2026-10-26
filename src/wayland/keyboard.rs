@@ -170,12 +170,17 @@ impl KeyboardHandler for WaylandState {
         _: RawModifiers,
         _: u32,
     ) {
-        crate::input::modifiers::set(
+        let changed = crate::input::modifiers::set(
             modifiers.ctrl,
             modifiers.shift,
             modifiers.alt,
             modifiers.logo,
         );
+
+        // a view may show something while a modifier is held, like a path while Super is
+        if changed && let Some(surface) = self.key_target() {
+            self.request_frame_on(&surface);
+        }
     }
 }
 

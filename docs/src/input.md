@@ -302,7 +302,7 @@ fn key_pressed(key: Key) {
 }
 ```
 
-A `Ctrl`+letter chord arrives as `Character(letter)` with `modifiers().ctrl` set (not as `Other`). `Modifiers::command()` is a shortcut for "ctrl, alt, or super is held" — i.e. this key is a command, not text. A focused `TextInput` already ignores command chords instead of typing them.
+A `Ctrl`+letter chord arrives as `Character(letter)` with `modifiers().ctrl` set (not as `Other`). `Modifiers::command()` is a shortcut for "ctrl, alt, or super is held" — i.e. this key is a command, not text. A focused `TextInput` already ignores command chords instead of typing them. A modifier going down or up redraws the surface with the keyboard, so a view that reads `modifiers()` can show something while one is held (a lone Super press reaches `on_key` only as `Other`).
 
 ### Shortcuts
 

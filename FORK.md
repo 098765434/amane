@@ -150,7 +150,8 @@ notification by itself; the server now advertises `persistence`.
   handler can follow fingers one to one and settle when they lift.
 - **Modifiers:** `modifiers()` reports Shift/Ctrl/Alt/Super held now. A Ctrl+letter chord
   arrives as `Key::Character(letter)` instead of `Other`, and a focused `TextInput` ignores
-  command chords.
+  command chords. A modifier going down or up redraws the surface with the keyboard, so a view
+  can show something while one is held.
 
 - **Files:** `src/input.rs`, `src/input/modifiers.rs`, `src/wayland/{pointer,keyboard}.rs`.
 - **Review it:** `git show 7f48e10 e3b2efb`
@@ -159,6 +160,7 @@ notification by itself; the server now advertises `persistence`.
 
 - `DesktopApp::categories()` / `keywords()` return the entry's freedesktop `Categories` and
   `Keywords`, for filtering and searching.
+- `DesktopApp::id()` returns the desktop file's id, a stable key to remember an app's use by.
 - `Apps::find_icon` exposes the icon-theme lookup for windows without a `.desktop` file.
 - `DesktopApp::actions()` returns the `[Desktop Action …]` sections the entry's `Actions` lists
   (`DesktopAction`: `name()`, `exec()`, `icon()`, `launch()`), for an app's menu.

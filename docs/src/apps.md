@@ -55,6 +55,7 @@ fn view() -> LayerWindow {
 
 | Function | Gives or does |
 |---|---|
+| `id()` | its desktop file's id, like `"org.mozilla.firefox.desktop"`: stays the same while it's installed, a key to remember it by |
 | `name()` | its name, like "Firefox" |
 | `description()` | its comment, or a generic name like "Web Browser", or `None` |
 | `exec()` | its command line, without the `%f`-style placeholders |
