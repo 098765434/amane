@@ -119,6 +119,8 @@ Blur, cut and custom shader commands are different, because they work on what th
 
 Vello costs about the same no matter how little it draws, so if a vello scene is exactly the same as last frame, its old result is laid down again instead (`painted.rs`). Scenes with images or gradients are never reused this way, because the textures they point at can change.
 
+While the commands go into a vello scene, `bounds.rs` adds up how far they reach on the canvas: fills, strokes, and vello's rectangles and borders, but not images, gradients, shadows, or clips. A scene that only reaches a box draws into a texture the size of that box, in 64-pixel steps so the spares fit again, moved so the box's corner is the texture's corner. It is then laid down only inside the box. So a ring or a clock's digits that animate cost their own size, not the whole window. A box that covers most of the window, or a scene with anything unmeasured in it, is drawn whole as before.
+
 If the GPU is lost, like after a driver reset, Amane can't rebuild its textures yet, so it prints a message and exits instead of freezing.
 
 ## Input

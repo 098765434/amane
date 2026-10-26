@@ -1,7 +1,9 @@
+use vello::kurbo::Affine;
 use vello::peniko::{self, ImageData};
 use vello::wgpu::Texture;
 use vello::{AaConfig, RenderParams, Scene};
 
+use super::bounds::Place;
 use super::{Gpu, texture};
 
 impl Gpu {
@@ -12,6 +14,8 @@ impl Gpu {
         canvas: &Texture,
         borrowed: &mut Vec<ImageData>,
     ) {
+        let reach = std::mem::take(&mut self.reach);
+
         if scene.encoding().is_empty() {
             return;
         }
@@ -21,14 +25,45 @@ impl Gpu {
 
         self.painting += 1;
 
-        if let Some(kept) = self.unchanged(index, scene, canvas) {
-            self.lay(kept, canvas, 1.0, true);
+        let (width, height) = (canvas.width(), canvas.height());
+
+        // a run drawn wholly off the canvas shows nothing
+        let Some(place) = reach.place(width, height) else {
+            scene.reset();
+
+            return;
+        };
+
+        if let Some(kept) = self.unchanged(index, scene, place) {
+            self.lay_at(kept, canvas, place);
         } else {
-            let scratch = self.render(scene, canvas);
+            let scratch = if place.is_whole(width, height) {
+                self.render(scene, width, height)
+            } else {
+                // moved so the part's corner lands on the small texture's corner
+                let mut moved = std::mem::take(&mut self.moved);
 
-            self.lay(&scratch, canvas, 1.0, true);
+                moved.reset();
+                moved.append(
+                    scene,
+                    Some(Affine::translate((
+                        -f64::from(place.x),
+                        -f64::from(place.y),
+                    ))),
+                );
 
-            self.keep(index, scene, scratch);
+                let (width, height) = place.texture(width, height);
+
+                let scratch = self.render(&moved, width, height);
+
+                self.moved = moved;
+
+                scratch
+            };
+
+            self.lay_at(&scratch, canvas, place);
+
+            self.keep(index, scene, place, scratch);
         }
 
         scene.reset();
@@ -38,16 +73,16 @@ impl Gpu {
         }
     }
 
-    // the scene alone, on its own texture the size of the canvas, given back by the caller
-    pub(super) fn render(&mut self, scene: &Scene, canvas: &Texture) -> Texture {
+    // the scene alone, on its own texture of the given size, given back by the caller
+    pub(super) fn render(&mut self, scene: &Scene, width: u32, height: u32) -> Texture {
         self.keep_atlas(scene);
 
-        let scratch = self.take_scratch(canvas.width(), canvas.height());
+        let scratch = self.take_scratch(width, height);
 
         let params = RenderParams {
             base_color: peniko::Color::TRANSPARENT,
-            width: canvas.width(),
-            height: canvas.height(),
+            width,
+            height,
             antialiasing_method: AaConfig::Area,
         };
 
@@ -63,6 +98,22 @@ impl Gpu {
             .expect("failed to draw scene");
 
         scratch
+    }
+
+    // vello's result laid only over its part of the canvas
+    fn lay_at(&self, source: &Texture, canvas: &Texture, place: Place) {
+        let mut encoder = self.device.create_command_encoder(&Default::default());
+
+        self.composite.run_within(
+            &self.device,
+            &mut encoder,
+            &texture::view(source),
+            &texture::view(canvas),
+            [1.0, 1.0, place.x as f32, place.y as f32],
+            Some(place),
+        );
+
+        self.queue.submit([encoder.finish()]);
     }
 
     pub(super) fn lay(&self, source: &Texture, canvas: &Texture, opacity: f32, premultiply: bool) {

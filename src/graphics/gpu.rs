@@ -1,5 +1,6 @@
 mod atlas;
 mod blur;
+mod bounds;
 mod clip;
 mod convert;
 mod cut;
@@ -33,6 +34,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use vello::Scene;
 use vello::peniko::ImageData;
 use vello::wgpu::{
     BlendState, Device, Queue, Surface, SurfaceConfiguration, Texture, TextureFormat,
@@ -94,6 +96,12 @@ pub struct Gpu {
     painted: Vec<Option<painted::Painted>>,
     painting: usize,
 
+    // how far the scene being gathered reaches, given up with it when it's painted
+    reach: bounds::Reach,
+
+    // a run's scene moved to the corner of its own small texture, kept to reuse its memory
+    moved: Scene,
+
     // the commands and buffer size of the frame on screen, none before one shows
     showing: Option<(Vec<Command>, u32, u32)>,
 
@@ -152,6 +160,9 @@ impl Gpu {
 
             painted: Vec::new(),
             painting: 0,
+
+            reach: bounds::Reach::Nothing,
+            moved: Scene::new(),
 
             showing: None,
 

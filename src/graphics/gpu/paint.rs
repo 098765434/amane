@@ -7,6 +7,7 @@ use crate::graphics::renderer::Command;
 use crate::graphics::{Area, Corners, Transform};
 
 use super::Gpu;
+use super::bounds::Reach;
 use super::convert::bezier;
 use super::quads::{Clip, Clips};
 
@@ -88,6 +89,8 @@ impl Gpu {
                 amount,
             } => {
                 let blurred = self.blur(canvas, scene, &path, transform, amount);
+
+                self.reach = Reach::Everywhere;
 
                 borrowed.extend(blurred);
             }
@@ -281,6 +284,8 @@ impl Gpu {
                 &bezier(path),
             );
         }
+
+        self.reach.add(&command);
 
         self.add(scene, command, canvas);
 

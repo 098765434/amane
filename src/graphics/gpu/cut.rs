@@ -26,7 +26,7 @@ impl Gpu {
 
     // takes away from the canvas as much as the scene covers
     pub(super) fn erase_covered(&mut self, scene: &Scene, canvas: &Texture, strength: f32) {
-        let coverage = self.render(scene, canvas);
+        let coverage = self.render(scene, canvas.width(), canvas.height());
 
         let mut encoder = self.device.create_command_encoder(&Default::default());
 

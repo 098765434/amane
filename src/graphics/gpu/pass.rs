@@ -8,6 +8,8 @@ use vello::wgpu::{
     TextureSampleType, TextureView, TextureViewDimension, VertexState, include_wgsl,
 };
 
+use super::bounds::Place;
+
 /*
  * a fragment shader from passes.wgsl run once for every pixel of the target,
  * reading one source texture of the same size and four settings numbers
@@ -76,6 +78,19 @@ impl Pass {
         target: &TextureView,
         settings: [f32; 4],
     ) {
+        self.run_within(device, encoder, source, target, settings, None);
+    }
+
+    // only the pixels of the target inside the place, the rest keep what they had
+    pub fn run_within(
+        &self,
+        device: &Device,
+        encoder: &mut CommandEncoder,
+        source: &TextureView,
+        target: &TextureView,
+        settings: [f32; 4],
+        place: Option<Place>,
+    ) {
         let settings: Vec<u8> = settings
             .iter()
             .flat_map(|value| value.to_ne_bytes())
@@ -121,6 +136,10 @@ impl Pass {
         pass.set_pipeline(&self.pipeline);
 
         pass.set_bind_group(0, &inputs, &[]);
+
+        if let Some(place) = place {
+            pass.set_scissor_rect(place.x, place.y, place.width, place.height);
+        }
 
         // three corners make one triangle that covers the whole target
         pass.draw(0..3, 0..1);
