@@ -47,7 +47,7 @@ manual_checked_ops = "allow"
 [workspace]
 members = ["cli", "cli/template/example"]
 
-# vello's scratch buffers sized for a shell, not paris-30k: about 26 MB a set
+# vello's scratch buffers sized for a shell, not paris-30k: about 29 MB a set
 # instead of 165, and the renderer keeps every set. A shell using amane as a
 # git dependency repeats this in its own root manifest; a patch only applies
 # from there. See docs/fork/internals/memory.md.
