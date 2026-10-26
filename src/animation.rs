@@ -8,6 +8,9 @@ pub struct Animation<T: Blend = f32> {
 
     pub(crate) started: Instant,
     pub(crate) duration: Duration,
+
+    // made and never sent anywhere: it has arrived, so reading it draws no frames
+    pub(crate) resting: bool,
     pub(crate) easing: Easing,
 
     // how fast a spring sets off, in shares of the way per duration: what it
@@ -62,6 +65,7 @@ impl<T: Blend> Animation<T> {
 
             started: Instant::now(),
             duration: Duration::from_millis(200),
+            resting: true,
             easing: Easing::default(),
             velocity: 0.0,
         }
@@ -96,6 +100,13 @@ impl<T: Blend> Animation<T> {
             return;
         }
 
+        // one that has arrived keeps the speed for its next move
+        if self.progress() >= 1.0 {
+            self.duration = duration;
+
+            return;
+        }
+
         self.rebase(self.target, duration);
     }
 
@@ -110,6 +121,7 @@ impl<T: Blend> Animation<T> {
         self.target = target;
         self.duration = duration;
         self.started = Instant::now();
+        self.resting = false;
         self.velocity = velocity;
     }
 
@@ -160,7 +172,7 @@ impl<T: Blend> Animation<T> {
 
     // 0 when it has just started, 1 once it has arrived
     fn progress(&self) -> f32 {
-        if self.duration.is_zero() {
+        if self.resting || self.duration.is_zero() {
             return 1.0;
         }
 
@@ -278,18 +290,24 @@ fn blend_channel(from: u8, to: u8, amount: f32) -> u8 {
 }
 
 pub mod moving {
-    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::cell::Cell;
 
-    // set by any animation the view read that has not arrived yet
-    static MOVING: AtomicBool = AtomicBool::new(false);
+    /*
+     * set by any animation the view read that has not arrived yet; views and
+     * their handlers run on the event loop's thread, so the flag is that
+     * thread's
+     */
+    thread_local! {
+        static MOVING: Cell<bool> = const { Cell::new(false) };
+    }
 
     pub fn set() {
-        MOVING.store(true, Ordering::Relaxed);
+        MOVING.set(true);
     }
 
     // asked once after each view, so the flag only ever describes that view
     pub fn take() -> bool {
-        MOVING.swap(false, Ordering::Relaxed)
+        MOVING.replace(false)
     }
 }
 
@@ -312,6 +330,39 @@ mod tests {
             assert_eq!(spring.apply(1.0), 1.0);
             assert!((spring.apply(0.99) - 1.0).abs() < 0.01);
         }
+    }
+
+    #[test]
+    fn a_new_animation_is_at_rest() {
+        let fade = Animation::new(1.0).duration(Duration::from_millis(500));
+        super::moving::take();
+
+        assert_eq!(fade.value(), 1.0);
+        assert!(
+            !super::moving::take(),
+            "nothing moved, so no frame is asked for"
+        );
+    }
+
+    #[test]
+    fn sending_it_somewhere_moves_it() {
+        let mut fade = Animation::new(0.0).duration(Duration::from_millis(500));
+        fade.to(1.0);
+        super::moving::take();
+
+        fade.value();
+        assert!(super::moving::take());
+    }
+
+    #[test]
+    fn retiming_one_at_rest_keeps_it_at_rest() {
+        let mut fade = Animation::new(0.0).duration(Duration::from_millis(500));
+        fade.retime(Duration::from_millis(200));
+        super::moving::take();
+
+        assert_eq!(fade.value(), 0.0);
+        assert!(!super::moving::take());
+        assert_eq!(fade.duration, Duration::from_millis(200));
     }
 
     #[test]
