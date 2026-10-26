@@ -23,16 +23,16 @@ series on top of upstream; everything else is stock.
 
 | Feature | Kind | Commits | Docs | Upstreamable? |
 |---|---|---|---|---|
-| [xdg-popups](#xdg-popups) | feature | `19d012d` | [popups](docs/fork/popups.md) | yes |
-| [`Windows` service + compositor actions](#compositor-services) | feature | `19d012d` | [compositor](docs/fork/compositor.md) | yes |
-| [`Gestures` / `Overview` / `WorkspaceSwitch` / `Desktop` services](#compositor-services) | feature (niri fork only) | `19d012d`, `14c6994` | [compositor](docs/fork/compositor.md) | no — needs the niri fork's IPC |
-| [Battery via UPower + `PowerProfile`](#battery-and-power-profiles) | feature | `dd6f110` | [battery](docs/fork/battery.md), [power-profile](docs/fork/power-profile.md) | yes |
-| [`Idle` service](#idle) | feature | `2953df9` | [idle](docs/fork/idle.md) | yes |
-| [`Appearance` service](#appearance) | feature | `317943e`, `b1187e6` | [appearance](docs/fork/appearance.md) | yes |
-| [Audio devices](#audio-devices) | feature + fix | `dedcda4` | [audio](docs/fork/audio.md) | yes |
-| [Notification timeout and hints](#notifications) | feature | `7a16b39` | [notifications](docs/fork/notifications.md) | yes |
-| [Blur regions and blur shapes](#blur) | feature | `db581d0`, `bcc53ac`, `2ea1d46` | [blur](docs/fork/blur.md) | regions yes; shapes need the niri fork |
-| [Drag release hook, drag cursor](#blur) | feature + fix | `db581d0`, `2e9f8e0` | [blur](docs/fork/blur.md#drag-release-hook) | yes |
+| [xdg-popups](#xdg-popups) | feature | `19d012d` | [popups](docs/fork/windows/popups.md) | yes |
+| [`Windows` service + compositor actions](#compositor-services) | feature | `19d012d` | [compositor](docs/fork/compositor/services.md) | yes |
+| [`Gestures` / `Overview` / `WorkspaceSwitch` / `Desktop` services](#compositor-services) | feature (niri fork only) | `19d012d`, `14c6994` | [compositor](docs/fork/compositor/services.md) | no — needs the niri fork's IPC |
+| [Battery via UPower + `PowerProfile`](#battery-and-power-profiles) | feature | `dd6f110` | [battery](docs/fork/system/battery.md), [power-profile](docs/fork/system/power-profile.md) | yes |
+| [`Idle` service](#idle) | feature | `2953df9` | [idle](docs/fork/system/idle.md) | yes |
+| [`Appearance` service](#appearance) | feature | `317943e`, `b1187e6` | [appearance](docs/fork/system/appearance.md) | yes |
+| [Audio devices](#audio-devices) | feature + fix | `dedcda4` | [audio](docs/fork/system/audio.md) | yes |
+| [Notification timeout and hints](#notifications) | feature | `7a16b39` | [notifications](docs/fork/system/notifications.md) | yes |
+| [Blur regions and blur shapes](#blur) | feature | `db581d0`, `bcc53ac`, `2ea1d46` | [blur](docs/fork/graphics/blur.md) | regions yes; shapes need the niri fork |
+| [Drag release hook, drag cursor](#blur) | feature + fix | `db581d0`, `2e9f8e0` | [blur](docs/fork/graphics/blur.md#drag-release-hook) | yes |
 | [Spring easing, retargeting](#animation) | feature | `ba43071`, `289f191` | this file only (not in [animation](docs/src/animation.md) yet) | yes |
 | [Scroll source and finger lift](#input) | feature | `7f48e10` | [input](docs/src/input.md) | yes |
 | [Keyboard modifiers, Ctrl chords](#input) | feature | `e3b2efb`, `bc9729e`, `c24533c` | [input](docs/src/input.md) | yes |
@@ -190,11 +190,11 @@ notification by itself; the server now advertises `persistence`.
 
 | Work | Where | Status |
 |---|---|---|
-| Resource optimization: cut idle wake-ups, per-frame CPU, VRAM, RAM and binary size | [`docs/fork/optimization-plan.md`](docs/fork/optimization-plan.md) | planned, not implemented |
-| Blur behind the bar + activation-token launching (`xdg-activation-v1`) + `write_niri_rules` | [`docs/fork/spec-write-own-layer-rules.md`](docs/fork/spec-write-own-layer-rules.md) (untracked) | draft; the blur part shipped as [blur regions](#blur), while activation tokens and writing layer rules are not started |
-| Presence and appearance | [`docs/fork/spec-presence-appearance.md`](docs/fork/spec-presence-appearance.md) (untracked) | draft spec, since implemented as [Idle](#idle) and [Appearance](#appearance) |
+| Resource optimization: cut idle wake-ups, per-frame CPU, VRAM, RAM and binary size | [`docs/fork/internals/optimization-plan.md`](docs/fork/internals/optimization-plan.md) | planned, not implemented |
+| Blur behind the bar + activation-token launching (`xdg-activation-v1`) + `write_niri_rules` | [`docs/fork/design/spec-write-own-layer-rules.md`](docs/fork/design/spec-write-own-layer-rules.md) (untracked) | draft; the blur part shipped as [blur regions](#blur), while activation tokens and writing layer rules are not started |
+| Presence and appearance | [`docs/fork/design/spec-presence-appearance.md`](docs/fork/design/spec-presence-appearance.md) (untracked) | draft spec, since implemented as [Idle](#idle) and [Appearance](#appearance) |
 | Dock support: `WindowInfo::column` (niri's `WindowLayoutsChanged`), `Windows::move_to` (to a workspace without the focus, then `MoveColumnToIndex` by id, which needs the niri fork), `Rectangle::on_files_over` (files held over a widget, read on enter, accept or refuse per spot), `DesktopApp::{mime_types, opens, commands_with, launch_with}` with a shared-mime-info lookup (`services/apps/mime.rs`) | `ocbk` | done with tests |
-| App windows: `app_id`, live title and min/max/maximized/fullscreen, `window_state()`, `on_close`, dialogs, `open_window_with`, `keep_alive` | [`docs/fork/app-windows.md`](docs/fork/app-windows.md), branch `app-windows` | phases 1 (windows), 2 (popups over windows, `open_popup`) 3 (key repeat, more keys, `on_shortcut`, `on_key_release`) 4 (clipboard, primary selection, text drops, drag out) 5 (selection, undo, multiline, IME in `TextInput`) 6 (socket per app, single instance, `ipc_call`, xdg-activation) and 7 (`Config`, `FileDialog`, `Notify`, double click) done and tested live on niri, later phases planned |
+| App windows: `app_id`, live title and min/max/maximized/fullscreen, `window_state()`, `on_close`, dialogs, `open_window_with`, `keep_alive` | [`docs/fork/windows/app-windows.md`](docs/fork/windows/app-windows.md), branch `app-windows` | phases 1 (windows), 2 (popups over windows, `open_popup`) 3 (key repeat, more keys, `on_shortcut`, `on_key_release`) 4 (clipboard, primary selection, text drops, drag out) 5 (selection, undo, multiline, IME in `TextInput`) 6 (socket per app, single instance, `ipc_call`, xdg-activation) and 7 (`Config`, `FileDialog`, `Notify`, double click) done and tested live on niri, later phases planned |
 
 The local `power` branch is already merged into `ocbk` and can be deleted.
 

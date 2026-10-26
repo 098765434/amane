@@ -3,7 +3,7 @@
 A layer window can tell the compositor where to blur behind it: as plain
 rectangles (`blur_region`) or as rounded, fading shapes, each optionally drawn
 with a liquid-glass material (`blur_shapes`). The usage summary is in
-[Layer windows](../src/layer_windows.md#blur-behind-the-window); this page covers
+[Layer windows](../../src/layer_windows.md#blur-behind-the-window); this page covers
 how it works.
 
 ```rust
