@@ -3,8 +3,9 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Mutex, PoisonError};
+use std::sync::{LazyLock, Mutex, PoisonError};
 use std::thread;
+use std::time::Instant;
 
 use inotify::{Inotify, WatchDescriptor, WatchMask, Watches};
 
@@ -26,6 +27,72 @@ struct Watcher {
 
     // the shader file names read from each watched folder
     folders: HashMap<WatchDescriptor, HashSet<OsString>>,
+}
+
+/*
+ * every shader's time counts from when the first one was drawn; it can be
+ * held at a moment, for a still picture, and goes on from there once let go
+ */
+static START: LazyLock<Instant> = LazyLock::new(Instant::now);
+
+static CLOCK: Mutex<Clock> = Mutex::new(Clock {
+    held: None,
+    behind: 0.0,
+});
+
+// counted up whenever the clock is held, moved or let go, so a held frame is drawn again
+static CLOCK_CHANGES: AtomicU64 = AtomicU64::new(0);
+
+struct Clock {
+    held: Option<f32>,
+
+    // seconds the running clock is behind the real one, from the times it was held
+    behind: f32,
+}
+
+// the time shaders get as `time`, in seconds
+pub fn shader_time() -> f32 {
+    let clock = CLOCK.lock().unwrap_or_else(PoisonError::into_inner);
+
+    clock
+        .held
+        .unwrap_or_else(|| START.elapsed().as_secs_f32() - clock.behind)
+}
+
+/*
+ * holds every shader's time at `at`, or lets it run on from where it was held
+ * with none; while it's held, shaders that read time no longer redraw every frame
+ */
+pub fn pause_shader_time(at: Option<f32>) {
+    let mut clock = CLOCK.lock().unwrap_or_else(PoisonError::into_inner);
+
+    match at {
+        Some(at) => clock.held = Some(at.max(0.0)),
+
+        None => {
+            if let Some(held) = clock.held.take() {
+                clock.behind = START.elapsed().as_secs_f32() - held;
+            }
+        }
+    }
+
+    drop(clock);
+
+    CLOCK_CHANGES.fetch_add(1, Ordering::Relaxed);
+
+    changes::mark_all();
+}
+
+pub fn shader_time_paused() -> bool {
+    CLOCK
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .held
+        .is_some()
+}
+
+pub fn clock_changes() -> u64 {
+    CLOCK_CHANGES.load(Ordering::Relaxed)
 }
 
 pub fn generation() -> u64 {
@@ -148,4 +215,24 @@ fn start() -> Option<Watcher> {
         watches,
         folders: HashMap::new(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_held_clock_stays_and_goes_on_from_where_it_was_held() {
+        pause_shader_time(Some(5.0));
+
+        assert_eq!(shader_time(), 5.0);
+        assert!(shader_time_paused());
+
+        pause_shader_time(None);
+
+        let resumed = shader_time();
+
+        assert!(!shader_time_paused());
+        assert!((5.0..5.5).contains(&resumed), "resumed at {resumed}");
+    }
 }

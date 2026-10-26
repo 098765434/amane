@@ -89,8 +89,9 @@ pub struct Gpu {
     // custom shaders by the path they were read from, compiled again once their file is saved
     shaders: HashMap<PathBuf, HashMap<shader::Kind, shader::Loaded>>,
 
-    // the shader files' generation of the frame on screen
+    // the shader files' generation of the frame on screen, and the shader clock's changes
     shaders_seen: u64,
+    clock_seen: u64,
 
     // what effect passes read their inputs with, and read in place of an input they don't have
     input_sampler: Sampler,
@@ -171,6 +172,7 @@ impl Gpu {
 
             shaders: HashMap::new(),
             shaders_seen: crate::graphics::shader_files::generation(),
+            clock_seen: crate::graphics::shader_files::clock_changes(),
             input_sampler,
             blank,
             input_images: HashMap::new(),

@@ -15,7 +15,11 @@ impl Gpu {
         // a saved shader file draws differently with the same commands
         let shaders_saved = self.shaders_seen != shader_files::generation();
 
+        // a held clock moved draws the same commands at another time
+        let clock_moved = self.clock_seen != shader_files::clock_changes();
+
         !shaders_saved
+            && !clock_moved
             && self
                 .showing
                 .as_ref()
@@ -45,6 +49,7 @@ impl Gpu {
         };
 
         self.shaders_seen = shader_files::generation();
+        self.clock_seen = shader_files::clock_changes();
 
         // kept to tell whether the next frame changes anything
         let kept = commands.clone();
