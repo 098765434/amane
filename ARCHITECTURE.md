@@ -79,15 +79,21 @@ The compositor can cause one directly. A configure resizes the window and redraw
 
 A Service can change. When a view calls `SomeService::read()`, the Service's `TypeId` is noted. When a `Write` guard is dropped, it calls `changes::mark`, which records which Service changed and pings the event loop. The wake callback then calls `request_changed_frames`, which only redraws the windows whose last frame read that Service (it checks with `is_disjoint`). A write that turned out to change nothing can be marked `quiet`, and then it wakes nobody.
 
+Some things are tracked finer than a whole Service, as a `Source` (`changes.rs`). The compositor's reading behind one blur shape is `Source::Backdrop(id)`, noted by `Backdrop::luminance(id)`, so a reading wakes only the windows that asked about that shape. Window titles are `Source::Titles`, noted by `WindowInfo::title()`. An event that changed nothing but titles is quiet for `Windows` and marks only `Titles`.
+
 Some things affect every window. `open_window`, `close_window`, `minimize_window` and `Lock::start` call `changes::mark_all`, and the wake callback opens, closes or locks whatever was asked for before redrawing. Window requests wait in one queue (`window::REQUESTS`), so an open followed by a close happens in that order. An IPC call also redraws every window, because a handler can change anything.
 
-Input redraws only the window it happened in. When a pointer or key handler runs, that window asks for a frame. If the handler wrote a Service, that write wakes the Service's readers in other windows on its own, so hovering over your bar never redraws every window on every monitor.
+Input redraws only the window it happened in. When a pointer or key handler runs, that window asks for a frame. Pointer motion is the exception: it asks for one only when the target under the pointer has `on_move`. `on_track` is told the position too, but redraws nothing, for a handler that only remembers where the pointer is. If the handler wrote a Service, that write wakes the Service's readers in other windows on its own, so hovering over your bar never redraws every window on every monitor.
 
 A finished image wakes the windows waiting on it. Images decode on their own thread, and while one is decoding, the window that asked for it counts as having read a marker type called `Decoded`. When the decode is done it calls `changes::mark` with that type.
 
-And animations keep going until they're done. Reading `Animation::value()` before the animation has arrived sets a global `moving` flag, and so does calling `request_frame()` from a view. After drawing, `redraw` sees the flag and asks for the next frame callback. When everything has arrived, nobody sets the flag anymore, and the window stops drawing.
+And animations keep going until they're done. Reading `Animation::value()` before the animation has arrived sets the event loop thread's `moving` flag, and so does calling `request_frame()` from a view. A new `Animation` is at rest until `to()` sends it somewhere, so making one draws nothing. After drawing, `redraw` sees the flag and asks for the next frame callback. When everything has arrived, nobody sets the flag anymore, and the window stops drawing.
+
+A redraw isn't always drawn. When a frame's commands equal the frame on screen, at the same size and with nothing moving, the GPU is skipped and the window only commits (`Gpu::shows`). Hiding a window forgets its last frame, since showing it again needs a buffer.
 
 `OpenWindow::request_frame` is where these meet. If a frame is already requested, it does nothing, so several changes inside one display refresh become one frame. The exception is a hidden or unconfigured window, which gets no frame callbacks at all, so it runs its view right away to find out whether it should show again.
+
+What all this means for the code you write (scoped redraws, quiet services, animations made once, what opacity costs on the GPU) is in amane-shell's `docs/performance.md`.
 
 ## Widgets and layout
 
@@ -109,7 +115,7 @@ The `Gpu` in `src/graphics/gpu.rs` draws that list onto a canvas texture, then c
 
 The `Gpu` walks the commands in `src/graphics/gpu/paint.rs` and sends each one to the cheapest engine that can draw it. Rectangles, borders, letters and images go to Amane's own quad pipeline (`quads.wgsl`), as long as they aren't rotated. That's most of what a shell draws, and plain triangles are much faster than vector shapes. Everything else (paths, strokes, gradients, shadows) goes to vello. To keep the order right, whichever engine was collecting work draws it before the other one takes over.
 
-Blur, cut and custom shader commands are different, because they work on what the canvas already holds. So everything before them gets drawn first, and then they run. A faded group, or a clip that has one of those effects inside it, is drawn on its own canvas and laid down as one piece.
+Blur, cut and custom shader commands are different, because they work on what the canvas already holds. So everything before them gets drawn first, and then they run. A faded group, or a clip that has one of those effects inside it, is drawn on its own canvas and laid down as one piece. That canvas is as big as the whole surface, so a lasting faded group costs a full extra pass every frame. `Renderer::blend` avoids the group where the result would be the same. At opacity 0, or with nothing in it, it draws nothing. A group of exactly one shape takes the opacity in that shape's colour, unless the faded colour would land on another vibrancy layer.
 
 Vello costs about the same no matter how little it draws, so if a vello scene is exactly the same as last frame, its old result is laid down again instead (`painted.rs`). Scenes with images or gradients are never reused this way, because the textures they point at can change.
 
