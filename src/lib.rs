@@ -46,7 +46,7 @@ pub use timing::{FrameStats, frame_stats};
 // for deriving Settings without depending on serde yourself: #[serde(crate = "amane::serde")]
 pub use app::App;
 pub use blur::{BlurShape, blur_fades, material_available};
-pub use dbus::{Argument, Bus, Method, Signal, Value};
+pub use dbus::{Argument, Bus, BusError, Method, Signal, Value};
 pub use files::watch_file;
 pub use full::Full;
 pub use graphics::shader_files::{
@@ -75,11 +75,12 @@ pub use process::{lines, output, spawn, spawn_activated};
 pub use serde;
 pub use services::{
     AccessPoint, Action, Appearance, Apps, Audio, AudioDevice, AudioKind, Backdrop, Battery,
-    BatteryState, Bluetooth, BluetoothDevice, Brightness, Cpu, Desktop, DesktopAction, DesktopApp,
-    DeviceKind, Gestures, Idle, Link, Lock, Media, MediaPlayer, Memory, Network, Notification,
-    Notifications, Overview, Palette, Pam, PamConfig, PamError, PamMessage, PamMessageKind,
-    PamResult, PowerDevice, PowerProfile, Scheme, Service, Timeout, Urgency, WarningLevel,
-    WindowInfo, Windows, Workspace, WorkspaceSwitch, Workspaces,
+    BatteryState, Bluetooth, BluetoothAdapter, BluetoothDevice, BluetoothError, BluetoothOperation,
+    Brightness, Cpu, Desktop, DesktopAction, DesktopApp, DeviceKind, Gestures, Idle, Link, Lock,
+    Media, MediaPlayer, Memory, Network, Notification, Notifications, Overview, PairingAnswer,
+    PairingKind, PairingRequest, Palette, Pam, PamConfig, PamError, PamMessage, PamMessageKind,
+    PamResult, PowerDevice, PowerProfile, PowerState, Scheme, Service, Timeout, Urgency,
+    WarningLevel, WindowInfo, Windows, Workspace, WorkspaceSwitch, Workspaces,
 };
 pub use style::{Effect, Fill, Image, Input, Mask, Radius, Shadow};
 pub use widgets::{
