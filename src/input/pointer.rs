@@ -2,7 +2,14 @@ use std::path::PathBuf;
 
 use crate::{Button, Cursor, DragData, Scroll};
 
-use super::Target;
+use super::target::ClickHandler;
+use super::{Handlers, Target};
+
+// what the left button went down on: its click, and where it was then
+struct Pressed {
+    click: ClickHandler,
+    target: Target,
+}
 
 #[derive(Default)]
 pub struct Pointer {
@@ -14,8 +21,13 @@ pub struct Pointer {
 
     // positions in targets, which stay the same across redraws of an unchanged layout
     hovered: Vec<usize>,
-    pressed: Option<usize>,
     dragged: Option<usize>,
+
+    /*
+     * kept whole rather than as a position, so a redraw between press and release
+     * that adds a target before it, or shrinks it as it's pressed, can't lose the click
+     */
+    pressed: Option<Pressed>,
 
     // the target files from another program are held over
     files_over: Option<usize>,
@@ -167,26 +179,33 @@ impl Pointer {
     // click
 
     pub fn press(&mut self) {
-        self.pressed = self.find_topmost(|target| target.handlers.click.is_some());
+        self.pressed = self
+            .find_topmost(|target| target.handlers.click.is_some())
+            .and_then(|index| {
+                let target = &self.targets[index];
+
+                Some(Pressed {
+                    click: target.handlers.click.clone()?,
+                    target: Target {
+                        area: target.area,
+                        handlers: Handlers::default(),
+                        inverse: target.inverse,
+                    },
+                })
+            });
     }
 
-    // a click only counts when the button is let go over the widget it was pressed on
+    // a click only counts when the button is let go where the widget it was pressed on was
     pub fn release(&mut self, button: Button) -> bool {
         let Some(pressed) = self.pressed.take() else {
             return false;
         };
 
-        let released = self.find_topmost(|target| target.handlers.click.is_some());
-
-        if released != Some(pressed) {
+        if !pressed.target.contains(self.x, self.y) {
             return false;
         }
 
-        let Some(click) = &self.targets[pressed].handlers.click else {
-            return false;
-        };
-
-        click(button);
+        (pressed.click)(button);
 
         true
     }
@@ -487,5 +506,59 @@ mod tests {
         assert!(pointer.leave());
         assert_eq!(*count.borrow(), 1);
         assert!(!pointer.stop_drag());
+    }
+
+    fn clickable(clicks: &Rc<RefCell<u32>>, area: Area) -> Target {
+        let counted = clicks.clone();
+
+        Target::new(
+            area,
+            Handlers {
+                click: Some(Rc::new(move |_| *counted.borrow_mut() += 1)),
+                ..Handlers::default()
+            },
+        )
+    }
+
+    #[test]
+    fn a_click_survives_a_redraw_that_moves_its_target_along() {
+        let clicks = Rc::new(RefCell::new(0));
+        let other = Rc::new(RefCell::new(0));
+        let button = Area::new(100.0, 0.0, 40.0, 30.0);
+        let mut pointer = Pointer::default();
+        pointer.set_targets(vec![clickable(&clicks, button)]);
+
+        pointer.move_to(101.0, 15.0);
+        pointer.press();
+
+        // a redraw puts a target before it and draws it shrunk, as a press does
+        pointer.set_targets(vec![
+            clickable(&other, Area::new(0.0, 0.0, 40.0, 30.0)),
+            clickable(&clicks, Area::new(102.0, 1.0, 36.0, 28.0)),
+        ]);
+
+        assert!(pointer.release(Button::Left));
+        assert_eq!(*clicks.borrow(), 1);
+        assert_eq!(*other.borrow(), 0);
+    }
+
+    #[test]
+    fn letting_go_off_what_was_pressed_is_no_click() {
+        let clicks = Rc::new(RefCell::new(0));
+        let mut pointer = Pointer::default();
+        pointer.set_targets(vec![clickable(&clicks, Area::new(0.0, 0.0, 40.0, 30.0))]);
+
+        pointer.move_to(10.0, 10.0);
+        pointer.press();
+        pointer.move_to(60.0, 10.0);
+
+        assert!(!pointer.release(Button::Left));
+        assert_eq!(*clicks.borrow(), 0);
+
+        // nor once the pointer left the window
+        pointer.move_to(10.0, 10.0);
+        pointer.press();
+        pointer.leave();
+        assert!(!pointer.release(Button::Left));
     }
 }

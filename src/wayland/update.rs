@@ -24,16 +24,19 @@ fn make_blur_effect(window: &OpenWindow) -> Option<BlurEffect> {
 }
 
 impl OpenWindow {
-    // settings changed by input or services reach the compositor before anything is drawn
-    pub fn update_surface(&mut self, content: &Content) {
+    /*
+     * settings changed by input or services go to the compositor before anything is drawn;
+     * true when they wait for the frame's commit, so position, content and blur move together
+     */
+    pub fn update_surface(&mut self, content: &Content) -> bool {
         if let Content::Normal(window) = content {
             self.update_normal(window);
 
-            return;
+            return false;
         }
 
         let Content::Layer(window) = content else {
-            return;
+            return false;
         };
 
         self.update_input_region(window);
@@ -45,13 +48,13 @@ impl OpenWindow {
             settings: current,
         } = &mut self.role
         else {
-            return;
+            return false;
         };
 
         let settings = Settings::from(window);
 
         if settings == *current {
-            return;
+            return false;
         }
 
         let was_visible = current.visible;
@@ -64,16 +67,23 @@ impl OpenWindow {
                 self.hide();
             }
 
-            return;
+            return false;
+        }
+
+        layer::apply(layer_surface, &settings, self.scale_factor);
+
+        // a window that draws now sends them with its frame
+        if self.width != 0 && self.height != 0 {
+            return true;
         }
 
         /*
          * a commit without a buffer also shows a hidden window again,
          * the compositor answers with a configure and drawing starts there
          */
-        layer::apply(layer_surface, &settings, self.scale_factor);
-
         self.role.commit();
+
+        false
     }
 
     // only a changed region is sent, it takes effect with the next commit like the rest
