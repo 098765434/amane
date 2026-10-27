@@ -296,7 +296,7 @@ many times a frame went through vello; an idle frame should say 0.
 
 ## Planned
 
-The rest of the idle-memory work, in order of payoff: content-sized vibrant layers, dropping the
-vello renderer after an idle period (what the launcher leaves behind, above), sharing pipelines
-and picture textures across windows, decoding images at their drawn size with a byte-capped
-cache, and event-driven services in place of polls. Each lands with its own section here.
+The rest of the idle-memory work, in order of payoff: the GTT Quick Settings leaves behind (a
+driver-level view next), decoding images at their drawn size with a byte-capped cache,
+content-sized vibrant layers, sharing pipelines and picture textures across windows, and
+event-driven services in place of polls. Each lands with its own section here.
