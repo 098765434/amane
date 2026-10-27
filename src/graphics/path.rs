@@ -14,14 +14,39 @@ pub enum Segment {
     Close,
 }
 
+/*
+ * part of a circle's edge, when that is all a path is; the gpu draws such a
+ * path as one quad instead of a vector shape. Angles in degrees, 0 straight
+ * up, growing clockwise
+ */
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Arc {
+    pub center_x: f32,
+    pub center_y: f32,
+    pub radius: f32,
+    pub start: f32,
+    pub sweep: f32,
+}
+
+impl Arc {
+    // a full turn or more, so the ends meet
+    pub fn is_whole(&self) -> bool {
+        self.sweep.abs() >= 360.0
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct BezierPath {
     pub segments: Vec<Segment>,
+
+    // set when the segments are one arc and nothing else
+    pub(crate) arc: Option<Arc>,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct PathBuilder {
     segments: Vec<Segment>,
+    arc: Option<Arc>,
 }
 
 impl PathBuilder {
@@ -30,22 +55,31 @@ impl PathBuilder {
     }
 
     pub fn move_to(&mut self, x: f32, y: f32) {
+        self.arc = None;
         self.segments.push(Segment::MoveTo(x, y));
     }
 
     pub fn line_to(&mut self, x: f32, y: f32) {
+        self.arc = None;
         self.segments.push(Segment::LineTo(x, y));
     }
 
     pub fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
+        self.arc = None;
         self.segments.push(Segment::QuadTo(x1, y1, x, y));
     }
 
     pub fn cubic_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
+        self.arc = None;
         self.segments.push(Segment::CubicTo(x1, y1, x2, y2, x, y));
     }
 
     pub fn close(&mut self) {
+        // closing a whole circle changes nothing; closing a part adds a chord, which is no arc
+        if self.arc.is_some_and(|arc| !arc.is_whole()) {
+            self.arc = None;
+        }
+
         self.segments.push(Segment::Close);
     }
 
@@ -57,6 +91,7 @@ impl PathBuilder {
 
         Some(BezierPath {
             segments: self.segments,
+            arc: self.arc,
         })
     }
 
@@ -68,7 +103,9 @@ impl PathBuilder {
         let (start_x, start_y) = point_at(center_x, center_y, radius, start);
 
         // an arc in the middle of a path joins on to it instead of starting a new piece
-        if self.segments.is_empty() {
+        let alone = self.segments.is_empty();
+
+        if alone {
             self.move_to(start_x, start_y);
         } else {
             self.line_to(start_x, start_y);
@@ -84,6 +121,16 @@ impl PathBuilder {
             let from = start + piece_sweep * piece as f32;
 
             self.arc_piece(center_x, center_y, radius, from, piece_sweep);
+        }
+
+        if alone {
+            self.arc = Some(Arc {
+                center_x,
+                center_y,
+                radius,
+                start,
+                sweep,
+            });
         }
     }
 
@@ -122,6 +169,11 @@ impl BezierPath {
     // every point scaled about 0,0, then moved
     pub fn placed(mut self, scale: f32, x: f32, y: f32) -> Self {
         let at = |px: f32, py: f32| (px * scale + x, py * scale + y);
+
+        if let Some(arc) = &mut self.arc {
+            (arc.center_x, arc.center_y) = at(arc.center_x, arc.center_y);
+            arc.radius *= scale;
+        }
 
         for segment in &mut self.segments {
             *segment = match *segment {
@@ -162,6 +214,27 @@ impl BezierPath {
 
         if start <= 0.0 && end >= 1.0 {
             return Some(self.clone());
+        }
+
+        // part of an arc is an arc, so it stays one quad for the gpu
+        if let Some(arc) = self.arc {
+            let sweep = arc.sweep * (end - start) as f32;
+
+            if f64::from(sweep.abs().to_radians() * arc.radius) <= LENGTH_ACCURACY {
+                return None;
+            }
+
+            let mut builder = PathBuilder::new();
+
+            builder.arc(
+                arc.center_x,
+                arc.center_y,
+                arc.radius,
+                arc.start + arc.sweep * start as f32,
+                sweep,
+            );
+
+            return builder.finish();
         }
 
         let path = self.to_kurbo();
@@ -278,6 +351,7 @@ impl From<BezierPath> for PathBuilder {
     fn from(path: BezierPath) -> Self {
         Self {
             segments: path.segments,
+            arc: path.arc,
         }
     }
 }
@@ -394,5 +468,59 @@ mod trim_tests {
         let placed = square().placed(2.0, 5.0, 1.0);
 
         assert_eq!(placed.segments[2], Segment::LineTo(25.0, 21.0));
+    }
+
+    fn ring() -> BezierPath {
+        let mut builder = PathBuilder::new();
+
+        builder.arc(50.0, 50.0, 40.0, 90.0, 180.0);
+
+        builder.finish().unwrap()
+    }
+
+    #[test]
+    fn an_arc_alone_is_known_as_one_through_placing_trimming_and_closing_a_circle() {
+        let arc = ring().arc.unwrap();
+
+        assert_eq!(
+            (arc.center_x, arc.radius, arc.start, arc.sweep),
+            (50.0, 40.0, 90.0, 180.0)
+        );
+
+        let placed = ring().placed(2.0, 1.0, 0.0).arc.unwrap();
+
+        assert_eq!(
+            (placed.center_x, placed.center_y, placed.radius),
+            (101.0, 100.0, 80.0)
+        );
+
+        let part = ring().trimmed(0.25, 0.75).unwrap();
+        let part_arc = part.arc.unwrap();
+
+        assert_eq!((part_arc.start, part_arc.sweep), (135.0, 90.0));
+        assert!((length(&part) - std::f64::consts::PI * 40.0 / 2.0).abs() < 0.1);
+        assert_eq!(ring().trimmed(0.5, 0.5), None);
+
+        let mut circle = PathBuilder::new();
+        circle.arc(0.0, 0.0, 10.0, 0.0, 360.0);
+        circle.close();
+        assert!(circle.finish().unwrap().arc.unwrap().is_whole());
+
+        let mut half = PathBuilder::new();
+        half.arc(0.0, 0.0, 10.0, 0.0, 180.0);
+        half.close();
+        assert_eq!(half.finish().unwrap().arc, None);
+
+        let mut joined = PathBuilder::new();
+        joined.move_to(0.0, 0.0);
+        joined.arc(0.0, 0.0, 10.0, 0.0, 90.0);
+        assert_eq!(joined.finish().unwrap().arc, None);
+
+        let mut followed = PathBuilder::new();
+        followed.arc(0.0, 0.0, 10.0, 0.0, 90.0);
+        followed.line_to(5.0, 5.0);
+        assert_eq!(followed.finish().unwrap().arc, None);
+
+        assert_eq!(square().arc, None);
     }
 }

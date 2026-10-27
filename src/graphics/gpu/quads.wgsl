@@ -1,4 +1,5 @@
-// rounded rectangles, borders, letters, images and drop shadows, each drawn as one quad of two triangles
+// rounded rectangles, borders, letters, images, drop shadows, arcs, lines and the area under
+// a line, each drawn as one quad of two triangles
 
 struct Quad {
     // where it is on the canvas, in pixels: x, y, width, height;
@@ -11,18 +12,25 @@ struct Quad {
     // not premultiplied, 0 to 1
     color: vec4<f32>,
 
-    // border thickness (0 fills it) or a shadow's gaussian deviation, two unused, and the kind:
-    // 0 a shape, 1 a letter, 2 an image, 3 a shadow
+    // border thickness (0 fills it), a shadow's gaussian deviation, or half an arc's or
+    // line's thickness; a line's cut at its start (see segment); and the kind: 0 a shape,
+    // 1 a letter, 2 an image, 3 a shadow, 4 an arc, 5 a line, 6 the area under a line
     shape: vec4<f32>,
 
     // where it reads from, left, top, right, bottom: a letter's texels in the atlas,
-    // or the part of the image, from 0 to 1; a shadow's rectangle, x, y, width, height
+    // or the part of the image, from 0 to 1; a shadow's rectangle, x, y, width, height;
+    // an arc's centre, start and sweep in radians (0 up, clockwise); a line's two ends
     source: vec4<f32>,
 
     inner_clip: vec4<f32>,
 
-    // corner radii of the quad, its clip and its inner clip, clockwise from the top left
+    // corner radii of the quad, clockwise from the top left; an arc's radius and cap;
+    // a line's two caps (0 flat, 1 round, 2 square) and its cut at its end; the baseline
+    // under a line
     radius: vec4<f32>,
+
+    // corner radii of the clip and the inner clip
+
     clip_radius: vec4<f32>,
     inner_radius: vec4<f32>,
 }
@@ -157,6 +165,105 @@ fn shadow(point: vec2<f32>, rect: vec4<f32>, radius: f32, deviation: f32) -> f32
     return scale * (erf7(inv_std_dev * (min_edge + d)) - erf7(inv_std_dev * d));
 }
 
+// how far point is outside an arc of the given thickness, negative inside
+fn arc(point: vec2<f32>, center: vec2<f32>, radius: f32, start: f32, sweep: f32, half: f32, cap: f32) -> f32 {
+    let from_center = point - center;
+    let reach = length(from_center);
+
+    // the band of the whole ring
+    let band = abs(reach - radius) - half;
+
+    if sweep >= 6.2831 {
+        return band;
+    }
+
+    // a square cap reaches on along the ring by half the thickness
+    var half_sweep = sweep * 0.5;
+
+    if cap == 2.0 {
+        half_sweep = half_sweep + half / max(radius, 0.001);
+    }
+
+    // the angle of the point, 0 up and clockwise like the arc's, measured from the arc's middle
+    let angle = atan2(from_center.x, -from_center.y);
+    let middle = start + sweep * 0.5;
+
+    var away = angle - middle;
+    away = away - 6.2831853 * round(away / 6.2831853);
+
+    // how far past the arc's end the point is, along the ring, in pixels
+    let over = (abs(away) - half_sweep) * max(reach, 0.001);
+
+    if cap == 1.0 {
+        if over <= 0.0 {
+            return band;
+        }
+
+        let end_angle = select(start, start + sweep, away > 0.0);
+        let end = center + radius * vec2<f32>(sin(end_angle), -cos(end_angle));
+
+        return length(point - end) - half;
+    }
+
+    return max(band, over);
+}
+
+/*
+ * how far point is outside a line from a to b of the given thickness, with
+ * its two caps; where the line meets another at a or b, the cut is the
+ * direction across the corner's bisector, and the point is outside when it
+ * is on the other line's side of it, so the two never draw the same pixel
+ */
+fn segment(point: vec2<f32>, a: vec2<f32>, b: vec2<f32>, half: f32, cap_a: f32, cap_b: f32, cut_a: vec2<f32>, cut_b: vec2<f32>) -> f32 {
+    if dot(point - a, cut_a) < 0.0 || dot(point - b, cut_b) > 0.0 {
+        return 1e9;
+    }
+
+    let along_line = b - a;
+    let len = max(length(along_line), 0.001);
+    let direction = along_line / len;
+
+    let from_a = point - a;
+    let along = dot(from_a, direction);
+    let across = abs(from_a.x * direction.y - from_a.y * direction.x);
+
+    // a square cap reaches past its end by half the thickness, a flat one stops there
+    let start = select(0.0, -half, cap_a == 2.0);
+    let finish = select(len, len + half, cap_b == 2.0);
+
+    if cap_a == 1.0 && along < 0.0 {
+        return length(from_a) - half;
+    }
+
+    if cap_b == 1.0 && along > len {
+        return length(point - b) - half;
+    }
+
+    return max(across - half, max(start - along, along - finish));
+}
+
+// how much of the area between a line from a to b and the baseline below lands on point
+fn trapezoid(point: vec2<f32>, a: vec2<f32>, b: vec2<f32>, baseline: f32) -> f32 {
+    // cut hard at the two x's, so neighbouring pieces meet without a seam
+    if point.x < min(a.x, b.x) || point.x >= max(a.x, b.x) {
+        return 0.0;
+    }
+
+    let along_line = b - a;
+    let len = max(length(along_line), 0.001);
+    let direction = along_line / len;
+
+    // signed distance above the line, positive above it (y grows downward)
+    let from_a = point - a;
+    var above = from_a.x * direction.y - from_a.y * direction.x;
+
+    if b.x < a.x {
+        above = -above;
+    }
+
+    return coverage(above) * coverage(point.y - baseline);
+}
+
 @fragment
 fn fragment(corner: Corner) -> @location(0) vec4<f32> {
     let quad = quads[corner.index];
@@ -180,6 +287,12 @@ fn fragment(corner: Corner) -> @location(0) vec4<f32> {
         amount = textureLoad(atlas, vec2<i32>(floor(corner.source)), 0).r;
     } else if quad.shape.w == 3.0 {
         amount = shadow(corner.point, quad.source, quad.radius.x, quad.shape.x);
+    } else if quad.shape.w == 4.0 {
+        amount = coverage(arc(corner.point, quad.source.xy, quad.radius.x, quad.source.z, quad.source.w, quad.shape.x, quad.radius.y));
+    } else if quad.shape.w == 5.0 {
+        amount = coverage(segment(corner.point, quad.source.xy, quad.source.zw, quad.shape.x, quad.radius.x, quad.radius.y, quad.shape.yz, quad.radius.zw));
+    } else if quad.shape.w == 6.0 {
+        amount = trapezoid(corner.point, quad.source.xy, quad.source.zw, quad.radius.x);
     } else {
         amount = coverage(rounded_rectangle(corner.point, quad.rect, quad.radius));
 
