@@ -95,6 +95,7 @@ fn variant(argument: &Argument) -> Variant<'static> {
         Argument::Map(map) => Variant::from(entries(map)),
         Argument::Groups(groups) => Variant::from(grouped(groups)),
         Argument::Variant(inner) => Variant::Value(Box::new(variant(inner))),
+        Argument::Struct(fields) => Variant::Structure(body(fields)),
     }
 }
 

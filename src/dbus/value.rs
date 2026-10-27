@@ -57,6 +57,9 @@ pub enum Argument {
 
     // a value that carries its own kind, like the new value of a property
     Variant(Box<Argument>),
+
+    // fields of any kinds in order, like polkit's subject (sa{sv})
+    Struct(Vec<Argument>),
 }
 
 /*
