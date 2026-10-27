@@ -67,6 +67,7 @@ changes. Each section matches a section there.
 |---|---|
 | `.blur_region(areas)` | the compositor blurs behind these rectangles |
 | `.blur_shapes(shapes)` | rounded, fading `BlurShape`s with a material and tint |
+| `.space(Zone::Thickness(px))` | reserves this many logical pixels of the anchored edge, however tall the window is (a dock taller than its card) |
 | `.frozen(true)` | keeps the last frame up and draws nothing, e.g. while `Desktop::obscured` |
 | `.vibrant(true)` | grey content blends with the frosted backdrop (also on `Window` and `Popup`) |
 | `blur_fades()` / `material_available(name)` | whether shapes are drawn exactly; whether a material exists |
