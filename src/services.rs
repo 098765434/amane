@@ -39,7 +39,10 @@ pub use apps::{Apps, DesktopAction, DesktopApp};
 pub use audio::{Audio, AudioDevice, AudioKind};
 pub use backdrop::Backdrop;
 pub use battery::{Battery, BatteryState, DeviceKind, PowerDevice, WarningLevel};
-pub use bluetooth::{Bluetooth, BluetoothDevice};
+pub use bluetooth::{
+    Bluetooth, BluetoothAdapter, BluetoothDevice, BluetoothError, Operation as BluetoothOperation,
+    PairingAnswer, PairingKind, PairingRequest, PowerState,
+};
 pub use brightness::Brightness;
 pub use cpu::Cpu;
 pub use desktop::Desktop;

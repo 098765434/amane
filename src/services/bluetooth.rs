@@ -1,83 +1,130 @@
+mod actions;
+mod adapter;
+mod agent;
 mod device;
+mod errors;
+mod model;
 
-use std::mem;
+use std::collections::BTreeMap;
+use std::sync::{Mutex, Once, PoisonError};
 use std::thread;
 use std::time::Duration;
 
-use crate::services::worker;
-use crate::{Argument, Bus, Service, Value};
+use crate::{Argument, Bus, Service};
 
+pub use actions::Operation;
+pub use adapter::{BluetoothAdapter, PowerState};
+pub use agent::{PairingAnswer, PairingKind, PairingRequest};
 pub use device::BluetoothDevice;
+pub use errors::BluetoothError;
+
+use model::Objects;
 
 const BLUEZ: &str = "org.bluez";
 const ADAPTER: &str = "org.bluez.Adapter1";
 const DEVICE: &str = "org.bluez.Device1";
 const OBJECT_MANAGER: &str = "org.freedesktop.DBus.ObjectManager";
+const PROPERTIES: &str = "org.freedesktop.DBus.Properties";
 
-#[derive(Default, PartialEq)]
+// bluez is asked for everything again this often, in case a signal was missed
+const RESYNC_EVERY: Duration = Duration::from_secs(30);
+
+/*
+ * what bluez has, kept up to date from its signals; the service shows what
+ * this reads as, so a change to something nothing shows redraws nothing
+ */
+static OBJECTS: Mutex<Objects> = Mutex::new(Objects::new());
+
+// bluez's unique name like :1.7, so only its signals change the tree
+static OWNER: Mutex<String> = Mutex::new(String::new());
+
+#[derive(Default)]
 pub struct Bluetooth {
     // none when the machine has no bluetooth or bluez isn't running
-    adapter: Option<String>,
-
-    powered: bool,
-
-    scanning: bool,
+    adapter: Option<BluetoothAdapter>,
 
     devices: Vec<BluetoothDevice>,
+
+    // what each device is in the middle of, by its path
+    operations: BTreeMap<String, Operation>,
+
+    // why each device's last action failed, by its path, until it's tried again
+    failures: BTreeMap<String, BluetoothError>,
+
+    // a device asking to pair, waiting for an answer; only with serve_agent()
+    request: Option<PairingRequest>,
 }
 
 /*
- * polled, one call lists the adapter and every device at once,
- * which is simpler than following each device's own signals
+ * one read of every object at the start, then bluez's own signals: objects
+ * added and removed, and properties changed
  */
 impl Service for Bluetooth {
     fn new() -> Self {
         let mut bluetooth = Self::default();
 
-        bluetooth.update();
+        let objects = fetch();
+
+        (bluetooth.adapter, bluetooth.devices) = objects.view();
+
+        *OBJECTS.lock().unwrap_or_else(PoisonError::into_inner) = objects;
 
         bluetooth
     }
 
-    fn interval() -> Duration {
-        Duration::from_secs(2)
-    }
+    fn listen() {
+        let bus = Bus::system();
 
-    fn update(&mut self) -> bool {
-        // read from scratch and compared at the end, the device list is rebuilt every poll
-        let before = mem::take(self);
+        static WATCH: Once = Once::new();
 
-        let objects = Bus::system().call(BLUEZ, "/", OBJECT_MANAGER, "GetManagedObjects", &[]);
+        WATCH.call_once(|| {
+            // bluez restarting is a new tree, and a new agent registration
+            thread::spawn(move || {
+                for _ in bus.owner_changes(BLUEZ) {
+                    resync();
 
-        let Value::Map(objects) = objects else {
-            return *self != before;
-        };
+                    agent::bluez_restarted();
+                }
+            });
 
-        for (path, interfaces) in &objects {
-            let adapter = interfaces.get(ADAPTER);
+            thread::spawn(|| {
+                loop {
+                    thread::sleep(RESYNC_EVERY);
 
-            // the first adapter wins, most machines only have one
-            if adapter != &Value::Nothing && self.adapter.is_none() {
-                self.adapter = Some(path.clone());
-
-                self.powered = adapter.get("Powered").bool();
-                self.scanning = adapter.get("Discovering").bool();
-            }
-
-            if interfaces.get(DEVICE) != &Value::Nothing {
-                self.devices
-                    .push(BluetoothDevice::from_interfaces(path, interfaces));
-            }
-        }
-
-        // connected first, then paired, then by name
-        self.devices.sort_by_key(|device| {
-            let order = (!device.connected, !device.paired);
-
-            (order, device.name.to_lowercase())
+                    resync();
+                }
+            });
         });
 
-        *self != before
+        // watched before reading, so nothing that happens in between is missed
+        let signals = bus.signals_from(BLUEZ);
+
+        resync();
+
+        for signal in signals {
+            // the connection is shared, other services' signals come by too
+            if signal.sender()
+                != OWNER
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .as_str()
+            {
+                continue;
+            }
+
+            let mut objects = OBJECTS.lock().unwrap_or_else(PoisonError::into_inner);
+
+            match (signal.interface(), signal.name()) {
+                (OBJECT_MANAGER, "InterfacesAdded") => objects.added(signal.arguments()),
+                (OBJECT_MANAGER, "InterfacesRemoved") => objects.removed(signal.arguments()),
+                (PROPERTIES, "PropertiesChanged") => {
+                    objects.changed(signal.path(), signal.arguments());
+                }
+                _ => continue,
+            }
+
+            publish(&objects);
+        }
     }
 }
 
@@ -86,97 +133,134 @@ impl Bluetooth {
         self.adapter.is_some()
     }
 
+    pub fn adapter(&self) -> Option<&BluetoothAdapter> {
+        self.adapter.as_ref()
+    }
+
+    pub fn power(&self) -> PowerState {
+        self.adapter
+            .as_ref()
+            .map_or(PowerState::Off, BluetoothAdapter::power)
+    }
+
     pub fn powered(&self) -> bool {
-        self.powered
+        self.power() == PowerState::On
     }
 
     pub fn scanning(&self) -> bool {
-        self.scanning
+        self.adapter
+            .as_ref()
+            .is_some_and(BluetoothAdapter::discovering)
+    }
+
+    pub fn discoverable(&self) -> bool {
+        self.adapter
+            .as_ref()
+            .is_some_and(BluetoothAdapter::discoverable)
     }
 
     pub fn devices(&self) -> &[BluetoothDevice] {
         &self.devices
     }
 
-    pub fn set_powered(powered: bool) {
-        worker::run(move || {
-            let Some(adapter) = adapter() else {
-                return;
-            };
-
-            let value = Argument::from(powered);
-
-            Bus::system().set_property(BLUEZ, &adapter, ADAPTER, "Powered", value);
-
-            Self::write().update();
-        });
+    pub fn device(&self, path: &str) -> Option<&BluetoothDevice> {
+        self.devices.iter().find(|device| device.path() == path)
     }
 
-    // new devices show up in devices() while scanning
-    pub fn start_scan() {
-        adapter_call("StartDiscovery", &[]);
+    // what `device` (a path) is in the middle of, none when it's idle
+    pub fn operation(&self, device: &str) -> Option<Operation> {
+        self.operations.get(device).copied()
     }
 
-    pub fn stop_scan() {
-        adapter_call("StopDiscovery", &[]);
+    /*
+     * why the last action on `device` failed, kept a little while and
+     * until it's tried again; the adapter's path for turning it on
+     */
+    pub fn failure(&self, device: &str) -> Option<&BluetoothError> {
+        self.failures.get(device)
     }
 
-    pub fn connect(device: &str) {
-        device_call(device, "Connect");
-    }
-
-    pub fn disconnect(device: &str) {
-        device_call(device, "Disconnect");
-    }
-
-    // pairs, then connects like other bluetooth menus do; only for devices that pair without a code
-    pub fn pair(device: &str) {
-        device_calls(device, &["Pair", "Connect"]);
-    }
-
-    // unpairs and removes the device, it comes back only after a new scan
-    pub fn forget(device: &str) {
-        let path = Argument::Path(String::from(device));
-
-        adapter_call("RemoveDevice", &[path]);
+    pub fn pairing_request(&self) -> Option<&PairingRequest> {
+        self.request.as_ref()
     }
 }
 
-// looked up again on each call, so input handlers don't have to read the service
-fn adapter() -> Option<String> {
-    Bluetooth::read().adapter.clone()
+// bluez's whole tree, empty when it isn't running
+fn fetch() -> Objects {
+    let bus = Bus::system();
+
+    let owner = bus.call(
+        "org.freedesktop.DBus",
+        "/org/freedesktop/DBus",
+        "org.freedesktop.DBus",
+        "GetNameOwner",
+        &[Argument::from(BLUEZ)],
+    );
+
+    *OWNER.lock().unwrap_or_else(PoisonError::into_inner) = owner.text().to_string();
+
+    let managed = bus.call(BLUEZ, "/", OBJECT_MANAGER, "GetManagedObjects", &[]);
+
+    Objects::from_managed(&managed)
 }
 
-fn adapter_call(method: &'static str, arguments: &[Argument]) {
-    let Some(adapter) = adapter() else {
+// reads everything again, after bluez restarted or in case a signal was missed
+fn resync() {
+    let fresh = fetch();
+
+    let mut objects = OBJECTS.lock().unwrap_or_else(PoisonError::into_inner);
+
+    *objects = fresh;
+
+    publish(&objects);
+}
+
+/*
+ * shows what the tree reads as, writing only when that changed, and keeps
+ * a search going that the radio dropped; called with the tree locked, so
+ * two changes are always shown in the order they happened
+ */
+fn publish(objects: &Objects) {
+    let (adapter, devices) = objects.view();
+
+    let bluetooth = Bluetooth::read();
+
+    if bluetooth.adapter == adapter && bluetooth.devices == devices {
         return;
+    }
+
+    drop(bluetooth);
+
+    let mut bluetooth = Bluetooth::write();
+
+    let gone = |path: &str| {
+        adapter
+            .as_ref()
+            .is_none_or(|adapter| adapter.path() != path)
+            && !devices.iter().any(|device| device.path() == path)
     };
 
-    let arguments = arguments.to_vec();
+    // a device that's gone has nothing left to wait for
+    bluetooth.operations.retain(|path, _| !gone(path));
+    bluetooth.failures.retain(|path, _| !gone(path));
 
-    thread::spawn(move || {
-        Bus::system().call(BLUEZ, &adapter, ADAPTER, method, &arguments);
+    if bluetooth
+        .request
+        .as_ref()
+        .is_some_and(|request| gone(request.device()))
+    {
+        bluetooth.request = None;
+    }
 
-        Bluetooth::write().update();
-    });
-}
+    bluetooth.adapter = adapter;
+    bluetooth.devices = devices;
 
-// connecting can take seconds, so it runs on its own thread and the bar keeps drawing
-fn device_call(device: &str, method: &'static str) {
-    device_calls(device, &[method]);
-}
+    // turning the radio off and on, or bluez giving up, ends a search
+    let restart = actions::searching() && bluetooth.powered() && !bluetooth.scanning();
 
-// one after another, each waiting for the one before, like pairing before connecting
-fn device_calls(device: &str, methods: &[&'static str]) {
-    let device = String::from(device);
+    drop(bluetooth);
 
-    let methods = methods.to_vec();
-
-    thread::spawn(move || {
-        for method in methods {
-            Bus::system().call(BLUEZ, &device, DEVICE, method, &[]);
-
-            Bluetooth::write().update();
-        }
-    });
+    if restart {
+        actions::restart_scan();
+    }
 }

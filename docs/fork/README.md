@@ -38,6 +38,7 @@ as upstream has them; everything the fork adds is here.
 | Text input | selection, editing keys, undo, multiline, IME | `TextInput` | [text-input](input/text-input.md) | `examples/text_editor.rs` | done |
 | Battery | UPower: state, warning, time left, peripherals | `Battery`, `PowerDevice` | [battery](system/battery.md) | `examples/system.rs` | done |
 | Power profile | power-profiles-daemon | `PowerProfile` | [power-profile](system/power-profile.md) | — | done |
+| Bluetooth | signals, operations and failures, pairing agent, rfkill, discoverable | `Bluetooth::serve_agent`, `PairingRequest`, `BluetoothError` | [bluetooth](system/bluetooth.md) | — | done |
 | Idle | ext-idle-notify levels and ScreenSaver inhibits | `Idle` | [idle](system/idle.md) | `examples/idle.rs` | done |
 | Appearance | colour scheme, accent, contrast, reduced motion | `Appearance`, `Scheme` | [appearance](system/appearance.md) | `examples/appearance.rs` | done |
 | Audio | device lists, kinds, default switching | `AudioDevice`, `AudioKind` | [audio](system/audio.md) | `examples/audio.rs` | done |
@@ -58,7 +59,7 @@ as upstream has them; everything the fork adds is here.
 - **Input:** pointer and keyboard additions. [input](input/input.md),
   [text-input](input/text-input.md).
 - **System:** D-Bus and portal services. [battery](system/battery.md),
-  [power-profile](system/power-profile.md), [idle](system/idle.md),
+  [power-profile](system/power-profile.md), [bluetooth](system/bluetooth.md), [idle](system/idle.md),
   [appearance](system/appearance.md), [audio](system/audio.md),
   [notifications](system/notifications.md), [apps-and-processes](system/apps-and-processes.md),
   [ipc](system/ipc.md).
