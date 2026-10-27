@@ -19,6 +19,9 @@ const SHAPE: f32 = 0.0;
 const LETTER: f32 = 1.0;
 const PICTURE: f32 = 2.0;
 const SHADOW: f32 = 3.0;
+const ARC: f32 = 4.0;
+const SEGMENT: f32 = 5.0;
+const TRAPEZOID: f32 = 6.0;
 
 // how far past its rectangle a shadow's blur is drawn, in deviations; vello cuts its own off there too
 const SHADOW_REACH: f32 = 2.5;
@@ -33,10 +36,10 @@ struct Run {
 }
 
 /*
- * rounded rectangles, borders, letters, images and drop shadows gathered as
- * they come and drawn in one pass; this is most of what a shell shows, and
- * the gpu draws it far faster as plain triangles than vello does as vector
- * shapes
+ * rounded rectangles, borders, letters, images, drop shadows, arcs, straight
+ * lines and the area under a line, gathered as they come and drawn in one
+ * pass; this is most of what a shell shows, and the gpu draws it far faster
+ * as plain triangles than vello does as vector shapes
  */
 pub struct Quads {
     pipeline: RenderPipeline,

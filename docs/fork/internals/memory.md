@@ -160,6 +160,44 @@ closed: 59 MB at start, 124 open (was 252), 59 closed (was 219, and 123 after th
 release); no vello run at all, so nothing to release. The GTT it takes to open fell from
 108 MB to 78.
 
+## Arcs, straight lines and the area under a line are quads
+
+**What it cost.** After the shadows moved, the one surface still running vello at idle was the
+widgets layer: its rings are stroked arcs, its graphs a stroked line over a filled area, and
+every stats tick (2 s) redrew them through vello, 61 runs in 30 s, each with the scene upload,
+the compute passes and a scratch texture, and the scratch pool allocated for the process.
+
+**What changed.** Three more kinds of quad in `quads.wgsl`, each a signed-distance shape
+with the quads' usual one-pixel soft edge:
+
+- An **arc**: a ring's band, cut at the arc's two ends with flat, round or square caps. A path
+  that is one arc and nothing else carries that arc (`BezierPath.arc`, set by
+  `PathBuilder::arc`, kept through `placed` and `trimmed`, and through `close` on a whole
+  circle), so `Arc` and `Circle` shapes and a ring's trimmed progress are recognised without
+  reading curves back. A filled whole circle is a rounded rectangle whose corners meet.
+- A **line**: a capsule between two points with a cap at each end. A path of straight lines
+  (`polylines` in `paint.rs`) is one quad per piece; the pieces meet in round joins and each
+  is cut at the joint's bisector, so a see-through line is not darker where they meet. Joins
+  come out round, so a line thicker than 3 px that asks for a mitre or bevel stays with
+  vello.
+- The **area under a line** (`under_polyline`): a closed outline that starts on a baseline,
+  runs left to right and comes back to it, as one trapezoid per piece, cut hard at the x's
+  so the pieces meet without a seam. Any other filled outline stays with vello.
+
+**Switching it off.** `AMANE_VELLO_SHAPES=1` sends all three back to vello.
+
+**Checked** by `draws_arcs_lines_and_areas_as_vello_does` (`quads/draw.rs`, `--ignored`):
+each shape drawn both ways, with the two edges smoothed differently (vello by exact area, the
+quads by distance), so single edge pixels differ by up to 96/255 but the shapes hold the same
+amount of colour within 5% and a mean difference under 4/255; and a see-through line whose
+darkest pixel is its own alpha. Under `AMANE_FRAMES=1` the `vello-stats` build prints a
+`to vello: …` line for each command the quads could not take.
+
+**Measured** on a second shell with the desktop showing for 30 s (`AMANE_FRAMES=1`): 44
+widgets frames, 41 of them `vello 0`, 2 vello runs in all (the clock's digits on their first
+frame, kept from then on; 61 runs before). What still goes to vello there is the clock's
+curved digits, drawn once per change.
+
 ## A hidden window holds nothing on the GPU
 
 **What it cost.** `hide()` (`src/wayland/update.rs`) took the buffer away and nothing else. The

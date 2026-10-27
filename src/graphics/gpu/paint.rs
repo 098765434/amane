@@ -5,8 +5,9 @@ use vello::kurbo::Affine;
 use vello::peniko::{Fill, ImageData, Mix};
 use vello::wgpu::Texture;
 
+use crate::graphics::path::Segment;
 use crate::graphics::renderer::Command;
-use crate::graphics::{Area, Corners, Transform};
+use crate::graphics::{Area, BezierPath, Cap, Corners, Join, Transform};
 
 use super::Gpu;
 use super::bounds::Reach;
@@ -234,6 +235,110 @@ impl Gpu {
                 );
             }
 
+            Command::Stroke {
+                path,
+                transform,
+                thickness,
+                color,
+                cap,
+                ..
+            } => {
+                let scale = transform.even_scale().unwrap_or(1.0);
+                let thickness = thickness * scale;
+
+                if let Some(arc) = path.arc {
+                    self.quads.arc(
+                        transform.map(arc.center_x, arc.center_y),
+                        arc.radius * scale,
+                        (arc.start, arc.sweep),
+                        thickness,
+                        cap,
+                        color,
+                        clips,
+                    );
+
+                    return;
+                }
+
+                for line in polylines(&path).unwrap_or_default() {
+                    let points: Vec<(f32, f32)> =
+                        line.iter().map(|(x, y)| transform.map(*x, *y)).collect();
+
+                    let directions: Vec<(f32, f32)> = points
+                        .windows(2)
+                        .map(|pair| direction(pair[0], pair[1]))
+                        .collect();
+
+                    let last = directions.len() - 1;
+
+                    for (i, pair) in points.windows(2).enumerate() {
+                        // the ends get the line's caps; where pieces meet they are rounded into
+                        // a join and cut at its bisector, so neither draws the other's pixels
+                        let (start, cut_start) = if i == 0 {
+                            (cap, (0.0, 0.0))
+                        } else {
+                            (Cap::Round, added(directions[i - 1], directions[i]))
+                        };
+
+                        let (finish, cut_finish) = if i == last {
+                            (cap, (0.0, 0.0))
+                        } else {
+                            (Cap::Round, added(directions[i], directions[i + 1]))
+                        };
+
+                        self.quads.segment(
+                            pair[0],
+                            pair[1],
+                            thickness,
+                            (start, finish),
+                            (cut_start, cut_finish),
+                            color,
+                            clips,
+                        );
+                    }
+                }
+            }
+
+            Command::Fill {
+                path,
+                transform,
+                color,
+            } => {
+                let scale = transform.even_scale().unwrap_or(1.0);
+
+                // a whole circle is a rounded rectangle with the corners meeting in the middle
+                if let Some(arc) = path.arc {
+                    let (x, y) = transform.map(arc.center_x, arc.center_y);
+                    let radius = arc.radius * scale;
+
+                    let area = Area::new(x - radius, y - radius, radius * 2.0, radius * 2.0);
+
+                    self.quads
+                        .rectangle(area, Corners::from(radius), color, clips);
+
+                    return;
+                }
+
+                let Some((points, baseline)) = under_polyline(&path) else {
+                    return;
+                };
+
+                let (_, baseline) = transform.map(0.0, baseline);
+
+                for pair in points.windows(2) {
+                    let (x0, y0) = pair[0];
+                    let (x1, y1) = pair[1];
+
+                    self.quads.trapezoid(
+                        transform.map(x0, y0),
+                        transform.map(x1, y1),
+                        baseline,
+                        color,
+                        clips,
+                    );
+                }
+            }
+
             Command::Glyph {
                 face,
                 id,
@@ -331,6 +436,12 @@ impl Gpu {
 
         self.reach.add(&command);
 
+        // under AMANE_FRAMES=1, which commands the quads couldn't take, to see what keeps vello busy
+        #[cfg(feature = "vello-stats")]
+        if crate::timing::enabled() {
+            eprintln!("to vello: {}", describe(&command));
+        }
+
         self.add(scene, command, canvas);
 
         for _ in &paths {
@@ -370,9 +481,137 @@ enum Route {
 static VELLO_SHADOWS: LazyLock<bool> =
     LazyLock::new(|| std::env::var_os("AMANE_VELLO_SHADOWS").is_some());
 
+// a command in a few words, for the vello-stats log
+#[cfg(feature = "vello-stats")]
+fn describe(command: &Command) -> String {
+    match command {
+        Command::Fill { path, color, .. } => {
+            format!(
+                "fill of {} steps, alpha {}",
+                path.segments.len(),
+                color.alpha()
+            )
+        }
+        Command::Stroke {
+            path,
+            color,
+            thickness,
+            ..
+        } => format!(
+            "stroke of {} steps, {thickness} thick, alpha {}",
+            path.segments.len(),
+            color.alpha()
+        ),
+        Command::Gradient { .. } => "gradient".into(),
+        Command::Shadow { .. } => "turned shadow".into(),
+        Command::InnerShadow { .. } => "inner shadow".into(),
+        Command::Rectangle { .. } | Command::Border { .. } => "turned rectangle".into(),
+        Command::Image { .. } => "turned image".into(),
+        Command::Clip { .. } => "turned clip".into(),
+        _ => "other".into(),
+    }
+}
+
+// a line this thin, in canvas pixels, shows no difference between one join and another
+const THIN: f32 = 3.0;
+
+// the unit direction from one point to the next, none for the same point twice
+fn direction((x0, y0): (f32, f32), (x1, y1): (f32, f32)) -> (f32, f32) {
+    let (dx, dy) = (x1 - x0, y1 - y0);
+    let length = dx.hypot(dy);
+
+    if length <= 0.0 {
+        return (0.0, 0.0);
+    }
+
+    (dx / length, dy / length)
+}
+
+// the two directions added: across the bisector of the corner they make
+fn added((ax, ay): (f32, f32), (bx, by): (f32, f32)) -> (f32, f32) {
+    (ax + bx, ay + by)
+}
+
+// AMANE_VELLO_SHAPES=1 draws arcs, lines and the areas under them with vello, as before
+static VELLO_SHAPES: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("AMANE_VELLO_SHAPES").is_some());
+
 // like css, a shadow's blur reaches twice as far as the deviation of the gaussian behind it
 pub(super) fn deviation(blur: f32) -> f32 {
     blur / 2.0
+}
+
+/*
+ * the path as runs of straight lines, each at least two points long, when it
+ * has no curves; a closed run ends where it began
+ */
+fn polylines(path: &BezierPath) -> Option<Vec<Vec<(f32, f32)>>> {
+    let mut lines: Vec<Vec<(f32, f32)>> = Vec::new();
+
+    for segment in &path.segments {
+        match *segment {
+            Segment::MoveTo(x, y) => lines.push(vec![(x, y)]),
+
+            Segment::LineTo(x, y) => lines.last_mut()?.push((x, y)),
+
+            Segment::Close => {
+                let line = lines.last_mut()?;
+                let first = *line.first()?;
+
+                if line.last() != Some(&first) {
+                    line.push(first);
+                }
+            }
+
+            Segment::QuadTo(..) | Segment::CubicTo(..) => return None,
+        }
+    }
+
+    lines.retain(|line| line.len() >= 2);
+
+    if lines.is_empty() {
+        return None;
+    }
+
+    Some(lines)
+}
+
+/*
+ * a closed outline that starts on a baseline, goes along a line of points
+ * from left to right, and comes back down to the baseline: the area under
+ * the line, as the points along it from one end of the baseline to the other
+ */
+pub(super) fn under_polyline(path: &BezierPath) -> Option<(Vec<(f32, f32)>, f32)> {
+    let mut lines = polylines(path)?;
+
+    if lines.len() != 1 {
+        return None;
+    }
+
+    let mut points = lines.pop()?;
+
+    // closed, so the last point is the first again
+    if points.len() < 4 || points.first() != points.last() {
+        return None;
+    }
+
+    points.pop();
+
+    let (_, baseline) = points[0];
+    let (_, last_y) = points[points.len() - 1];
+
+    if last_y != baseline {
+        return None;
+    }
+
+    let left_to_right = points.windows(2).all(|pair| pair[0].0 <= pair[1].0);
+    let above = points.iter().all(|(_, y)| *y <= baseline);
+
+    if !left_to_right || !above {
+        return None;
+    }
+
+    Some((points, baseline))
 }
 
 fn route(command: &Command) -> Route {
@@ -413,6 +652,45 @@ fn route(command: &Command) -> Route {
             }
         }
 
+        // an arc, or straight lines; their joins come out round, so a thick line that
+        // asks for another join stays with vello
+        Command::Stroke {
+            path,
+            transform,
+            thickness,
+            join,
+            ..
+        } => {
+            let scale = transform.even_scale();
+            let straight = scale.is_some() && !*VELLO_SHAPES;
+
+            let rounded = *join == Join::Round || thickness * scale.unwrap_or(1.0) <= THIN;
+
+            let simple = path.arc.is_some() || (rounded && polylines(path).is_some());
+
+            if straight && simple {
+                Route::Quads
+            } else {
+                Route::Vello
+            }
+        }
+
+        // a whole circle, or the area under a line down to a baseline
+        Command::Fill {
+            path, transform, ..
+        } => {
+            let straight = transform.even_scale().is_some() && !*VELLO_SHAPES;
+
+            let simple =
+                path.arc.is_some_and(|arc| arc.is_whole()) || under_polyline(path).is_some();
+
+            if straight && simple {
+                Route::Quads
+            } else {
+                Route::Vello
+            }
+        }
+
         Command::Image {
             transform,
             clip_transform,
@@ -425,10 +703,7 @@ fn route(command: &Command) -> Route {
             }
         }
 
-        Command::Fill { .. }
-        | Command::Gradient { .. }
-        | Command::Stroke { .. }
-        | Command::InnerShadow { .. } => Route::Vello,
+        Command::Gradient { .. } | Command::InnerShadow { .. } => Route::Vello,
     }
 }
 
@@ -506,5 +781,116 @@ mod tests {
         );
         assert!(device_mask(area, radius, Transform::from_rotate(45.0)).is_none());
         assert!(device_mask(area, radius, Transform::from_scale(1.0, 2.0)).is_none());
+    }
+}
+
+#[cfg(test)]
+mod shape_tests {
+    use crate::graphics::PathBuilder;
+
+    use super::*;
+
+    fn path(build: impl FnOnce(&mut PathBuilder)) -> BezierPath {
+        let mut builder = PathBuilder::new();
+
+        build(&mut builder);
+
+        builder.finish().unwrap()
+    }
+
+    #[test]
+    fn straight_lines_are_polylines_and_curves_are_not() {
+        let zigzag = path(|p| {
+            p.move_to(0.0, 0.0);
+            p.line_to(10.0, 5.0);
+            p.line_to(20.0, 0.0);
+            p.move_to(30.0, 30.0);
+            p.line_to(40.0, 40.0);
+            p.move_to(50.0, 50.0);
+        });
+
+        assert_eq!(
+            polylines(&zigzag),
+            Some(vec![
+                vec![(0.0, 0.0), (10.0, 5.0), (20.0, 0.0)],
+                vec![(30.0, 30.0), (40.0, 40.0)],
+            ])
+        );
+
+        let triangle = path(|p| {
+            p.move_to(0.0, 0.0);
+            p.line_to(10.0, 0.0);
+            p.line_to(5.0, 8.0);
+            p.close();
+        });
+
+        assert_eq!(polylines(&triangle).unwrap()[0].len(), 4);
+
+        let curved = path(|p| {
+            p.move_to(0.0, 0.0);
+            p.quad_to(5.0, 5.0, 10.0, 0.0);
+        });
+
+        assert_eq!(polylines(&curved), None);
+        assert_eq!(polylines(&path(|p| p.move_to(1.0, 1.0))), None);
+    }
+
+    #[test]
+    fn the_area_under_a_line_is_known_and_other_outlines_are_not() {
+        let under = path(|p| {
+            p.move_to(0.0, 20.0);
+            p.line_to(0.0, 10.0);
+            p.line_to(10.0, 5.0);
+            p.line_to(20.0, 12.0);
+            p.line_to(30.0, 20.0);
+            p.close();
+        });
+
+        assert_eq!(
+            under_polyline(&under),
+            Some((
+                vec![
+                    (0.0, 20.0),
+                    (0.0, 10.0),
+                    (10.0, 5.0),
+                    (20.0, 12.0),
+                    (30.0, 20.0)
+                ],
+                20.0
+            ))
+        );
+
+        // going back left, or below the baseline, or not closed, or not ending on it
+        let back = path(|p| {
+            p.move_to(0.0, 20.0);
+            p.line_to(10.0, 5.0);
+            p.line_to(5.0, 8.0);
+            p.line_to(30.0, 20.0);
+            p.close();
+        });
+        assert_eq!(under_polyline(&back), None);
+
+        let below = path(|p| {
+            p.move_to(0.0, 20.0);
+            p.line_to(10.0, 25.0);
+            p.line_to(30.0, 20.0);
+            p.close();
+        });
+        assert_eq!(under_polyline(&below), None);
+
+        let open = path(|p| {
+            p.move_to(0.0, 20.0);
+            p.line_to(10.0, 5.0);
+            p.line_to(30.0, 20.0);
+        });
+        assert_eq!(under_polyline(&open), None);
+
+        let hanging = path(|p| {
+            p.move_to(0.0, 20.0);
+            p.line_to(10.0, 5.0);
+            p.line_to(30.0, 15.0);
+            p.close();
+        });
+        assert_eq!(under_polyline(&hanging), None);
     }
 }

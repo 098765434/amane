@@ -291,6 +291,285 @@ mod tests {
         );
     }
 
+    /*
+     * the arc, line and area quads against vello's strokes and fills of the
+     * same paths: the edges are smoothed differently (vello by exact area,
+     * the quads by distance), so single pixels differ, but the shapes land in
+     * the same place and hold the same amount of colour
+     */
+    #[test]
+    #[ignore = "requires a graphics adapter"]
+    fn draws_arcs_lines_and_areas_as_vello_does() {
+        use std::num::NonZeroUsize;
+
+        use vello::kurbo::{Affine, Stroke};
+        use vello::peniko::{self, Fill};
+        use vello::wgpu::{TextureDescriptor, TextureDimension, TextureFormat, TextureUsages};
+        use vello::{AaConfig, AaSupport, RenderParams, RendererOptions, Scene};
+
+        use crate::graphics::gpu::convert::bezier;
+        use crate::graphics::{Cap, PathBuilder};
+
+        let instance = Instance::new(InstanceDescriptor::new_without_display_handle_from_env());
+        let adapter = wait(instance.request_adapter(&RequestAdapterOptions::default()))
+            .expect("failed to find a gpu");
+        let (device, queue) =
+            wait(adapter.request_device(&DeviceDescriptor::default())).expect("failed to open gpu");
+
+        let options = RendererOptions {
+            antialiasing_support: AaSupport::area_only(),
+            num_init_threads: NonZeroUsize::new(1),
+            ..RendererOptions::default()
+        };
+        let mut vello = vello::Renderer::new(&device, options).expect("failed to start vello");
+
+        let target = device.create_texture(&TextureDescriptor {
+            label: None,
+            size: Extent3d {
+                width: 64,
+                height: 64,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Rgba8Unorm,
+            usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+        let params = RenderParams {
+            base_color: peniko::Color::TRANSPARENT,
+            width: 64,
+            height: 64,
+            antialiasing_method: AaConfig::Area,
+        };
+
+        let mut by_vello = |scene: &Scene| {
+            vello
+                .render_to_texture(&device, &queue, scene, &texture::view(&target), &params)
+                .expect("failed to draw scene");
+            pixels(&device, &queue, &target, 64, 64)
+        };
+
+        let by_quads = |quads: &mut Quads| {
+            let canvas = texture::canvas(&device, 64, 64);
+            quads.draw(&device, &queue, &canvas);
+            pixels(&device, &queue, &canvas, 64, 64)
+        };
+
+        let alpha = |pixels: &[u8], x: usize, y: usize| i32::from(pixels[y * 256 + x * 4 + 3]);
+
+        let compare = |what: &str, quads: &[u8], vello: &[u8]| {
+            let (mut worst, mut total, mut quads_sum, mut vello_sum) = (0, 0, 0, 0);
+            for y in 0..64 {
+                for x in 0..64 {
+                    let (q, v) = (alpha(quads, x, y), alpha(vello, x, y));
+                    worst = worst.max((q - v).abs());
+                    total += (q - v).abs();
+                    quads_sum += q;
+                    vello_sum += v;
+                }
+            }
+            let mean = total as f32 / (64.0 * 64.0);
+            let share = quads_sum as f32 / vello_sum.max(1) as f32;
+            assert!(
+                worst <= 96 && mean <= 4.0 && (0.95..=1.05).contains(&share),
+                "{what}: worst {worst}/255, mean {mean:.2}, {share:.3} of vello's colour"
+            );
+        };
+
+        let stroke = |thickness: f32, cap: Cap| {
+            let cap = match cap {
+                Cap::Butt => vello::kurbo::Cap::Butt,
+                Cap::Round => vello::kurbo::Cap::Round,
+                Cap::Square => vello::kurbo::Cap::Square,
+            };
+            Stroke::new(f64::from(thickness))
+                .with_caps(cap)
+                .with_join(vello::kurbo::Join::Round)
+        };
+
+        // a ring's progress: three quarters of a turn, round caps
+        let mut arc_path = PathBuilder::new();
+        arc_path.arc(32.0, 32.0, 20.0, 30.0, 270.0);
+        let arc_path = arc_path.finish().unwrap();
+        let arc = arc_path.arc.unwrap();
+
+        for (cap, name) in [
+            (Cap::Round, "round"),
+            (Cap::Butt, "flat"),
+            (Cap::Square, "square"),
+        ] {
+            let mut scene = Scene::new();
+            scene.stroke(
+                &stroke(6.0, cap),
+                Affine::IDENTITY,
+                peniko::Color::BLACK,
+                None,
+                &bezier(&arc_path),
+            );
+            let vello_pixels = by_vello(&scene);
+
+            let mut quads = Quads::new(&device, &queue);
+            quads.arc(
+                (arc.center_x, arc.center_y),
+                arc.radius,
+                (arc.start, arc.sweep),
+                6.0,
+                cap,
+                Color::BLACK,
+                Clips::default(),
+            );
+            compare(
+                &format!("arc with {name} caps"),
+                &by_quads(&mut quads),
+                &vello_pixels,
+            );
+        }
+
+        // a whole circle's edge, which has no ends
+        let mut circle = PathBuilder::new();
+        circle.arc(32.0, 32.0, 24.0, 0.0, 360.0);
+        circle.close();
+        let circle = circle.finish().unwrap();
+        let mut scene = Scene::new();
+        scene.stroke(
+            &stroke(3.0, Cap::Butt),
+            Affine::IDENTITY,
+            peniko::Color::BLACK,
+            None,
+            &bezier(&circle),
+        );
+        let vello_pixels = by_vello(&scene);
+        let mut quads = Quads::new(&device, &queue);
+        let whole = circle.arc.unwrap();
+        quads.arc(
+            (whole.center_x, whole.center_y),
+            whole.radius,
+            (whole.start, whole.sweep),
+            3.0,
+            Cap::Butt,
+            Color::BLACK,
+            Clips::default(),
+        );
+        compare("circle", &by_quads(&mut quads), &vello_pixels);
+
+        // a sparkline: a line through readings, with the area under it filled
+        let points = [
+            (4.0, 40.0),
+            (16.0, 20.0),
+            (28.0, 34.0),
+            (40.0, 8.0),
+            (52.0, 30.0),
+            (60.0, 26.0),
+        ];
+        let mut line = PathBuilder::new();
+        let mut area = PathBuilder::new();
+        area.move_to(4.0, 56.0);
+        for (i, (x, y)) in points.into_iter().enumerate() {
+            if i == 0 {
+                line.move_to(x, y);
+            } else {
+                line.line_to(x, y);
+            }
+            area.line_to(x, y);
+        }
+        area.line_to(60.0, 56.0);
+        area.close();
+        let line = line.finish().unwrap();
+        let area = area.finish().unwrap();
+
+        let mut scene = Scene::new();
+        scene.stroke(
+            &stroke(2.0, Cap::Round),
+            Affine::IDENTITY,
+            peniko::Color::BLACK,
+            None,
+            &bezier(&line),
+        );
+        let vello_pixels = by_vello(&scene);
+        let direction = |(x0, y0): (f32, f32), (x1, y1): (f32, f32)| {
+            let length = (x1 - x0).hypot(y1 - y0);
+            ((x1 - x0) / length, (y1 - y0) / length)
+        };
+        let cut = |i: usize| {
+            let (ax, ay) = direction(points[i - 1], points[i]);
+            let (bx, by) = direction(points[i], points[i + 1]);
+            (ax + bx, ay + by)
+        };
+        let segments = |quads: &mut Quads, color: Color| {
+            let last = points.len() - 2;
+            for (i, pair) in points.windows(2).enumerate() {
+                let cut_start = if i == 0 { (0.0, 0.0) } else { cut(i) };
+                let cut_finish = if i == last { (0.0, 0.0) } else { cut(i + 1) };
+                quads.segment(
+                    pair[0],
+                    pair[1],
+                    2.0,
+                    (Cap::Round, Cap::Round),
+                    (cut_start, cut_finish),
+                    color,
+                    Clips::default(),
+                );
+            }
+        };
+        let mut quads = Quads::new(&device, &queue);
+        segments(&mut quads, Color::BLACK);
+        compare("line", &by_quads(&mut quads), &vello_pixels);
+
+        // a see-through line must not darken where its pieces meet
+        let mut scene = Scene::new();
+        scene.stroke(
+            &stroke(6.0, Cap::Round),
+            Affine::IDENTITY,
+            peniko::Color::from_rgba8(0, 0, 0, 128),
+            None,
+            &bezier(&line),
+        );
+        let vello_pixels = by_vello(&scene);
+        let mut quads = Quads::new(&device, &queue);
+        let last = points.len() - 2;
+        for (i, pair) in points.windows(2).enumerate() {
+            let cut_start = if i == 0 { (0.0, 0.0) } else { cut(i) };
+            let cut_finish = if i == last { (0.0, 0.0) } else { cut(i + 1) };
+            quads.segment(
+                pair[0],
+                pair[1],
+                6.0,
+                (Cap::Round, Cap::Round),
+                (cut_start, cut_finish),
+                Color::rgba(0, 0, 0, 128),
+                Clips::default(),
+            );
+        }
+        let translucent = by_quads(&mut quads);
+        compare("see-through line", &translucent, &vello_pixels);
+        let darkest = (0..64 * 64)
+            .map(|i| i32::from(translucent[(i / 64) * 256 + (i % 64) * 4 + 3]))
+            .max()
+            .unwrap();
+        assert!(
+            darkest <= 130,
+            "pieces overlap: alpha {darkest} where 128 is the colour's"
+        );
+
+        let mut scene = Scene::new();
+        scene.fill(
+            Fill::NonZero,
+            Affine::IDENTITY,
+            peniko::Color::BLACK,
+            None,
+            &bezier(&area),
+        );
+        let vello_pixels = by_vello(&scene);
+        let mut quads = Quads::new(&device, &queue);
+        let under = super::super::super::paint::under_polyline(&area).unwrap();
+        for pair in under.0.windows(2) {
+            quads.trapezoid(pair[0], pair[1], under.1, Color::BLACK, Clips::default());
+        }
+        compare("area under the line", &by_quads(&mut quads), &vello_pixels);
+    }
+
     // the texture's rows, 256 bytes each (64 pixels of rgba8 at most)
     fn pixels(
         device: &Device,
