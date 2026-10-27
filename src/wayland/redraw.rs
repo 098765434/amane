@@ -45,7 +45,7 @@ impl OpenWindow {
         // what the compositor blurs behind the last frame shown, put back if this one is skipped
         let shown_blur = self.blur_sent();
 
-        self.update_surface(&content);
+        let unsent = self.update_surface(&content);
 
         // 0 until the compositor configures the window, and again while it is hidden
         if self.width == 0 || self.height == 0 {
@@ -59,6 +59,10 @@ impl OpenWindow {
         // a window without a child has nothing to show, which is a mistake but not a crash
         let Some(root) = root else {
             eprintln!("amane: {name} has no child to draw, see child()");
+
+            if unsent {
+                self.role.commit();
+            }
 
             return;
         };
@@ -121,8 +125,8 @@ impl OpenWindow {
              */
             self.restore_blur(shown_blur);
 
-            // a skipped frame commits nothing, so the request goes out on its own
-            if frame.moving {
+            // a skipped frame commits nothing, so the request and settings go out on their own
+            if frame.moving || unsent {
                 self.role.commit();
             }
         }
