@@ -185,6 +185,9 @@ fn to_interactivity(keyboard: Keyboard) -> KeyboardInteractivity {
 fn to_exclusive_zone(settings: &Settings, scale_factor: ScaleFactor) -> i32 {
     match settings.zone {
         Zone::Reserve => measure_thickness(settings, scale_factor),
+        Zone::Thickness(thickness) => {
+            scale_factor.coordinate(i32::try_from(thickness).unwrap_or(i32::MAX))
+        }
         Zone::Respect => 0,
         Zone::Ignore => -1,
     }
@@ -234,6 +237,9 @@ mod tests {
         assert_eq!(to_exclusive_zone(&settings, factor), 0);
         settings.zone = Zone::Ignore;
         assert_eq!(to_exclusive_zone(&settings, factor), -1);
+        // a set thickness, whatever the window's height
+        settings.zone = Zone::Thickness(20);
+        assert_eq!(to_exclusive_zone(&settings, factor), 28);
 
         settings.zone = Zone::Reserve;
         settings.horizontal = Horizontal::Left;

@@ -109,6 +109,13 @@ pub enum Zone {
     // keeps other windows out of the edge the window sits on
     Reserve,
 
+    /*
+     * keeps other windows out of this much of the edge, in logical pixels,
+     * however big the window is: a dock taller than its card, for the
+     * icons to grow into, reserves only the card
+     */
+    Thickness(u32),
+
     // reserves nothing, stays out of what others reserve
     #[default]
     Respect,
