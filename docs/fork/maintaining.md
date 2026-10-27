@@ -62,6 +62,7 @@ The crate doc at the top of `src/lib.rs` is a few fork lines linking here.
 | Hidden windows release their GPU memory, spares age out, Fifo presents | `3e9d18c` | `src/graphics/gpu.rs`, `src/graphics/gpu/{pool,present,target,atlas,quads}.rs`, `src/wayland/update.rs`; [memory](internals/memory.md) | yes |
 | `vello N` in the frame log; an empty vibrant layer unmaps and releases; a hide waits for the gpu; wgpu counts under `vello-stats` | `767c1d0`, `6dbdb9f`, `30e46a3` | `src/timing.rs`, `src/wayland/{redraw,vibrancy}.rs`, `src/graphics/gpu.rs`, `src/graphics/gpu/present.rs` | the log and the wait yes; the layer needs the niri fork |
 | vello's scratch pool let go when idle (`AMANE_VELLO_IDLE`), fork of vello's `vello` crate too | see git log | `Cargo.toml` (`[patch.crates-io]`), `flake.nix`, `src/wayland/idle_gpu.rs`, `src/graphics/gpu/shared.rs`; [memory](internals/memory.md) | the pool ageing belongs upstream in vello |
+| Drop shadows drawn by the quads (`AMANE_VELLO_SHADOWS`) | see git log | `src/graphics/gpu/quads.wgsl`, `src/graphics/gpu/quads/{batch,draw}.rs`, `src/graphics/gpu/paint.rs`; [memory](internals/memory.md) | yes |
 | Fork docs and housekeeping | `be25bb3`, `fe941a9`, `fe45a04`, `6bfdba8`, `033b216`, `81aa6c4`, and the `docs(fork)` commits | `FORK.md`, `docs/fork/` | no |
 
 `389fc29` stops letters being dropped when the glyph atlas fills mid-frame: the queued letters

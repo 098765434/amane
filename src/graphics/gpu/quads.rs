@@ -18,6 +18,10 @@ const QUAD_SIZE: usize = 9 * 4;
 const SHAPE: f32 = 0.0;
 const LETTER: f32 = 1.0;
 const PICTURE: f32 = 2.0;
+const SHADOW: f32 = 3.0;
+
+// how far past its rectangle a shadow's blur is drawn, in deviations; vello cuts its own off there too
+const SHADOW_REACH: f32 = 2.5;
 
 // quads next to each other that read the same image, drawn in one go
 struct Run {
@@ -29,9 +33,10 @@ struct Run {
 }
 
 /*
- * rounded rectangles, borders, letters and images gathered as they come and
- * drawn in one pass; this is most of what a shell shows, and the gpu draws
- * it far faster as plain triangles than vello does as vector shapes
+ * rounded rectangles, borders, letters, images and drop shadows gathered as
+ * they come and drawn in one pass; this is most of what a shell shows, and
+ * the gpu draws it far faster as plain triangles than vello does as vector
+ * shapes
  */
 pub struct Quads {
     pipeline: RenderPipeline,
