@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use vello::Scene;
 use vello::kurbo::Affine;
 use vello::peniko::{Fill, ImageData, Mix};
@@ -12,7 +14,7 @@ use super::convert::bezier;
 use super::quads::{Clip, Clips};
 
 /*
- * rectangles, borders and letters go to the quads, anything else to vello;
+ * rectangles, borders, drop shadows and letters go to the quads, anything else to vello;
  * whichever was gathering is drawn first when the other takes over, so
  * everything still lands on the canvas in order
  */
@@ -212,6 +214,26 @@ impl Gpu {
                 );
             }
 
+            Command::Shadow {
+                area,
+                radius,
+                transform,
+                color,
+                blur,
+            } => {
+                let scale = transform.even_scale().unwrap_or(1.0);
+
+                let area = device_area(area, transform);
+
+                self.quads.shadow(
+                    area,
+                    radius.largest() * scale,
+                    deviation(blur) * scale,
+                    color,
+                    clips,
+                );
+            }
+
             Command::Glyph {
                 face,
                 id,
@@ -258,7 +280,9 @@ impl Gpu {
                     .picture(&self.device, &self.queue, &image, placement, clips);
             }
 
-            _ => unreachable!("only rectangles, borders, letters and images go to the quads"),
+            _ => unreachable!(
+                "only rectangles, borders, shadows, letters and images go to the quads"
+            ),
         }
     }
 
@@ -332,11 +356,23 @@ enum Route {
     // a clip the quads apply themselves, its commands routed like any others
     QuadClip(Clip),
 
-    // rectangles, borders, letters and images that move and scale without turning
+    // rectangles, borders, drop shadows, letters and images that move and scale without turning
     Quads,
 
-    // paths, gradients, shadows, and anything turned or stretched
+    // paths, gradients, inner shadows, and anything turned or stretched
     Vello,
+}
+
+/*
+ * AMANE_VELLO_SHADOWS=1 draws drop shadows with vello, as before the quads
+ * drew them; the two use the same formula, so this is for telling them apart
+ */
+static VELLO_SHADOWS: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("AMANE_VELLO_SHADOWS").is_some());
+
+// like css, a shadow's blur reaches twice as far as the deviation of the gaussian behind it
+pub(super) fn deviation(blur: f32) -> f32 {
+    blur / 2.0
 }
 
 fn route(command: &Command) -> Route {
@@ -369,6 +405,14 @@ fn route(command: &Command) -> Route {
 
         Command::Glyph { .. } => Route::Quads,
 
+        Command::Shadow { transform, .. } => {
+            if transform.even_scale().is_some() && !*VELLO_SHADOWS {
+                Route::Quads
+            } else {
+                Route::Vello
+            }
+        }
+
         Command::Image {
             transform,
             clip_transform,
@@ -384,7 +428,6 @@ fn route(command: &Command) -> Route {
         Command::Fill { .. }
         | Command::Gradient { .. }
         | Command::Stroke { .. }
-        | Command::Shadow { .. }
         | Command::InnerShadow { .. } => Route::Vello,
     }
 }

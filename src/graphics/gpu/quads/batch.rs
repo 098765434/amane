@@ -7,7 +7,7 @@ use crate::graphics::{Area, Color, Corners};
 
 use super::clip::NO_CLIP;
 use super::pipeline::picture_group;
-use super::{Clip, Clips, LETTER, PICTURE, QUAD_SIZE, Quads, Run, SHAPE};
+use super::{Clip, Clips, LETTER, PICTURE, QUAD_SIZE, Quads, Run, SHADOW, SHADOW_REACH, SHAPE};
 
 impl Quads {
     // area and radius in canvas pixels
@@ -19,6 +19,32 @@ impl Quads {
             clips,
             SHAPE,
             [0.0; 4],
+            None,
+        );
+    }
+
+    /*
+     * a drop shadow: the rectangle blurred by a gaussian of the given
+     * deviation, in canvas pixels, every corner rounded by radius (as vello
+     * draws it: the largest corner); the quad covers how far the blur reaches
+     */
+    pub fn shadow(&mut self, area: Area, radius: f32, deviation: f32, color: Color, clips: Clips) {
+        let reach = SHADOW_REACH * deviation;
+
+        let covered = Area::new(
+            area.x - reach,
+            area.y - reach,
+            area.width + reach * 2.0,
+            area.height + reach * 2.0,
+        );
+
+        self.push(
+            covered,
+            (Corners::from(radius), deviation),
+            rgba(color),
+            clips,
+            SHADOW,
+            [area.x, area.y, area.width, area.height],
             None,
         );
     }

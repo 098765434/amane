@@ -70,7 +70,6 @@ fn rounded(area: Area) -> kurbo::Rect {
     )
 }
 
-// like css, a shadow's blur reaches twice as far as the spread of the gaussian behind it
 fn deviation(blur: f32) -> f64 {
-    f64::from(blur) / 2.0
+    f64::from(super::paint::deviation(blur))
 }

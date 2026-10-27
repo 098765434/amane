@@ -187,26 +187,138 @@ mod tests {
         );
         quads.draw(&device, &queue, &canvas);
 
+        let pixels = pixels(&device, &queue, &canvas, 16, 16);
+        let pixel = |x: usize, y: usize| &pixels[y * 256 + x * 4..y * 256 + x * 4 + 4];
+        assert_eq!(pixel(8, 8), [0, 0, 0, 0]);
+        assert_eq!(pixel(4, 4), [0, 0, 255, 255]);
+        assert_eq!(pixel(1, 1), [0, 0, 191, 191]);
+        assert_eq!(pixel(8, 14), [255, 0, 0, 255]);
+    }
+
+    // the shadow quad is vello's blurred rounded rectangle, pixel for pixel
+    #[test]
+    #[ignore = "requires a graphics adapter"]
+    fn draws_a_shadow_as_vello_does() {
+        use std::num::NonZeroUsize;
+
+        use vello::kurbo::{Affine, Rect};
+        use vello::peniko;
+        use vello::wgpu::{TextureDescriptor, TextureDimension, TextureFormat, TextureUsages};
+        use vello::{AaConfig, AaSupport, RenderParams, RendererOptions, Scene};
+
+        let instance = Instance::new(InstanceDescriptor::new_without_display_handle_from_env());
+        let adapter = wait(instance.request_adapter(&RequestAdapterOptions::default()))
+            .expect("failed to find a gpu");
+        let (device, queue) =
+            wait(adapter.request_device(&DeviceDescriptor::default())).expect("failed to open gpu");
+
+        let area = Area::new(16.0, 12.0, 32.0, 28.0);
+        let (radius, deviation) = (8.0, 4.0);
+
+        // by the quads, onto a cleared canvas: premultiplied, so black's alpha is the amount
+        let canvas = texture::canvas(&device, 64, 64);
+        let mut quads = Quads::new(&device, &queue);
+        quads.shadow(area, radius, deviation, Color::BLACK, Clips::default());
+        quads.draw(&device, &queue, &canvas);
+        let by_quads = pixels(&device, &queue, &canvas, 64, 64);
+
+        // by vello, the way shadow.rs draws them; vello takes the blur at each pixel's
+        // corner where the quads take their pixel's middle, so its rectangle is moved half
+        // a pixel to land on the same pixels
+        let target = device.create_texture(&TextureDescriptor {
+            label: None,
+            size: Extent3d {
+                width: 64,
+                height: 64,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Rgba8Unorm,
+            usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+        let options = RendererOptions {
+            antialiasing_support: AaSupport::area_only(),
+            num_init_threads: NonZeroUsize::new(1),
+            ..RendererOptions::default()
+        };
+        let mut vello = vello::Renderer::new(&device, options).expect("failed to start vello");
+        let mut scene = Scene::new();
+        scene.draw_blurred_rounded_rect(
+            Affine::IDENTITY,
+            Rect::new(
+                f64::from(area.x) - 0.5,
+                f64::from(area.y) - 0.5,
+                f64::from(area.x + area.width) - 0.5,
+                f64::from(area.y + area.height) - 0.5,
+            ),
+            peniko::Color::BLACK,
+            f64::from(radius),
+            f64::from(deviation),
+        );
+        let params = RenderParams {
+            base_color: peniko::Color::TRANSPARENT,
+            width: 64,
+            height: 64,
+            antialiasing_method: AaConfig::Area,
+        };
+        vello
+            .render_to_texture(&device, &queue, &scene, &texture::view(&target), &params)
+            .expect("failed to draw scene");
+        let by_vello = pixels(&device, &queue, &target, 64, 64);
+
+        let alpha = |pixels: &[u8], x: usize, y: usize| i32::from(pixels[y * 256 + x * 4 + 3]);
+        let mut worst = 0;
+        for y in 0..64 {
+            for x in 0..64 {
+                worst = worst.max((alpha(&by_quads, x, y) - alpha(&by_vello, x, y)).abs());
+            }
+        }
+        // the middle is nearly solid, the far corner of the reach nearly clear, the edge half
+        assert!(
+            alpha(&by_quads, 32, 26) > 240,
+            "{}",
+            alpha(&by_quads, 32, 26)
+        );
+        assert!(alpha(&by_quads, 7, 3) < 8, "{}", alpha(&by_quads, 7, 3));
+        let edge = alpha(&by_quads, 32, 12);
+        assert!((100..160).contains(&edge), "{edge}");
+        assert!(
+            worst <= 2,
+            "the quads' shadow differs from vello's by {worst}/255"
+        );
+    }
+
+    // the texture's rows, 256 bytes each (64 pixels of rgba8 at most)
+    fn pixels(
+        device: &Device,
+        queue: &Queue,
+        texture: &Texture,
+        width: u32,
+        height: u32,
+    ) -> Vec<u8> {
         let readback = device.create_buffer(&BufferDescriptor {
             label: None,
-            size: 256 * 16,
+            size: 256 * u64::from(height),
             usage: BufferUsages::COPY_DST | BufferUsages::MAP_READ,
             mapped_at_creation: false,
         });
         let mut encoder = device.create_command_encoder(&Default::default());
         encoder.copy_texture_to_buffer(
-            canvas.as_image_copy(),
+            texture.as_image_copy(),
             TexelCopyBufferInfo {
                 buffer: &readback,
                 layout: TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(256),
-                    rows_per_image: Some(16),
+                    rows_per_image: Some(height),
                 },
             },
             Extent3d {
-                width: 16,
-                height: 16,
+                width,
+                height,
                 depth_or_array_layers: 1,
             },
         );
@@ -218,11 +330,6 @@ mod tests {
         device.poll(PollType::wait_indefinitely()).unwrap();
         receive.recv().unwrap().unwrap();
 
-        let pixels = readback.slice(..).get_mapped_range().unwrap();
-        let pixel = |x: usize, y: usize| &pixels[y * 256 + x * 4..y * 256 + x * 4 + 4];
-        assert_eq!(pixel(8, 8), [0, 0, 0, 0]);
-        assert_eq!(pixel(4, 4), [0, 0, 255, 255]);
-        assert_eq!(pixel(1, 1), [0, 0, 191, 191]);
-        assert_eq!(pixel(8, 14), [255, 0, 0, 255]);
+        readback.slice(..).get_mapped_range().unwrap().to_vec()
     }
 }

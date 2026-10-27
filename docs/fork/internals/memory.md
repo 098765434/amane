@@ -131,6 +131,35 @@ then 123 MB again. The `gradient` example: 65 MB → 49 MB (wgpu's allocator kee
 its blocks). The launcher alone never runs vello (its glass and text are the quads'), so it
 is unaffected: 59 MB at start, 317 open, 59 closed.
 
+## Drop shadows are quads
+
+**What it cost.** `paint.rs` routes rectangles, borders, letters and straight images to the
+quads and everything else to vello, and a drop shadow was everything else. A window whose only
+vector content was the shadow under each card (Quick Settings, the launcher's results, the
+dock, toasts) ran vello for every frame that had one: a scene upload, a dozen compute passes
+and a scratch texture per run, the scratch pool allocated for the process, and a quads flush
+on each side of every shadow so the order held. Quick Settings opening and closing took 465
+vello runs.
+
+**What changed.** `quads.wgsl` has a fourth kind of quad, the shadow: the rectangle grown by
+2.5 deviations (where vello cuts its blur off too), with vello's own closed form for a
+gaussian-blurred rounded rectangle in the fragment shader (`shadow()`, after Raph Levien's
+derivation, the same `erf7`), so it draws the same pixels. `Quads::shadow` takes the
+rectangle, the largest corner (as vello rounds them), the deviation and the colour;
+`route()` sends a `Shadow` whose transform is an even scale there. Inner shadows and turned
+shadows stay with vello. The quads take the blur at each pixel's middle, where vello took it
+at the corner, so a shadow sits half a pixel further down and right than before; at the blurs
+a shell uses that is not visible.
+
+**Switching it off.** `AMANE_VELLO_SHADOWS=1` sends drop shadows back to vello.
+
+**Checked** by `draws_a_shadow_as_vello_does` (`quads/draw.rs`, needs a GPU: `cargo test
+--lib quads -- --ignored`), which draws one shadow both ways and allows 2/255 of
+difference. **Measured** on a second shell, VRAM of the process, Quick Settings opened and
+closed: 59 MB at start, 124 open (was 252), 59 closed (was 219, and 123 after the idle
+release); no vello run at all, so nothing to release. The GTT it takes to open fell from
+108 MB to 78.
+
 ## A hidden window holds nothing on the GPU
 
 **What it cost.** `hide()` (`src/wayland/update.rs`) took the buffer away and nothing else. The
@@ -168,9 +197,9 @@ while, so without it the window's textures stayed until the next frame of any wi
 
 What stayed after a vello-drawing window closed (about 96 MB over the start) was vello's pool:
 its scratch set and the upload buffers of every scene size it saw. That is now let go when idle
-(the section below). **Open:** Quick Settings still costs about 110 MB of GTT to open, which
-stays after it hides and grows a little on each reopening (10 → 117 → 151 MB over two), and
-about 64 MB of VRAM over the start once idle. With upstream's scratch sizes it costs 128 MB
+(below), and Quick Settings no longer runs vello at all since its shadows became quads (below
+that): it closes back to the start figure. **Open:** it still costs about 68 MB of GTT to
+open, which stays after it hides (10 → 78 MB). With upstream's scratch sizes it cost 128 MB
 more, so the fork's sizing holds; `AMANE_PRESENT=mailbox` makes no difference; vello's image
 atlas stays at 1×1. The GTT is below wgpu's accounting (its Vulkan allocator's blocks, or
 mapped upload memory); the next step is a driver-level view (`VK_EXT_device_memory_report`, or
