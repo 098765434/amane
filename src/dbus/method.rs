@@ -58,6 +58,16 @@ impl Method {
 
         let _ = self.connection.reply(&header, &body);
     }
+
+    /*
+     * answers with an error like org.bluez.Error.Rejected, so the caller
+     * knows the call was refused rather than answered
+     */
+    pub fn reply_error(&self, name: &str, message: &str) {
+        let header = self.message.header();
+
+        let _ = self.connection.reply_error(&header, name, &message);
+    }
 }
 
 impl Bus {

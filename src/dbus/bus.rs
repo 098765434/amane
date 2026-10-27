@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use zbus::blocking::Connection;
 use zbus::fdo::{RequestNameFlags, RequestNameReply};
 
-use super::{Argument, Value, convert};
+use super::{Argument, BusError, Value, convert};
 
 /*
  * one connection per bus for the whole program, every service thread shares
@@ -46,8 +46,21 @@ impl Bus {
         method: &str,
         arguments: &[Argument],
     ) -> Value {
+        self.try_call(destination, path, interface, method, arguments)
+            .unwrap_or(Value::Nothing)
+    }
+
+    // like call(), but says why it failed, for a caller that shows the reason
+    pub fn try_call(
+        &self,
+        destination: &str,
+        path: &str,
+        interface: &str,
+        method: &str,
+        arguments: &[Argument],
+    ) -> Result<Value, BusError> {
         let Some(connection) = self.connection else {
-            return Value::Nothing;
+            return Err(BusError::no_bus());
         };
 
         let reply = if arguments.is_empty() {
@@ -58,18 +71,16 @@ impl Bus {
             connection.call_method(Some(destination), path, Some(interface), method, &body)
         };
 
-        let Ok(reply) = reply else {
-            return Value::Nothing;
-        };
+        let reply = reply.map_err(BusError::from)?;
 
         let mut values = convert::arguments(&reply);
 
         // most methods answer with one value, so it comes back on its own
-        match values.len() {
+        Ok(match values.len() {
             0 => Value::Nothing,
             1 => values.remove(0),
             _ => Value::List(values),
-        }
+        })
     }
 
     pub fn property(&self, destination: &str, path: &str, interface: &str, name: &str) -> Value {
@@ -92,6 +103,17 @@ impl Bus {
         name: &str,
         value: Argument,
     ) {
+        let _ = self.try_set_property(destination, path, interface, name, value);
+    }
+
+    pub fn try_set_property(
+        &self,
+        destination: &str,
+        path: &str,
+        interface: &str,
+        name: &str,
+        value: Argument,
+    ) -> Result<(), BusError> {
         // a property can be of any kind, so the new value travels as a variant
         let arguments = [
             Argument::from(interface),
@@ -99,13 +121,14 @@ impl Bus {
             Argument::Variant(Box::new(value)),
         ];
 
-        self.call(
+        self.try_call(
             destination,
             path,
             "org.freedesktop.DBus.Properties",
             "Set",
             &arguments,
-        );
+        )
+        .map(|_| ())
     }
 
     // sent to everyone watching, and a failed send only means nobody hears it
