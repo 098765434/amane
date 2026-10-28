@@ -185,6 +185,13 @@ impl WaylandState {
         popups
     }
 
+    // opens again the app windows the compositor closed, letting it choose the monitor
+    pub fn reopen_closed(&mut self) {
+        for view in std::mem::take(&mut self.closed_views) {
+            self.open(View::Plain(view), None);
+        }
+    }
+
     pub fn close(&mut self, surface: &WlSurface) {
         // xdg-shell wants a window's popups gone before the window itself
         for namespace in self.popups_over(surface) {
@@ -194,8 +201,12 @@ impl WaylandState {
         self.windows
             .retain(|window| window.role.wl_surface() != surface);
 
-        // windows made per monitor come back when a monitor is plugged in again
-        if self.windows.is_empty() && self.per_monitor.is_empty() && !self.keep_alive {
+        // windows made per monitor, or closed with their monitor, come back when one is plugged in
+        if self.windows.is_empty()
+            && self.per_monitor.is_empty()
+            && self.closed_views.is_empty()
+            && !self.keep_alive
+        {
             self.running = false;
         }
     }

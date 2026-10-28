@@ -14,6 +14,7 @@ use crate::scale::ScaleFactor;
 use crate::{Horizontal, Keyboard, Layer, LayerWindow, Margin, Vertical, WindowSize, Zone};
 
 use super::WaylandState;
+use super::surface::View;
 
 // the parts of the window the compositor knows about, kept to see what the next view changes
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -74,7 +75,31 @@ impl LayerShellHandler for WaylandState {
     }
 
     fn closed(&mut self, _: &Connection, _: &QueueHandle<Self>, layer_surface: &LayerSurface) {
+        /*
+         * the compositor closes a layer surface whose monitor goes away (niri
+         * even does when a monitor is only set up again, as for HDR); an app's
+         * own window, like a bar, is kept to open again rather than lost
+         */
+        let reopen = self
+            .window(layer_surface.wl_surface())
+            .and_then(|window| match window.view {
+                View::Plain(view) => Some(view),
+                _ => None,
+            });
+
+        // kept before closing, so the app doesn't count it as its last window and quit
+        if let Some(view) = reopen {
+            self.closed_views.push(view);
+        }
+
         self.close(layer_surface.wl_surface());
+
+        if reopen.is_some() {
+            // with another monitor still there it can open there now
+            if self.output.outputs().count() > 1 {
+                self.reopen_closed();
+            }
+        }
     }
 }
 
