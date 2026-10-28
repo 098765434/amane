@@ -36,7 +36,7 @@ for device in battery.peripherals() {
 | `charging()` | `true` while charging | ✅ |
 | `full()` | plugged in and not charging | ✅ |
 | `state()` | `BatteryState`: `Charging`, `Discharging`, `Empty`, `Full`, `PendingCharge`, `PendingDischarge`, `Unknown` | ✅ |
-| `on_ac()` | plugged in (UPower's `OnBattery`, inverted) | from status |
+| `on_ac()` | plugged in (UPower's `OnBattery`, inverted) | a `Mains` supply's `online`; from the status only when the kernel lists no adapter (some laptops report "Discharging" or "Unknown" with the charger in) |
 | `warning()` | `WarningLevel`: `None`, `Discharging`, `Low`, `Critical`, `Action` | always `None` |
 | `time_to_empty()` / `time_to_full()` | `Option<Duration>`, `None` while UPower is still estimating | always `None` |
 | `icon()` | a freedesktop icon name like `battery-good-charging-symbolic` | empty |

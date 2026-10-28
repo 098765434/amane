@@ -81,7 +81,7 @@ impl Service for Battery {
             return false;
         };
 
-        let before = (self.percent, self.state);
+        let before = (self.percent, self.state, self.on_ac);
 
         let capacity = read(path, "capacity");
         let status = read(path, "status");
@@ -98,9 +98,13 @@ impl Service for Battery {
 
         self.charging = self.state == BatteryState::Charging;
         self.full = matches!(self.state, BatteryState::Full | BatteryState::PendingCharge);
-        self.on_ac = self.charging || self.full;
+        /*
+         * the adapter says whether it's plugged in; the battery's status alone can't, it reads
+         * "Discharging" or "Unknown" on some laptops with the charger in
+         */
+        self.on_ac = mains_online(Path::new(POWER_SUPPLIES)).unwrap_or(self.charging || self.full);
 
-        (self.percent, self.state) != before
+        (self.percent, self.state, self.on_ac) != before
     }
 
     fn listen() {
@@ -240,8 +244,53 @@ fn find() -> Option<PathBuf> {
     None
 }
 
+// whether a mains adapter is plugged in; none when the kernel lists no adapter
+fn mains_online(supplies: &Path) -> Option<bool> {
+    let mut adapters = fs::read_dir(supplies)
+        .ok()?
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| read(path, "type") == "Mains")
+        .peekable();
+
+    adapters.peek()?;
+
+    Some(adapters.any(|path| read(&path, "online") == "1"))
+}
+
 fn read(folder: &Path, name: &str) -> String {
     let text = fs::read_to_string(folder.join(name)).unwrap_or_default();
 
     String::from(text.trim())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn supply(root: &Path, name: &str, kind: &str, online: &str) {
+        let folder = root.join(name);
+        fs::create_dir_all(&folder).unwrap();
+        fs::write(folder.join("type"), format!("{kind}\n")).unwrap();
+        fs::write(folder.join("online"), format!("{online}\n")).unwrap();
+    }
+
+    #[test]
+    fn the_adapter_says_whether_it_is_plugged_in() {
+        let root = std::env::temp_dir().join(format!("amane-supplies-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+
+        // no adapter listed: the battery's status has to do
+        fs::create_dir_all(&root).unwrap();
+        assert_eq!(mains_online(&root), None);
+
+        supply(&root, "BAT0", "Battery", "");
+        supply(&root, "AC", "Mains", "0");
+        assert_eq!(mains_online(&root), Some(false));
+
+        supply(&root, "AC", "Mains", "1");
+        assert_eq!(mains_online(&root), Some(true));
+
+        let _ = fs::remove_dir_all(&root);
+    }
 }
