@@ -91,6 +91,13 @@ struct WaylandState {
     // each of these gets a window on every monitor, including ones plugged in later
     per_monitor: Vec<fn(&Monitor) -> LayerWindow>,
 
+    /*
+     * app windows the compositor closed, as it does when their monitor goes
+     * away; they open again on the next monitor, or at once when another is
+     * still there
+     */
+    closed_views: Vec<fn() -> LayerWindow>,
+
     scale_factor: ScaleFactor,
 
     // keys do not say which window they are for, so the window that has focus is kept
@@ -281,6 +288,7 @@ impl WaylandApp {
             last_input_serial: None,
 
             per_monitor,
+            closed_views: Vec::new(),
 
             scale_factor,
 
