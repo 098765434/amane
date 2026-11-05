@@ -99,6 +99,16 @@ impl Renderer {
         });
     }
 
+    // the gradient is laid over the area, the path in the area's own coordinates
+    pub fn gradient_path(&mut self, path: &BezierPath, area: Area, gradient: &Gradient) {
+        self.commands.push(Command::Gradient {
+            path: path.clone(),
+            area: Area::new(0.0, 0.0, area.width, area.height),
+            transform: self.inside(area),
+            gradient: gradient.clone(),
+        });
+    }
+
     pub fn stroke_path(
         &mut self,
         path: &BezierPath,

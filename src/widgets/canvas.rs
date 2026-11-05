@@ -73,7 +73,9 @@ fn paint(shape: &dyn Shape, renderer: &mut Renderer, area: Area) {
     let mut group = renderer.group();
 
     // shapes start without a fill, and drawing an invisible one would still cost the gpu
-    if style.fill != Color::TRANSPARENT {
+    if let Some(gradient) = &style.gradient {
+        group.gradient_path(&path, area, gradient);
+    } else if style.fill != Color::TRANSPARENT {
         group.fill_path(&path, area, style.fill);
     }
 

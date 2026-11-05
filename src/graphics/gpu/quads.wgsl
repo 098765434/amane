@@ -1,5 +1,5 @@
-// rounded rectangles, borders, letters, images, drop shadows, arcs, lines and the area under
-// a line, each drawn as one quad of two triangles
+// rounded rectangles, borders, letters, images, drop shadows, arcs, lines, the area under
+// a line and small filled outlines, each drawn as one quad of two triangles
 
 struct Quad {
     // where it is on the canvas, in pixels: x, y, width, height;
@@ -14,12 +14,14 @@ struct Quad {
 
     // border thickness (0 fills it), a shadow's gaussian deviation, or half an arc's or
     // line's thickness; a line's cut at its start (see segment); and the kind: 0 a shape,
-    // 1 a letter, 2 an image, 3 a shadow, 4 an arc, 5 a line, 6 the area under a line
+    // 1 a letter, 2 an image, 3 a shadow, 4 an arc, 5 a line, 6 the area under a line,
+    // 7 a filled outline
     shape: vec4<f32>,
 
     // where it reads from, left, top, right, bottom: a letter's texels in the atlas,
     // or the part of the image, from 0 to 1; a shadow's rectangle, x, y, width, height;
-    // an arc's centre, start and sweep in radians (0 up, clockwise); a line's two ends
+    // an arc's centre, start and sweep in radians (0 up, clockwise); a line's two ends;
+    // an outline's first point in points and how many it has
     source: vec4<f32>,
 
     inner_clip: vec4<f32>,
@@ -33,11 +35,19 @@ struct Quad {
 
     clip_radius: vec4<f32>,
     inner_radius: vec4<f32>,
+
+    // a two-stop linear gradient from color to color2: the direction it runs (x, y), where
+    // along it color is, and how far on color2 is; a length of 0 paints color alone
+    color2: vec4<f32>,
+    gradient: vec4<f32>,
 }
 
 @group(0) @binding(0) var<storage, read> quads: array<Quad>;
 @group(0) @binding(1) var<uniform> canvas: vec4<f32>;
 @group(0) @binding(2) var atlas: texture_2d<f32>;
+
+// the corners of every filled outline, each outline's after the one before
+@group(0) @binding(3) var<storage, read> points: array<vec2<f32>>;
 
 @group(1) @binding(0) var picture: texture_2d<f32>;
 @group(1) @binding(1) var picture_sampler: sampler;
@@ -108,6 +118,36 @@ fn rounded_rectangle(point: vec2<f32>, rect: vec4<f32>, radius: vec4<f32>) -> f3
 }
 
 // one pixel of soft edge
+// how far point is outside a closed outline of points, negative inside (nonzero winding)
+fn outline(point: vec2<f32>, first: u32, count: u32) -> f32 {
+    var winding = 0;
+    var nearest = 1.0e9;
+
+    for (var i = 0u; i < count; i++) {
+        let a = points[first + i];
+        let b = points[first + (i + 1u) % count];
+
+        let along = b - a;
+        let from_a = point - a;
+
+        let t = clamp(dot(from_a, along) / max(dot(along, along), 1.0e-6), 0.0, 1.0);
+        nearest = min(nearest, length(from_a - along * t));
+
+        // which side of the edge the point is on: positive left of it
+        let side = along.x * from_a.y - along.y * from_a.x;
+
+        if a.y <= point.y {
+            if b.y > point.y && side > 0.0 {
+                winding += 1;
+            }
+        } else if b.y <= point.y && side < 0.0 {
+            winding -= 1;
+        }
+    }
+
+    return select(nearest, -nearest, winding != 0);
+}
+
 fn coverage(distance: f32) -> f32 {
     return clamp(0.5 - distance, 0.0, 1.0);
 }
@@ -293,6 +333,8 @@ fn fragment(corner: Corner) -> @location(0) vec4<f32> {
         amount = coverage(segment(corner.point, quad.source.xy, quad.source.zw, quad.shape.x, quad.radius.x, quad.radius.y, quad.shape.yz, quad.radius.zw));
     } else if quad.shape.w == 6.0 {
         amount = trapezoid(corner.point, quad.source.xy, quad.source.zw, quad.radius.x);
+    } else if quad.shape.w == 7.0 {
+        amount = coverage(outline(corner.point, u32(quad.source.x), u32(quad.source.y)));
     } else {
         amount = coverage(rounded_rectangle(corner.point, quad.rect, quad.radius));
 
@@ -315,7 +357,15 @@ fn fragment(corner: Corner) -> @location(0) vec4<f32> {
 
     amount = amount * clip;
 
-    let alpha = quad.color.a * amount;
+    var color = quad.color;
 
-    return vec4<f32>(quad.color.rgb * alpha, alpha);
+    if quad.gradient.w > 0.0 {
+        let along = (dot(corner.point, quad.gradient.xy) - quad.gradient.z) / quad.gradient.w;
+
+        color = mix(quad.color, quad.color2, clamp(along, 0.0, 1.0));
+    }
+
+    let alpha = color.a * amount;
+
+    return vec4<f32>(color.rgb * alpha, alpha);
 }

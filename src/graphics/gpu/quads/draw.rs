@@ -49,6 +49,23 @@ impl Quads {
             usage: BufferUsages::STORAGE,
         });
 
+        // a binding can't be empty, so a frame without outlines sends one unused point
+        if self.points.is_empty() {
+            self.points.extend([0.0, 0.0]);
+        }
+
+        let points: Vec<u8> = self
+            .points
+            .drain(..)
+            .flat_map(|value| value.to_ne_bytes())
+            .collect();
+
+        let points = device.create_buffer_init(&BufferInitDescriptor {
+            label: None,
+            contents: &points,
+            usage: BufferUsages::STORAGE,
+        });
+
         let size: Vec<u8> = [canvas.width() as f32, canvas.height() as f32, 0.0, 0.0]
             .iter()
             .flat_map(|value| value.to_ne_bytes())
@@ -77,6 +94,10 @@ impl Quads {
                 BindGroupEntry {
                     binding: 2,
                     resource: BindingResource::TextureView(&atlas),
+                },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: points.as_entire_binding(),
                 },
             ],
         });
@@ -568,6 +589,75 @@ mod tests {
             quads.trapezoid(pair[0], pair[1], under.1, Color::BLACK, Clips::default());
         }
         compare("area under the line", &by_quads(&mut quads), &vello_pixels);
+
+        // a closed outline with curves and a curl, like a message bubble's tail
+        let mut bubble = PathBuilder::new();
+        bubble.move_to(12.0, 8.0);
+        bubble.line_to(44.0, 8.0);
+        bubble.cubic_to(52.0, 8.0, 56.0, 14.0, 56.0, 22.0);
+        bubble.cubic_to(56.0, 30.0, 58.0, 36.0, 62.0, 40.0);
+        bubble.cubic_to(54.0, 40.0, 48.0, 38.0, 44.0, 36.0);
+        bubble.line_to(12.0, 36.0);
+        bubble.cubic_to(4.0, 36.0, 4.0, 8.0, 12.0, 8.0);
+        bubble.close();
+        let bubble = bubble.finish().unwrap();
+        let mut scene = Scene::new();
+        scene.fill(
+            Fill::NonZero,
+            Affine::IDENTITY,
+            peniko::Color::BLACK,
+            None,
+            &bezier(&bubble),
+        );
+        let vello_pixels = by_vello(&scene);
+        let mut quads = Quads::new(&device, &queue);
+        let corners = super::super::super::paint::outline_corners(&bubble, 1.0).unwrap();
+        quads.outline(
+            &corners,
+            super::super::Paint::solid(Color::BLACK),
+            Clips::default(),
+        );
+        compare("curved outline", &by_quads(&mut quads), &vello_pixels);
+
+        // a two-stop gradient top to bottom: the same colours as vello's, row by row
+        let mut scene = Scene::new();
+        let gradient = peniko::Gradient::new_linear((0.0, 8.0), (0.0, 56.0)).with_stops(
+            [
+                (0.0, peniko::Color::from_rgba8(78, 186, 255, 255)),
+                (1.0, peniko::Color::from_rgba8(0, 136, 255, 255)),
+            ]
+            .as_slice(),
+        );
+        scene.fill(
+            Fill::NonZero,
+            Affine::IDENTITY,
+            &gradient,
+            None,
+            &vello::kurbo::Rect::new(8.0, 8.0, 56.0, 56.0),
+        );
+        let vello_pixels = by_vello(&scene);
+        let mut quads = Quads::new(&device, &queue);
+        quads.outline(
+            &[(8.0, 8.0), (56.0, 8.0), (56.0, 56.0), (8.0, 56.0)],
+            super::super::Paint::linear(
+                Color::rgb(78, 186, 255),
+                Color::rgb(0, 136, 255),
+                (0.0, 8.0),
+                (0.0, 56.0),
+            ),
+            Clips::default(),
+        );
+        let quad_pixels = by_quads(&mut quads);
+        for y in [10, 32, 54] {
+            for channel in 0..3 {
+                let q = i32::from(quad_pixels[y * 256 + 32 * 4 + channel]);
+                let v = i32::from(vello_pixels[y * 256 + 32 * 4 + channel]);
+                assert!(
+                    (q - v).abs() <= 3,
+                    "gradient row {y} channel {channel}: quads {q}, vello {v}"
+                );
+            }
+        }
     }
 
     // the texture's rows, 256 bytes each (64 pixels of rgba8 at most)

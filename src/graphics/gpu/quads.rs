@@ -9,10 +9,11 @@ use vello::wgpu::{BindGroup, BindGroupLayout, RenderPipeline, Sampler};
 
 use super::atlas::Atlas;
 
+pub use batch::Paint;
 pub use clip::{Clip, Clips};
 
-// how many numbers one quad takes: Quad in quads.wgsl has seven rows of four
-const QUAD_SIZE: usize = 9 * 4;
+// how many numbers one quad takes: Quad in quads.wgsl has eleven rows of four
+const QUAD_SIZE: usize = 11 * 4;
 
 // what kind of quad it is, as quads.wgsl tells them apart
 const SHAPE: f32 = 0.0;
@@ -22,6 +23,7 @@ const SHADOW: f32 = 3.0;
 const ARC: f32 = 4.0;
 const SEGMENT: f32 = 5.0;
 const TRAPEZOID: f32 = 6.0;
+const OUTLINE: f32 = 7.0;
 
 // how far past its rectangle a shadow's blur is drawn, in deviations; vello cuts its own off there too
 const SHADOW_REACH: f32 = 2.5;
@@ -37,7 +39,7 @@ struct Run {
 
 /*
  * rounded rectangles, borders, letters, images, drop shadows, arcs, straight
- * lines and the area under a line, gathered as they come and drawn in one
+ * lines, the area under a line and small filled outlines, gathered as they come and drawn in one
  * pass; this is most of what a shell shows, and the gpu draws it far faster
  * as plain triangles than vello does as vector shapes
  */
@@ -59,6 +61,9 @@ pub struct Quads {
 
     // every quad's numbers one after another, as quads.wgsl reads them
     waiting: Vec<f32>,
+
+    // the corners of the filled outlines among them, x and y one after another
+    points: Vec<f32>,
     runs: Vec<Run>,
 }
 
@@ -70,6 +75,7 @@ impl Quads {
         self.atlas.release();
 
         self.waiting = Vec::new();
+        self.points = Vec::new();
         self.runs = Vec::new();
     }
 }
