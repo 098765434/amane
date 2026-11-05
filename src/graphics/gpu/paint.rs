@@ -7,12 +7,12 @@ use vello::wgpu::Texture;
 
 use crate::graphics::path::Segment;
 use crate::graphics::renderer::Command;
-use crate::graphics::{Area, BezierPath, Cap, Corners, Join, Transform};
+use crate::graphics::{Area, BezierPath, Cap, Color, Corners, Gradient, Join, Transform};
 
 use super::Gpu;
 use super::bounds::Reach;
 use super::convert::bezier;
-use super::quads::{Clip, Clips};
+use super::quads::{Clip, Clips, Paint};
 
 /*
  * rectangles, borders, drop shadows and letters go to the quads, anything else to vello;
@@ -324,6 +324,14 @@ impl Gpu {
                 }
 
                 let Some((points, baseline)) = under_polyline(&path) else {
+                    // any other small closed outline, curves flattened
+                    if let Some(corners) = outline_corners(&path, scale) {
+                        let corners: Vec<(f32, f32)> =
+                            corners.iter().map(|(x, y)| transform.map(*x, *y)).collect();
+
+                        self.quads.outline(&corners, Paint::solid(color), clips);
+                    }
+
                     return;
                 };
 
@@ -341,6 +349,27 @@ impl Gpu {
                         clips,
                     );
                 }
+            }
+
+            Command::Gradient {
+                path,
+                area,
+                transform,
+                gradient,
+            } => {
+                let scale = transform.even_scale().unwrap_or(1.0);
+
+                let (Some(corners), Some(paint)) = (
+                    outline_corners(&path, scale),
+                    two_stops(&gradient, device_area(area, transform)),
+                ) else {
+                    return;
+                };
+
+                let corners: Vec<(f32, f32)> =
+                    corners.iter().map(|(x, y)| transform.map(*x, *y)).collect();
+
+                self.quads.outline(&corners, paint, clips);
             }
 
             Command::Glyph {
@@ -397,7 +426,7 @@ impl Gpu {
             }
 
             _ => unreachable!(
-                "only rectangles, borders, shadows, letters and images go to the quads"
+                "only rectangles, borders, shadows, shapes, gradients, letters and images go to the quads"
             ),
         }
     }
@@ -561,6 +590,85 @@ pub(super) fn deviation(blur: f32) -> f32 {
     blur / 2.0
 }
 
+// the most corners a filled outline has to go to the quads; the shader walks them all per pixel
+const OUTLINE_CORNERS: usize = 256;
+
+// how far a flattened curve strays from the real one, in device pixels
+const FLATNESS: f64 = 0.2;
+
+/*
+ * a path of one closed outline as its corners, curves flattened finely
+ * enough for `scale` device pixels per unit, when it has few enough of them
+ * for the quads; the last corner isn't the first again
+ */
+pub(super) fn outline_corners(path: &BezierPath, scale: f32) -> Option<Vec<(f32, f32)>> {
+    use vello::kurbo::{PathEl, flatten};
+
+    let bezier = bezier(path);
+
+    let mut corners: Vec<(f32, f32)> = Vec::new();
+    let mut outlines = 0;
+
+    let tolerance = FLATNESS / f64::from(scale.max(0.01));
+
+    flatten(
+        bezier.elements().iter().copied(),
+        tolerance,
+        |element| match element {
+            PathEl::MoveTo(point) => {
+                outlines += 1;
+                corners.push((point.x as f32, point.y as f32));
+            }
+            PathEl::LineTo(point) => corners.push((point.x as f32, point.y as f32)),
+            _ => {}
+        },
+    );
+
+    if outlines != 1 || corners.len() < 3 || corners.len() > OUTLINE_CORNERS {
+        return None;
+    }
+
+    // closing back onto the start adds nothing
+    if corners.first() == corners.last() {
+        corners.pop();
+    }
+
+    Some(corners)
+}
+
+/*
+ * a linear gradient of two stops as quads paint it, its line laid over
+ * `area` in device pixels as vello lays it (see gradient.rs)
+ */
+fn two_stops(gradient: &Gradient, area: Area) -> Option<Paint> {
+    let Gradient::Linear { angle, stops } = gradient else {
+        return None;
+    };
+
+    let [(from_at, from), (to_at, to)]: [(f32, Color); 2] = stops.as_slice().try_into().ok()?;
+
+    let (sin, cos) = angle.to_radians().sin_cos();
+
+    let half_length = (area.width * sin.abs() + area.height * cos.abs()) / 2.0;
+
+    let center = (area.x + area.width / 2.0, area.y + area.height / 2.0);
+
+    // 0 degrees runs bottom to top, and y grows downward
+    let step = (sin * half_length, -cos * half_length);
+
+    let start = (center.0 - step.0, center.1 - step.1);
+    let end = (center.0 + step.0, center.1 + step.1);
+
+    let at = |offset: f32| {
+        (
+            start.0 + (end.0 - start.0) * offset,
+            start.1 + (end.1 - start.1) * offset,
+        )
+    };
+
+    Some(Paint::linear(from, to, at(from_at), at(to_at)))
+}
+
 /*
  * the path as runs of straight lines, each at least two points long, when it
  * has no curves; a closed run ends where it began
@@ -701,10 +809,30 @@ fn route(command: &Command) -> Route {
         } => {
             let straight = transform.even_scale().is_some() && !*VELLO_SHAPES;
 
-            let simple =
-                path.arc.is_some_and(|arc| arc.is_whole()) || under_polyline(path).is_some();
+            let simple = path.arc.is_some_and(|arc| arc.is_whole())
+                || under_polyline(path).is_some()
+                || outline_corners(path, transform.even_scale().unwrap_or(1.0)).is_some();
 
             if straight && simple {
+                Route::Quads
+            } else {
+                Route::Vello
+            }
+        }
+
+        // two colours along a line, over a small outline
+        Command::Gradient {
+            path,
+            area,
+            transform,
+            gradient,
+        } => {
+            let scale = transform.even_scale();
+
+            let simple = scale.is_some_and(|scale| outline_corners(path, scale).is_some())
+                && two_stops(gradient, device_area(*area, *transform)).is_some();
+
+            if simple && !*VELLO_SHAPES {
                 Route::Quads
             } else {
                 Route::Vello
@@ -723,7 +851,7 @@ fn route(command: &Command) -> Route {
             }
         }
 
-        Command::Gradient { .. } | Command::InnerShadow { .. } => Route::Vello,
+        Command::InnerShadow { .. } => Route::Vello,
     }
 }
 
@@ -809,6 +937,95 @@ mod shape_tests {
     use crate::graphics::PathBuilder;
 
     use super::*;
+
+    fn is_quads(command: &Command) -> bool {
+        matches!(route(command), Route::Quads)
+    }
+
+    fn bubble() -> BezierPath {
+        path(|p| {
+            p.move_to(10.0, 0.0);
+            p.line_to(40.0, 0.0);
+            p.cubic_to(50.0, 0.0, 50.0, 20.0, 40.0, 20.0);
+            p.cubic_to(44.0, 26.0, 48.0, 27.0, 50.0, 27.0);
+            p.line_to(10.0, 20.0);
+            p.cubic_to(0.0, 20.0, 0.0, 0.0, 10.0, 0.0);
+            p.close();
+        })
+    }
+
+    #[test]
+    fn small_curved_outlines_are_quads_and_big_ones_vello() {
+        let corners = outline_corners(&bubble(), 2.0).unwrap();
+        assert!(corners.len() > 8 && corners.len() <= OUTLINE_CORNERS);
+        assert_ne!(corners.first(), corners.last());
+
+        let fill = |path: BezierPath| Command::Fill {
+            path,
+            transform: Transform::from_scale(2.0, 2.0),
+            color: Color::BLACK,
+        };
+        assert!(is_quads(&fill(bubble())));
+
+        // two outlines in one path, or a thousand corners, stay with vello
+        let two = path(|p| {
+            p.move_to(0.0, 0.0);
+            p.line_to(10.0, 0.0);
+            p.line_to(5.0, 8.0);
+            p.close();
+            p.move_to(20.0, 0.0);
+            p.line_to(30.0, 0.0);
+            p.line_to(25.0, 8.0);
+            p.close();
+        });
+        assert!(!is_quads(&fill(two)));
+        let jagged = path(|p| {
+            p.move_to(0.0, 0.0);
+            for i in 0..1000 {
+                p.line_to(i as f32, (i % 2) as f32);
+            }
+            p.close();
+        });
+        assert!(!is_quads(&fill(jagged)));
+    }
+
+    #[test]
+    fn two_stop_linear_gradients_are_quads_and_the_rest_vello() {
+        let gradient = |gradient: Gradient| Command::Gradient {
+            path: bubble(),
+            area: Area::new(0.0, 0.0, 50.0, 27.0),
+            transform: Transform::IDENTITY,
+            gradient,
+        };
+
+        assert!(is_quads(&gradient(Gradient::linear(
+            180.0,
+            [(0.0, Color::WHITE), (1.0, Color::BLACK)]
+        ))));
+        assert!(!is_quads(&gradient(Gradient::linear(
+            180.0,
+            [(0.0, Color::WHITE), (0.5, Color::BLUE), (1.0, Color::BLACK)]
+        ))));
+        assert!(!is_quads(&gradient(Gradient::radial([
+            (0.0, Color::WHITE),
+            (1.0, Color::BLACK)
+        ]))));
+    }
+
+    #[test]
+    fn a_gradient_runs_as_vello_lays_it() {
+        // 180 degrees runs top to bottom over the area's height
+        let paint = two_stops(
+            &Gradient::linear(180.0, [(0.0, Color::WHITE), (1.0, Color::BLACK)]),
+            Area::new(0.0, 10.0, 40.0, 20.0),
+        )
+        .unwrap();
+
+        let expected = Paint::linear(Color::WHITE, Color::BLACK, (20.0, 10.0), (20.0, 30.0));
+        for (got, want) in paint.line().iter().zip(expected.line()) {
+            assert!((got - want).abs() < 0.001, "{paint:?} isn't {expected:?}");
+        }
+    }
 
     fn path(build: impl FnOnce(&mut PathBuilder)) -> BezierPath {
         let mut builder = PathBuilder::new();

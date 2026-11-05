@@ -8,9 +8,72 @@ use crate::graphics::{Area, Cap, Color, Corners};
 use super::clip::NO_CLIP;
 use super::pipeline::picture_group;
 use super::{
-    ARC, Clip, Clips, LETTER, PICTURE, QUAD_SIZE, Quads, Run, SEGMENT, SHADOW, SHADOW_REACH, SHAPE,
-    TRAPEZOID,
+    ARC, Clip, Clips, LETTER, OUTLINE, PICTURE, QUAD_SIZE, Quads, Run, SEGMENT, SHADOW,
+    SHADOW_REACH, SHAPE, TRAPEZOID,
 };
+
+/*
+ * what a quad is painted with: one colour, or a two-stop linear gradient
+ * from color to color2, in canvas pixels
+ */
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Paint {
+    color: [f32; 4],
+    color2: [f32; 4],
+
+    // the direction it runs (x, y), where along it color is, and how far on color2 is
+    gradient: [f32; 4],
+}
+
+impl Paint {
+    pub fn solid(color: Color) -> Self {
+        rgba(color).into()
+    }
+
+    /*
+     * from `from` at `start` to `to` at `end`, canvas points; before and
+     * after them the end colours carry on
+     */
+    pub fn linear(from: Color, to: Color, start: (f32, f32), end: (f32, f32)) -> Self {
+        let (dx, dy) = (end.0 - start.0, end.1 - start.1);
+        let length = dx.hypot(dy);
+
+        if length <= f32::EPSILON {
+            return Self::solid(to);
+        }
+
+        let direction = (dx / length, dy / length);
+
+        Self {
+            color: rgba(from),
+            color2: rgba(to),
+            gradient: [
+                direction.0,
+                direction.1,
+                start.0 * direction.0 + start.1 * direction.1,
+                length,
+            ],
+        }
+    }
+}
+
+#[cfg(test)]
+impl Paint {
+    // the gradient row: direction x and y, where color is along it, and how far on color2 is
+    pub fn line(&self) -> [f32; 4] {
+        self.gradient
+    }
+}
+
+impl From<[f32; 4]> for Paint {
+    fn from(color: [f32; 4]) -> Self {
+        Self {
+            color,
+            color2: color,
+            gradient: [0.0; 4],
+        }
+    }
+}
 
 // how quads.wgsl tells the ends of a line apart
 fn end(cap: Cap) -> f32 {
@@ -132,6 +195,51 @@ impl Quads {
             clips,
             TRAPEZOID,
             [x0, y0, x1, y1],
+            None,
+        );
+    }
+
+    /*
+     * the inside of a closed outline of straight edges, in canvas pixels, by
+     * the nonzero rule; the shader walks every edge for every pixel, so it's
+     * for small shapes, which paint.rs keeps to a few hundred corners
+     */
+    pub fn outline(&mut self, corners: &[(f32, f32)], paint: Paint, clips: Clips) {
+        if corners.len() < 3 {
+            return;
+        }
+
+        let (mut left, mut top) = (f32::MAX, f32::MAX);
+        let (mut right, mut bottom) = (f32::MIN, f32::MIN);
+
+        for &(x, y) in corners {
+            left = left.min(x);
+            top = top.min(y);
+            right = right.max(x);
+            bottom = bottom.max(y);
+        }
+
+        let first = (self.points.len() / 2) as f32;
+
+        for &(x, y) in corners {
+            self.points.extend([x, y]);
+        }
+
+        // a pixel of soft edge all round
+        let covered = Area::new(
+            left - 1.0,
+            top - 1.0,
+            right - left + 2.0,
+            bottom - top + 2.0,
+        );
+
+        self.push(
+            covered,
+            ([0.0; 4], 0.0),
+            paint,
+            clips,
+            OUTLINE,
+            [first, corners.len() as f32, 0.0, 0.0],
             None,
         );
     }
@@ -314,7 +422,7 @@ impl Quads {
         &mut self,
         area: Area,
         (radius, thickness): ([f32; 4], f32),
-        color: [f32; 4],
+        color: impl Into<Paint>,
         clips: Clips,
         kind: f32,
         source: [f32; 4],
@@ -340,7 +448,7 @@ impl Quads {
         (radius, thickness): ([f32; 4], f32),
         // the two spare numbers of the shape row
         spare: [f32; 2],
-        color: [f32; 4],
+        paint: impl Into<Paint>,
         clips: Clips,
         kind: f32,
         source: [f32; 4],
@@ -359,7 +467,8 @@ impl Quads {
             outer.area.width,
             outer.area.height,
         ];
-        let color_row = color;
+        let paint = paint.into();
+        let color_row = paint.color;
         let shape_row = [thickness, spare[0], spare[1], kind];
         let source_row = source;
         let inner_clip_row = [
@@ -382,6 +491,8 @@ impl Quads {
             radius_row,
             clip_radius_row,
             inner_radius_row,
+            paint.color2,
+            paint.gradient,
         ];
 
         for row in rows {

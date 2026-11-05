@@ -19,7 +19,12 @@ impl Quads {
     pub fn new(device: &Device, queue: &Queue) -> Self {
         let inputs = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: None,
-            entries: &[quads_entry(), canvas_entry(), texture_entry(2, false)],
+            entries: &[
+                quads_entry(),
+                canvas_entry(),
+                texture_entry(2, false),
+                points_entry(),
+            ],
         });
 
         let picture_inputs = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -92,6 +97,7 @@ impl Quads {
             pictures: HashMap::new(),
             blank,
             waiting: Vec::new(),
+            points: Vec::new(),
             runs: Vec::new(),
         }
     }
@@ -125,6 +131,20 @@ fn quads_entry() -> BindGroupLayoutEntry {
     BindGroupLayoutEntry {
         binding: 0,
         visibility: ShaderStages::VERTEX_FRAGMENT,
+        ty: BindingType::Buffer {
+            ty: BufferBindingType::Storage { read_only: true },
+            has_dynamic_offset: false,
+            min_binding_size: None,
+        },
+        count: None,
+    }
+}
+
+// the corners of the filled outlines
+fn points_entry() -> BindGroupLayoutEntry {
+    BindGroupLayoutEntry {
+        binding: 3,
+        visibility: ShaderStages::FRAGMENT,
         ty: BindingType::Buffer {
             ty: BufferBindingType::Storage { read_only: true },
             has_dynamic_offset: false,

@@ -198,6 +198,35 @@ widgets frames, 41 of them `vello 0`, 2 vello runs in all (the clock's digits on
 frame, kept from then on; 61 runs before). What still goes to vello there is the clock's
 curved digits, drawn once per change.
 
+## Small filled outlines and two-stop gradients are quads
+
+**What it cost.** Any filled path other than a whole circle or an area under a line went to vello,
+and so did every gradient. A chat bubble with a curled tail and a gradient fill would have run
+vello for every bubble on screen.
+
+**What changed.**
+- **Outlines:** a seventh kind of quad, the filled outline. A path of one closed outline, its
+  curves flattened by kurbo to within 0.2 device pixels (`outline_corners` in `paint.rs`), with
+  at most 256 corners, goes to `Quads::outline`.
+  - Its corners go into a second storage buffer (`points`, binding 3), and the quad covers their
+    bounding box.
+  - The shader walks every edge for each pixel. The nonzero winding number says inside or out,
+    and the distance to the nearest edge gives the usual one-pixel soft edge. That's why only
+    small outlines take this path.
+- **Gradients:** every quad has two more rows, a second colour and a gradient line (direction,
+  start, length), and paints `mix(color, color2, along)` where the line is set.
+  - `Command::Gradient` with a linear gradient of exactly two stops, over an outline the quads
+    take, is drawn that way, its line laid as vello lays it (`two_stops`).
+  - Radial gradients and gradients of three or more stops stay with vello.
+  - `Shape::gradient` gives a canvas shape such a fill, laid over the canvas.
+
+**Switching it off.** `AMANE_VELLO_SHAPES=1` sends both back to vello, with the other shapes.
+
+**Checked** by `draws_arcs_lines_and_areas_as_vello_does` (`--ignored`). A curved outline with a
+tail holds the same colour as vello's within its bounds, and a two-stop gradient's rows are
+within 3/255 of vello's. The routing tests in `paint.rs` cover which outlines and gradients
+go to the quads.
+
 ## A hidden window holds nothing on the GPU
 
 **What it cost.** `hide()` (`src/wayland/update.rs`) took the buffer away and nothing else. The

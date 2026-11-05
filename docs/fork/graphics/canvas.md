@@ -15,6 +15,14 @@ Every shape gets a fifth method from the `Shape` trait, next to `fill`, `stroke`
 .join(Join::Round)        // how corners look: Miter (the default), Round, or Bevel
 ```
 
+### Gradient fills
+
+`.gradient(Gradient::linear(angle, stops))` fills a shape with a gradient laid over the whole
+canvas, as a rectangle's gradient is laid over the rectangle; it takes the place of `fill`. A
+linear gradient of two stops on a small outline (one closed outline, 256 corners at most once
+flattened) draws on the quad pipeline; anything else draws with vello. Plain fills of such an
+outline are quads too ([memory.md](../internals/memory.md#small-filled-outlines-and-two-stop-gradients-are-quads)).
+
 ### `Path::svg`, `place` and `trim`
 
 | Method | Does | Default |
