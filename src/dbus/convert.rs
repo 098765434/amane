@@ -96,6 +96,12 @@ fn variant(argument: &Argument) -> Variant<'static> {
         Argument::Groups(groups) => Variant::from(grouped(groups)),
         Argument::Variant(inner) => Variant::Value(Box::new(variant(inner))),
         Argument::Struct(fields) => Variant::Structure(body(fields)),
+        Argument::Variants(items) => Variant::from(
+            items
+                .iter()
+                .map(|item| Variant::Value(Box::new(variant(item))))
+                .collect::<Vec<Variant<'static>>>(),
+        ),
     }
 }
 
@@ -127,4 +133,23 @@ fn object_path(path: &str) -> Variant<'static> {
         .expect("failed to use object path: it must look like /org/example");
 
     Variant::ObjectPath(path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn variants_are_an_array_of_variants_even_empty() {
+        let empty = variant(&Argument::Variants(Vec::new()));
+
+        assert_eq!(empty.value_signature().to_string(), "av");
+
+        let some = variant(&Argument::Variants(vec![
+            Argument::from(1),
+            Argument::from("a"),
+        ]));
+
+        assert_eq!(some.value_signature().to_string(), "av");
+    }
 }

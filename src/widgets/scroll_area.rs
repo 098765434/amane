@@ -39,6 +39,12 @@ impl ScrollArea {
         self
     }
 
+    // moves the area named `id` to the end of its child, like a chat opening on its newest message
+    pub fn scroll_to_end(id: &'static str) {
+        // kept past the end and clamped when drawn, so it's the end however tall the child grows
+        offsets::set(id, f32::MAX);
+    }
+
     // how far the child can move up before its bottom edge meets the area's
     fn farthest(&self, area: Area) -> f32 {
         let content = self.child.height().resolve(area.height);
