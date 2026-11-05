@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::Scroll;
 use crate::graphics::Area;
-use crate::input::{Handlers, PIXELS_PER_LINE, Target, clip};
+use crate::input::{Handlers, Target, clip};
 
 use super::{ScrollArea, offsets};
 
@@ -10,14 +10,8 @@ pub fn collect_targets(scroll_area: &ScrollArea, area: Area, targets: &mut Vec<T
     let id = scroll_area.id;
     let farthest = scroll_area.farthest(area);
 
-    let on_scroll = move |scroll: Scroll| {
-        let current = offsets::get(id).clamp(0.0, farthest);
-        let moved = scroll.y * PIXELS_PER_LINE;
-
-        let offset = (current + moved).clamp(0.0, farthest);
-
-        offsets::set(id, offset);
-    };
+    // fingers move it one to one and it coasts on after they lift; a wheel's step eases in
+    let on_scroll = move |scroll: Scroll| offsets::scroll(id, &scroll, farthest);
 
     let handlers = Handlers {
         scroll: Some(Rc::new(on_scroll)),
