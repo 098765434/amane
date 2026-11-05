@@ -21,6 +21,7 @@ use super::contacts::Contacts;
 use super::{KDECONNECT, device_path, owner};
 
 const CONVERSATIONS: &str = "org.kde.kdeconnect.device.conversations";
+const CONTACTS: &str = "org.kde.kdeconnect.device.contacts";
 
 // how many messages of a thread are asked for at a time
 pub const PAGE: i32 = 50;
@@ -216,11 +217,30 @@ impl Service for PhoneMessages {
         let bus = Bus::session();
 
         for signal in bus.signals_from(KDECONNECT) {
-            if signal.interface() != CONVERSATIONS || signal.sender() != owner() {
+            if signal.sender() != owner() {
                 continue;
             }
 
-            let tracked = PhoneMessages::read().device.as_deref().map(device_path);
+            let tracked = PhoneMessages::read().device.clone();
+
+            // the phone's contacts came: names for the numbers
+            if signal.interface() == CONTACTS && signal.name() == "localCacheSynchronized" {
+                if let Some(device) = tracked
+                    && signal.path() == format!("{}/contacts", device_path(&device))
+                {
+                    let contacts = Contacts::load(&device);
+
+                    PhoneMessages::write().set_contacts(contacts);
+                }
+
+                continue;
+            }
+
+            if signal.interface() != CONVERSATIONS {
+                continue;
+            }
+
+            let tracked = tracked.as_deref().map(device_path);
 
             if tracked.as_deref() != Some(signal.path()) {
                 continue;
@@ -320,6 +340,15 @@ impl PhoneMessages {
                 "requestAllConversationThreads",
                 &[],
             );
+
+            // and its contacts, which come by localCacheSynchronized; names show from then on
+            let _ = bus.try_call(
+                KDECONNECT,
+                &format!("{path}/contacts"),
+                CONTACTS,
+                "synchronizeRemoteWithLocal",
+                &[],
+            );
         });
     }
 
@@ -410,6 +439,21 @@ impl PhoneMessages {
                 ],
             );
         });
+    }
+
+    // new names for the numbers, on every conversation already shown
+    pub(crate) fn set_contacts(&mut self, contacts: Contacts) {
+        self.contacts = contacts;
+
+        let titles: Vec<String> = self
+            .threads
+            .iter()
+            .map(|thread| self.title(thread.addresses()))
+            .collect();
+
+        for (thread, title) in self.threads.iter_mut().zip(titles) {
+            thread.title = title;
+        }
     }
 
     fn start_loading(&mut self, thread: i64) -> Option<String> {
@@ -574,6 +618,21 @@ mod tests {
         assert_eq!(thread.len(), 2);
         assert!(!thread[1].pending());
         assert_eq!(thread[1].uid(), 5);
+    }
+
+    #[test]
+    fn contacts_that_come_later_name_the_conversations() {
+        let mut messages = PhoneMessages::default();
+
+        messages.ingest(message(1, 10, "hei", 1_000, 1));
+
+        assert_eq!(messages.thread(10).unwrap().title(), "+4795723015");
+
+        let mut contacts = Contacts::default();
+        contacts.add_vcard("BEGIN:VCARD\nFN:Ola Nordmann\nTEL:95723015\nEND:VCARD\n");
+        messages.set_contacts(contacts);
+
+        assert_eq!(messages.thread(10).unwrap().title(), "Ola Nordmann");
     }
 
     #[test]
