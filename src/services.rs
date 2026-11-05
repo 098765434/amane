@@ -52,7 +52,7 @@ pub use gestures::Gestures;
 pub use idle::Idle;
 pub use kdeconnect::{
     KdeConnect, PairState as PhonePairState, PhoneBattery, PhoneClick, PhoneDevice, PhoneKey,
-    PhoneModifiers,
+    PhoneMessages, PhoneModifiers, SMS_PAGE, SmsKind, SmsMessage, SmsThread,
 };
 pub use lock::Lock;
 pub use media::{Media, MediaPlayer};

@@ -80,8 +80,9 @@ pub use services::{
     Idle, KdeConnect, Link, Lock, Media, MediaPlayer, Memory, Network, Notification, Notifications,
     Overview, PairingAnswer, PairingKind, PairingRequest, Palette, Pam, PamConfig, PamError,
     PamMessage, PamMessageKind, PamResult, PhoneBattery, PhoneClick, PhoneDevice, PhoneKey,
-    PhoneModifiers, PhonePairState, Polkit, PowerDevice, PowerProfile, PowerState, Scheme, Service,
-    Timeout, Urgency, WarningLevel, WindowInfo, Windows, Workspace, WorkspaceSwitch, Workspaces,
+    PhoneMessages, PhoneModifiers, PhonePairState, Polkit, PowerDevice, PowerProfile, PowerState,
+    SMS_PAGE, Scheme, Service, SmsKind, SmsMessage, SmsThread, Timeout, Urgency, WarningLevel,
+    WindowInfo, Windows, Workspace, WorkspaceSwitch, Workspaces,
 };
 pub use style::{Effect, Fill, Image, Input, Mask, Radius, Shadow};
 pub use widgets::{

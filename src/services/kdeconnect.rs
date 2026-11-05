@@ -8,8 +8,10 @@
 
 mod actions;
 mod config;
+mod contacts;
 mod device;
 mod input;
+mod sms;
 
 use std::collections::BTreeMap;
 use std::sync::{Mutex, Once, PoisonError};
@@ -20,6 +22,7 @@ use crate::{Argument, Bus, Service};
 
 pub use device::{PairState, PhoneBattery, PhoneDevice};
 pub use input::{PhoneClick, PhoneKey, PhoneModifiers};
+pub use sms::{PAGE as SMS_PAGE, PhoneMessages, SmsKind, SmsMessage, SmsThread};
 
 pub(crate) const KDECONNECT: &str = "org.kde.kdeconnect";
 pub(crate) const DAEMON_PATH: &str = "/modules/kdeconnect";
@@ -164,6 +167,11 @@ impl KdeConnect {
     pub fn failure(&self, device: &str) -> Option<&str> {
         self.failures.get(device).map(String::as_str)
     }
+}
+
+// the daemon's unique name, empty while it isn't running
+pub(crate) fn owner() -> String {
+    OWNER.lock().unwrap_or_else(PoisonError::into_inner).clone()
 }
 
 pub(crate) fn device_path(id: &str) -> String {
