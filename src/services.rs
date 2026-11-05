@@ -9,6 +9,7 @@ mod cpu;
 mod desktop;
 mod gestures;
 mod idle;
+mod kdeconnect;
 mod lock;
 mod media;
 mod memory;
@@ -49,6 +50,10 @@ pub use cpu::Cpu;
 pub use desktop::Desktop;
 pub use gestures::Gestures;
 pub use idle::Idle;
+pub use kdeconnect::{
+    KdeConnect, PairState as PhonePairState, PhoneBattery, PhoneClick, PhoneDevice, PhoneKey,
+    PhoneModifiers,
+};
 pub use lock::Lock;
 pub use media::{Media, MediaPlayer};
 pub use memory::Memory;

@@ -77,9 +77,10 @@ pub use services::{
     AccessPoint, Action, Appearance, Apps, Audio, AudioDevice, AudioKind, AuthPrompt, AuthRequest,
     Backdrop, Battery, BatteryState, Bluetooth, BluetoothAdapter, BluetoothDevice, BluetoothError,
     BluetoothOperation, Brightness, Cpu, Desktop, DesktopAction, DesktopApp, DeviceKind, Gestures,
-    Idle, Link, Lock, Media, MediaPlayer, Memory, Network, Notification, Notifications, Overview,
-    PairingAnswer, PairingKind, PairingRequest, Palette, Pam, PamConfig, PamError, PamMessage,
-    PamMessageKind, PamResult, Polkit, PowerDevice, PowerProfile, PowerState, Scheme, Service,
+    Idle, KdeConnect, Link, Lock, Media, MediaPlayer, Memory, Network, Notification, Notifications,
+    Overview, PairingAnswer, PairingKind, PairingRequest, Palette, Pam, PamConfig, PamError,
+    PamMessage, PamMessageKind, PamResult, PhoneBattery, PhoneClick, PhoneDevice, PhoneKey,
+    PhoneModifiers, PhonePairState, Polkit, PowerDevice, PowerProfile, PowerState, Scheme, Service,
     Timeout, Urgency, WarningLevel, WindowInfo, Windows, Workspace, WorkspaceSwitch, Workspaces,
 };
 pub use style::{Effect, Fill, Image, Input, Mask, Radius, Shadow};
