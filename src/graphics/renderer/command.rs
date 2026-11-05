@@ -5,6 +5,7 @@ use std::sync::Arc;
 use crate::graphics::font::Face;
 use crate::graphics::{Area, BezierPath, Cap, Color, Corners, Gradient, Join, Transform};
 use crate::style::Effect;
+use crate::video::Picture;
 
 #[derive(Clone, PartialEq)]
 pub enum Command {
@@ -62,6 +63,15 @@ pub enum Command {
     // the image is only shown inside the rounded rectangle
     Image {
         image: Arc<Bitmap>,
+        transform: Transform,
+        area: Area,
+        radius: Corners,
+        clip_transform: Transform,
+    },
+
+    // a video frame, stretched by its transform and shown only inside the rounded rectangle
+    Video {
+        picture: Picture,
         transform: Transform,
         area: Area,
         radius: Corners,

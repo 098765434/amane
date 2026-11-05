@@ -33,13 +33,15 @@ as upstream has them; everything the fork adds is here.
 | Canvas paths | SVG paths, placing, trimming, line joins; 64 shader rows | `Path::svg`, `Join` | [canvas](graphics/canvas.md) | `examples/stroke_clock.rs` | done |
 | Shader effects | multi-pass WGSL over a rectangle's drawing, its backdrop or an image; hot reload; compile errors; a pausable shader clock; frame stats; shadow spread | `Effect`, `Input`, `shader_errors`, `pause_shader_time`, `frame_stats`, `Shadow::spread` | [effects](graphics/effects.md) | `examples/effect.rs` | done |
 | Text styling | parley layout: italic, line height, spacing, case, decoration, align, direction, axes | `Case`, `Decoration`, `TextAlign`, `TextDirection`, `Weight::Number` | [text](graphics/text.md) | `examples/text.rs` | done |
+| Video | NV12 frames from another thread, drawn as quads | `VideoFeed`, `VideoFrame`, `Video` | [video](graphics/video.md) | — | done |
 | Animation | spring easing that keeps its speed, `retime` | `Easing::Spring`, `Animation::retime` | [animation](graphics/animation.md) | — | done |
 | `on_track` | pointer motion that redraws nothing; also scroll source, modifiers, shortcuts, double clicks | `on_track`, `Scroll`, `modifiers` | [input](input/input.md) | — | done |
 | Text input | selection, editing keys, undo, multiline, IME | `TextInput` | [text-input](input/text-input.md) | `examples/text_editor.rs` | done |
 | Battery | UPower: state, warning, time left, peripherals | `Battery`, `PowerDevice` | [battery](system/battery.md) | `examples/system.rs` | done |
 | Power profile | power-profiles-daemon | `PowerProfile` | [power-profile](system/power-profile.md) | — | done |
 | Bluetooth | signals, operations and failures, pairing agent, rfkill, discoverable | `Bluetooth::serve_agent`, `PairingRequest`, `BluetoothError` | [bluetooth](system/bluetooth.md) | — | done |
-| KDE Connect | phones: pairing, battery, ring, files, clipboard, run commands, remote input, text messages | `KdeConnect`, `PhoneDevice`, `PhoneMessages` | [kdeconnect](system/kdeconnect.md) | — | done |
+| KDE Connect | phones: pairing, battery, ring, files, clipboard, run commands, remote input, text messages, addresses, notifications | `KdeConnect`, `PhoneDevice`, `PhoneMessages` | [kdeconnect](system/kdeconnect.md) | — | done |
+| adb | Android phones over USB and Wireless debugging: devices, mDNS discovery, pairing, connecting | `Adb`, `AdbDevice`, `WirelessService`, `amane::adb` | [adb](system/adb.md) | — | done |
 | Idle | ext-idle-notify levels and ScreenSaver inhibits | `Idle` | [idle](system/idle.md) | `examples/idle.rs` | done |
 | Polkit agent | the session's authentication agent: polkit's prompts as the shell's own | `Polkit::serve_agent`, `AuthRequest` | [polkit](system/polkit.md) | — | done |
 | Appearance | colour scheme, accent, contrast, reduced motion | `Appearance`, `Scheme` | [appearance](system/appearance.md) | `examples/appearance.rs` | done |
@@ -57,12 +59,13 @@ as upstream has them; everything the fork adds is here.
   [activation](windows/activation.md), [clipboard](windows/clipboard.md),
   [portals](windows/portals.md), [config](windows/config.md).
 - **Graphics:** what is drawn and how it moves. [blur](graphics/blur.md),
-  [canvas](graphics/canvas.md), [text](graphics/text.md), [animation](graphics/animation.md).
+  [canvas](graphics/canvas.md), [text](graphics/text.md), [video](graphics/video.md),
+  [animation](graphics/animation.md).
 - **Input:** pointer and keyboard additions. [input](input/input.md),
   [text-input](input/text-input.md).
 - **System:** D-Bus and portal services. [battery](system/battery.md),
   [power-profile](system/power-profile.md), [bluetooth](system/bluetooth.md),
-  [kdeconnect](system/kdeconnect.md), [idle](system/idle.md),
+  [kdeconnect](system/kdeconnect.md), [adb](system/adb.md), [idle](system/idle.md),
   [polkit](system/polkit.md),
   [appearance](system/appearance.md), [audio](system/audio.md),
   [notifications](system/notifications.md), [apps-and-processes](system/apps-and-processes.md),

@@ -8,6 +8,7 @@ mod shape;
 mod stack;
 mod text;
 pub(crate) mod text_input;
+mod video;
 
 use crate::Size;
 use crate::graphics::{Area, Renderer};
@@ -23,6 +24,7 @@ pub use shape::{Arc, Circle, Line, Path, Shape};
 pub use stack::Stack;
 pub use text::{Case, Decoration, Text, TextAlign, TextDirection};
 pub use text_input::TextInput;
+pub use video::Video;
 
 pub trait Widget {
     fn width(&self) -> Size;

@@ -63,6 +63,9 @@ impl Gpu {
                 clip_transform,
             } => self.draw_image(scene, image, transform, area, radius, clip_transform),
 
+            // routed to the quads; never reaches vello
+            Command::Video { .. } => {}
+
             Command::Shadow {
                 area,
                 radius,

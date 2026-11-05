@@ -32,6 +32,7 @@ mod scale;
 mod services;
 mod style;
 mod timing;
+pub mod video;
 mod wayland;
 mod widgets;
 mod window;
@@ -83,9 +84,10 @@ pub use services::{
     Timeout, Urgency, WarningLevel, WindowInfo, Windows, Workspace, WorkspaceSwitch, Workspaces,
 };
 pub use style::{Effect, Fill, Image, Input, Mask, Radius, Shadow};
+pub use video::{Colors as VideoColors, Frame as VideoFrame, VideoFeed};
 pub use widgets::{
     Arc, Canvas, Case, Circle, Column, Decoration, Line, Path, Rectangle, Row, ScrollArea, Shape,
-    Stack, Text, TextAlign, TextDirection, TextInput, Widget,
+    Stack, Text, TextAlign, TextDirection, TextInput, Video, Widget,
 };
 
 pub use placement::Justify::{SpaceAround, SpaceBetween, SpaceEvenly};
