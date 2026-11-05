@@ -20,7 +20,7 @@ use std::time::Duration;
 
 use crate::{Argument, Bus, Service};
 
-pub use device::{PairState, PhoneBattery, PhoneDevice};
+pub use device::{PairState, PhoneBattery, PhoneDevice, PhoneNotification};
 pub use input::{PhoneClick, PhoneKey, PhoneModifiers};
 pub use sms::{PAGE as SMS_PAGE, PhoneMessages, SmsKind, SmsMessage, SmsThread};
 
@@ -31,6 +31,7 @@ pub(crate) const DEVICE: &str = "org.kde.kdeconnect.device";
 pub(crate) const BATTERY: &str = "org.kde.kdeconnect.device.battery";
 pub(crate) const CLIPBOARD: &str = "org.kde.kdeconnect.device.clipboard";
 pub(crate) const REMOTE_KEYBOARD: &str = "org.kde.kdeconnect.device.remotekeyboard";
+pub(crate) const NOTIFICATIONS: &str = "org.kde.kdeconnect.device.notifications";
 pub(crate) const PROPERTIES: &str = "org.freedesktop.DBus.Properties";
 
 // the daemon is asked for everything again this often, in case a signal was missed
@@ -105,7 +106,7 @@ impl Service for KdeConnect {
                 continue;
             }
 
-            // the phone's own notifications, media and messages change nothing listed
+            // the phone's media and messages change nothing listed
             if matters(signal.interface(), signal.name()) {
                 resync();
             }
@@ -117,7 +118,7 @@ impl Service for KdeConnect {
 fn matters(interface: &str, name: &str) -> bool {
     match interface {
         DAEMON => !matches!(name, "announcedNameChanged" | "customDevicesChanged"),
-        DEVICE | BATTERY | CLIPBOARD | REMOTE_KEYBOARD => true,
+        DEVICE | BATTERY | CLIPBOARD | REMOTE_KEYBOARD | NOTIFICATIONS => true,
         PROPERTIES => name == "PropertiesChanged",
         _ => false,
     }
@@ -258,10 +259,8 @@ mod tests {
         assert!(matters(DEVICE, "reachableChanged"));
         assert!(matters(BATTERY, "refreshed"));
         assert!(!matters(DAEMON, "announcedNameChanged"));
-        assert!(!matters(
-            "org.kde.kdeconnect.device.notifications",
-            "notificationPosted"
-        ));
+        // a device lists its notifications, for Open on Phone
+        assert!(matters(NOTIFICATIONS, "notificationPosted"));
         assert!(!matters(
             "org.kde.kdeconnect.device.conversations",
             "conversationUpdated"

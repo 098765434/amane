@@ -15,7 +15,8 @@ struct Quad {
     // border thickness (0 fills it), a shadow's gaussian deviation, or half an arc's or
     // line's thickness; a line's cut at its start (see segment); and the kind: 0 a shape,
     // 1 a letter, 2 an image, 3 a shadow, 4 an arc, 5 a line, 6 the area under a line,
-    // 7 a filled outline
+    // 7 a filled outline, 8 a video frame (its matrix, 0 BT.709 or 1 BT.601, and 1 for full
+    // range in the two numbers after the thickness)
     shape: vec4<f32>,
 
     // where it reads from, left, top, right, bottom: a letter's texels in the atlas,
@@ -51,6 +52,9 @@ struct Quad {
 
 @group(1) @binding(0) var picture: texture_2d<f32>;
 @group(1) @binding(1) var picture_sampler: sampler;
+
+// a video frame's colour, two values for every two by two of its brightness in picture
+@group(1) @binding(2) var chroma: texture_2d<f32>;
 
 struct Corner {
     @builtin(position) position: vec4<f32>,
@@ -304,12 +308,35 @@ fn trapezoid(point: vec2<f32>, a: vec2<f32>, b: vec2<f32>, baseline: f32) -> f32
     return coverage(above) * coverage(point.y - baseline);
 }
 
+// a video pixel's brightness and colour as red, green and blue
+fn video_colour(luma: f32, chroma: vec2<f32>, matrix: f32, full_range: f32) -> vec3<f32> {
+    var y = luma;
+    var c = chroma - vec2<f32>(0.5);
+
+    // video keeps brightness between 16 and 235 and colour between 16 and 240
+    if full_range == 0.0 {
+        y = (luma - 16.0 / 255.0) * (255.0 / 219.0);
+        c = (chroma - vec2<f32>(128.0 / 255.0)) * (255.0 / 224.0);
+    }
+
+    var rgb: vec3<f32>;
+
+    if matrix == 1.0 {
+        rgb = vec3<f32>(y + 1.402 * c.y, y - 0.344136 * c.x - 0.714136 * c.y, y + 1.772 * c.x);
+    } else {
+        rgb = vec3<f32>(y + 1.5748 * c.y, y - 0.1873 * c.x - 0.4681 * c.y, y + 1.8556 * c.x);
+    }
+
+    return clamp(rgb, vec3<f32>(0.0), vec3<f32>(1.0));
+}
+
 @fragment
 fn fragment(corner: Corner) -> @location(0) vec4<f32> {
     let quad = quads[corner.index];
 
     // sampled for every quad, since sampling has to happen outside of branches
     let image = textureSample(picture, picture_sampler, corner.source);
+    let colour = textureSample(chroma, picture_sampler, corner.source);
 
     let outer_clip = coverage(rounded_rectangle(corner.point, quad.clip, quad.clip_radius));
     let inner_clip = coverage(rounded_rectangle(corner.point, quad.inner_clip, quad.inner_radius));
@@ -319,6 +346,12 @@ fn fragment(corner: Corner) -> @location(0) vec4<f32> {
     // images hold premultiplied colors already, the color's alpha fades them
     if quad.shape.w == 2.0 {
         return image * quad.color.a * clip;
+    }
+
+    if quad.shape.w == 8.0 {
+        let rgb = video_colour(image.r, colour.rg, quad.shape.y, quad.shape.z);
+
+        return vec4<f32>(rgb, 1.0) * quad.color.a * clip;
     }
 
     var amount = 0.0;

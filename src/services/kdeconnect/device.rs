@@ -1,6 +1,10 @@
+use std::net::IpAddr;
+
 use crate::{Argument, Bus, Value};
 
-use super::{BATTERY, DEVICE, KDECONNECT, PROPERTIES, REMOTE_KEYBOARD, config, device_path};
+use super::{
+    BATTERY, DEVICE, KDECONNECT, NOTIFICATIONS, PROPERTIES, REMOTE_KEYBOARD, config, device_path,
+};
 
 // the plugins whose sub-objects the device's page offers
 pub(crate) const BATTERY_PLUGIN: &str = "kdeconnect_battery";
@@ -11,6 +15,25 @@ pub(crate) const SMS_PLUGIN: &str = "kdeconnect_sms";
 pub(crate) const REMOTE_CONTROL_PLUGIN: &str = "kdeconnect_remotecontrol";
 pub(crate) const REMOTE_KEYBOARD_PLUGIN: &str = "kdeconnect_remotekeyboard";
 pub(crate) const RUN_COMMAND_PLUGIN: &str = "kdeconnect_runcommand";
+pub(crate) const NOTIFICATIONS_PLUGIN: &str = "kdeconnect_notifications";
+
+const NOTIFICATION: &str = "org.kde.kdeconnect.device.notifications.notification";
+
+// one of the phone's notifications, as KDE Connect mirrors it
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PhoneNotification {
+    // KDE Connect's number for it, under the device's notifications object
+    pub id: String,
+
+    // the app's name as the phone shows it, like "Signal"
+    pub app: String,
+
+    // the app's package, like "org.thoughtcrime.securesms", when the phone says
+    pub package: Option<String>,
+
+    pub title: String,
+    pub text: String,
+}
 
 // where a device and this computer stand on pairing, as kdeconnect numbers it
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,6 +100,12 @@ pub struct PhoneDevice {
 
     // a text field is focused on the phone, so typing here lands in it
     pub(crate) keyboard_ready: bool,
+
+    // where it is on the network, while it's reachable over the LAN
+    pub(crate) addresses: Vec<IpAddr>,
+
+    // the phone's notifications, only while the plugin is loaded
+    pub(crate) notifications: Vec<PhoneNotification>,
 }
 
 impl PhoneDevice {
@@ -154,6 +183,15 @@ impl PhoneDevice {
         self.keyboard_ready
     }
 
+    // its network addresses, IPv4 first; empty when it isn't on this network
+    pub fn addresses(&self) -> &[IpAddr] {
+        &self.addresses
+    }
+
+    pub fn notifications(&self) -> &[PhoneNotification] {
+        &self.notifications
+    }
+
     // one device as kdeconnect has it now; none when it's gone since it was listed
     pub(crate) fn fetch(bus: &Bus, id: &str) -> Option<Self> {
         let path = device_path(id);
@@ -214,6 +252,8 @@ impl PhoneDevice {
             clipboard_auto_sync: None,
             run_commands: pair == PairState::Paired && config::run_commands_enabled(id),
             keyboard_ready: false,
+            addresses: addresses(props.get("reachableAddresses")),
+            notifications: Vec::new(),
         }
     }
 
@@ -246,8 +286,62 @@ impl PhoneDevice {
             self.keyboard_ready = keyboard.get("remoteState").bool();
         }
 
+        if self.has_plugin(NOTIFICATIONS_PLUGIN) {
+            self.notifications = notifications(bus, path);
+        }
+
         self
     }
+}
+
+// the addresses KDE Connect reaches the phone at, IPv4 first
+fn addresses(value: &Value) -> Vec<IpAddr> {
+    let mut addresses: Vec<IpAddr> = value
+        .list()
+        .iter()
+        .filter_map(|address| address.text().parse().ok())
+        .collect();
+
+    addresses.sort_by_key(IpAddr::is_ipv6);
+
+    addresses
+}
+
+fn notifications(bus: &Bus, path: &str) -> Vec<PhoneNotification> {
+    let path = format!("{path}/notifications");
+
+    let ids = bus.call(KDECONNECT, &path, NOTIFICATIONS, "activeNotifications", &[]);
+
+    ids.list()
+        .iter()
+        .map(|id| {
+            let id = id.text();
+            let props = get_all(bus, &format!("{path}/{id}"), NOTIFICATION);
+
+            notification(id, &props)
+        })
+        .collect()
+}
+
+pub(crate) fn notification(id: &str, props: &Value) -> PhoneNotification {
+    PhoneNotification {
+        id: id.to_string(),
+        app: props.get("appName").text().to_string(),
+        package: package(props.get("internalId").text()),
+        title: props.get("title").text().to_string(),
+        text: props.get("text").text().to_string(),
+    }
+}
+
+/*
+ * Android's notification key, which KDE Connect passes on as the internal
+ * id: "0|com.example.app|42|tag|10123", the user, the package, then the
+ * app's own numbers
+ */
+fn package(internal_id: &str) -> Option<String> {
+    let package = internal_id.split('|').nth(1)?;
+
+    package.contains('.').then(|| package.to_string())
 }
 
 // the charge is -1 until the phone first sends it
@@ -290,6 +384,53 @@ mod tests {
                 .map(|(key, value)| ((*key).to_string(), value.clone()))
                 .collect::<BTreeMap<_, _>>(),
         )
+    }
+
+    #[test]
+    fn reads_the_phones_addresses_ipv4_first() {
+        let device = PhoneDevice::from_properties(
+            "abc",
+            &props(&[(
+                "reachableAddresses",
+                Value::List(vec![
+                    Value::Text("fe80::1".into()),
+                    Value::Text("192.168.1.101".into()),
+                    Value::Text("not an address".into()),
+                ]),
+            )]),
+        );
+
+        assert_eq!(
+            device.addresses(),
+            [
+                "192.168.1.101".parse::<IpAddr>().expect("an address"),
+                "fe80::1".parse().expect("an address")
+            ]
+        );
+    }
+
+    #[test]
+    fn a_notification_names_its_app_package() {
+        let notification = notification(
+            "17",
+            &props(&[
+                ("appName", Value::Text("Nextcloud".into())),
+                (
+                    "internalId",
+                    Value::Text("0|com.nextcloud.client|3044|null|10448".into()),
+                ),
+                ("title", Value::Text("Upload failed".into())),
+            ]),
+        );
+
+        assert_eq!(notification.app, "Nextcloud");
+        assert_eq!(
+            notification.package.as_deref(),
+            Some("com.nextcloud.client")
+        );
+
+        // KDE Connect's own notifications, like a missed call, have no package
+        assert_eq!(package("missedCall"), None);
     }
 
     #[test]

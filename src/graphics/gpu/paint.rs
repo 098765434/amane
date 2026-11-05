@@ -414,6 +414,36 @@ impl Gpu {
                     .picture(&self.device, &self.queue, &image, placement, clips);
             }
 
+            Command::Video {
+                picture,
+                transform,
+                area,
+                radius,
+                clip_transform,
+            } => {
+                // a turned or flipped frame isn't drawn
+                if !straight(transform) {
+                    return;
+                }
+
+                let size = Area::new(
+                    0.0,
+                    0.0,
+                    picture.frame.width as f32,
+                    picture.frame.height as f32,
+                );
+
+                let placement = device_area(size, transform);
+
+                let clips = match device_clip(area, radius, clip_transform) {
+                    Some(shape) => clips.within(shape),
+                    None => clips,
+                };
+
+                self.quads
+                    .video(&self.device, &self.queue, &picture, placement, clips);
+            }
+
             _ => unreachable!(
                 "only rectangles, borders, shadows, shapes, gradients, letters and images go to the quads"
             ),
@@ -831,6 +861,9 @@ fn route(command: &Command) -> Route {
             }
         }
 
+        // vello has no video frames: turned ones aren't shown
+        Command::Video { .. } => Route::Quads,
+
         Command::InnerShadow { .. } => Route::Vello,
     }
 }
@@ -920,6 +953,34 @@ mod shape_tests {
 
     fn is_quads(command: &Command) -> bool {
         matches!(route(command), Route::Quads)
+    }
+
+    #[test]
+    fn video_frames_always_go_to_the_quads() {
+        use std::sync::Arc;
+
+        use crate::video::{Colors, Frame, Picture};
+
+        let video = Command::Video {
+            picture: Picture {
+                feed: 1,
+                number: 1,
+                frame: Arc::new(Frame {
+                    width: 2,
+                    height: 2,
+                    y: vec![0; 4],
+                    uv: vec![128; 2],
+                    colors: Colors::Bt709,
+                    full_range: false,
+                }),
+            },
+            transform: Transform::from_scale(1.5, 1.5),
+            area: Area::new(0.0, 0.0, 3.0, 3.0),
+            radius: Corners::from(1.0),
+            clip_transform: Transform::IDENTITY,
+        };
+
+        assert!(is_quads(&video));
     }
 
     fn bubble() -> BezierPath {

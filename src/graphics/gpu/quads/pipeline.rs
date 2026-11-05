@@ -3,10 +3,12 @@ use std::collections::HashMap;
 use vello::wgpu::{
     AddressMode, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BlendState,
-    BufferBindingType, ColorTargetState, ColorWrites, Device, FilterMode, FragmentState,
-    MipmapFilterMode, PipelineLayoutDescriptor, Queue, RenderPipelineDescriptor, Sampler,
-    SamplerBindingType, SamplerDescriptor, ShaderStages, Texture, TextureFormat, TextureSampleType,
-    TextureViewDimension, VertexState, include_wgsl,
+    BufferBindingType, ColorTargetState, ColorWrites, Device, Extent3d, FilterMode, FragmentState,
+    MipmapFilterMode, Origin3d, PipelineLayoutDescriptor, Queue, RenderPipelineDescriptor, Sampler,
+    SamplerBindingType, SamplerDescriptor, ShaderStages, TexelCopyBufferLayout,
+    TexelCopyTextureInfo, Texture, TextureAspect, TextureDescriptor, TextureDimension,
+    TextureFormat, TextureSampleType, TextureUsages, TextureViewDimension, VertexState,
+    include_wgsl,
 };
 
 use crate::graphics::gpu::atlas::Atlas;
@@ -29,7 +31,11 @@ impl Quads {
 
         let picture_inputs = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: None,
-            entries: &[texture_entry(0, true), sampler_entry()],
+            entries: &[
+                texture_entry(0, true),
+                sampler_entry(),
+                texture_entry(2, true),
+            ],
         });
 
         let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
@@ -85,7 +91,9 @@ impl Quads {
         let empty = Bitmap::empty();
         let empty = picture::upload(device, queue, &empty);
 
-        let blank = picture_group(device, &picture_inputs, &empty, &sampler);
+        let blank_colour = empty_colour(device, queue);
+
+        let blank = picture_group(device, &picture_inputs, &empty, &blank_colour, &sampler);
 
         Self {
             pipeline,
@@ -95,7 +103,9 @@ impl Quads {
             sampler,
             atlas: Atlas::new(),
             pictures: HashMap::new(),
+            videos: Default::default(),
             blank,
+            blank_colour,
             waiting: Vec::new(),
             points: Vec::new(),
             runs: Vec::new(),
@@ -107,9 +117,12 @@ pub fn picture_group(
     device: &Device,
     layout: &BindGroupLayout,
     texture: &Texture,
+    // a video's colour plane, beside its brightness in texture; images bind a blank one
+    colour: &Texture,
     sampler: &Sampler,
 ) -> BindGroup {
     let view = texture::view(texture);
+    let colour = texture::view(colour);
 
     device.create_bind_group(&BindGroupDescriptor {
         label: None,
@@ -123,8 +136,52 @@ pub fn picture_group(
                 binding: 1,
                 resource: BindingResource::Sampler(sampler),
             },
+            BindGroupEntry {
+                binding: 2,
+                resource: BindingResource::TextureView(&colour),
+            },
         ],
     })
+}
+
+// one pixel of neutral colour, for the binding images don't read
+fn empty_colour(device: &Device, queue: &Queue) -> Texture {
+    let texture = device.create_texture(&TextureDescriptor {
+        label: None,
+        size: Extent3d {
+            width: 1,
+            height: 1,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D2,
+        format: TextureFormat::Rg8Unorm,
+        usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+        view_formats: &[],
+    });
+
+    queue.write_texture(
+        TexelCopyTextureInfo {
+            texture: &texture,
+            mip_level: 0,
+            origin: Origin3d::ZERO,
+            aspect: TextureAspect::All,
+        },
+        &[128, 128],
+        TexelCopyBufferLayout {
+            offset: 0,
+            bytes_per_row: Some(2),
+            rows_per_image: Some(1),
+        },
+        Extent3d {
+            width: 1,
+            height: 1,
+            depth_or_array_layers: 1,
+        },
+    );
+
+    texture
 }
 
 fn quads_entry() -> BindGroupLayoutEntry {

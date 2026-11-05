@@ -6,7 +6,7 @@ use vello::wgpu::{
 
 use crate::graphics::gpu::texture;
 
-use super::{Clip, Quads};
+use super::{Bound, Clip, Quads};
 
 impl Quads {
     // before any letter of the frame is placed
@@ -133,7 +133,10 @@ impl Quads {
             for run in self.runs.drain(..) {
                 let picture = run
                     .picture
-                    .and_then(|key| self.pictures.get(&key))
+                    .and_then(|bound| match bound {
+                        Bound::Picture(key) => self.pictures.get(&key),
+                        Bound::Video(feed) => self.videos.group(feed),
+                    })
                     .unwrap_or(&self.blank);
 
                 pass.set_bind_group(1, picture, &[]);
@@ -214,6 +217,79 @@ mod tests {
         assert_eq!(pixel(4, 4), [0, 0, 255, 255]);
         assert_eq!(pixel(1, 1), [0, 0, 191, 191]);
         assert_eq!(pixel(8, 14), [255, 0, 0, 255]);
+    }
+
+    // a video frame's planes come out as the colours they encode
+    #[test]
+    #[ignore = "requires a graphics adapter"]
+    fn draws_video_colours_from_their_planes() {
+        use std::sync::Arc;
+
+        use crate::video::{Colors, Frame, Picture};
+
+        let instance = Instance::new(InstanceDescriptor::new_without_display_handle_from_env());
+        let adapter = wait(instance.request_adapter(&RequestAdapterOptions::default()))
+            .expect("failed to find a gpu");
+        let (device, queue) =
+            wait(adapter.request_device(&DeviceDescriptor::default())).expect("failed to open gpu");
+        let canvas = texture::canvas(&device, 16, 16);
+        let mut quads = Quads::new(&device, &queue);
+
+        // BT.709 video range: the left half red, the right half white
+        let mut y = vec![0u8; 16 * 16];
+        let mut uv = vec![0u8; 8 * 8 * 2];
+
+        for row in 0..16 {
+            for column in 0..16 {
+                y[row * 16 + column] = if column < 8 { 63 } else { 235 };
+            }
+        }
+
+        for row in 0..8 {
+            for column in 0..8 {
+                let (u, v) = if column < 4 { (102, 240) } else { (128, 128) };
+
+                uv[(row * 8 + column) * 2] = u;
+                uv[(row * 8 + column) * 2 + 1] = v;
+            }
+        }
+
+        let picture = Picture {
+            feed: 1,
+            number: 1,
+            frame: Arc::new(Frame {
+                width: 16,
+                height: 16,
+                y,
+                uv,
+                colors: Colors::Bt709,
+                full_range: false,
+            }),
+        };
+
+        quads.video(
+            &device,
+            &queue,
+            &picture,
+            Area::new(0.0, 0.0, 16.0, 16.0),
+            Clips::default(),
+        );
+        quads.draw(&device, &queue, &canvas);
+
+        let pixels = pixels(&device, &queue, &canvas, 16, 16);
+        let pixel = |x: usize, y: usize| &pixels[y * 256 + x * 4..y * 256 + x * 4 + 4];
+        let near = |got: &[u8], want: [u8; 4]| {
+            got.iter()
+                .zip(want)
+                .all(|(got, want)| got.abs_diff(want) <= 2)
+        };
+
+        assert!(near(pixel(2, 8), [255, 0, 0, 255]), "{:?}", pixel(2, 8));
+        assert!(
+            near(pixel(13, 8), [255, 255, 255, 255]),
+            "{:?}",
+            pixel(13, 8)
+        );
     }
 
     // the shadow quad is vello's blurred rounded rectangle, pixel for pixel

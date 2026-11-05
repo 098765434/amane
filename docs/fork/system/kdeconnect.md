@@ -68,7 +68,9 @@ A `PhoneDevice` has `id`, `name`, `kind` (`"phone"`, `"tablet"`, `"desktop"`,
 `"laptop"`, `"tv"`), `pair_state`, `reachable`, `connected` (paired and reachable),
 `verification_key`, `battery` (`PhoneBattery { percent, charging }`),
 `clipboard_auto_sync`, `run_commands`, `keyboard_ready` (a text field is focused
-on the phone), and `can_ring`, `can_share`, `can_message`, `can_remote_input` and
+on the phone), `addresses` (where it is on the network, IPv4 first, for adb),
+`notifications` (each `PhoneNotification`: `id`, `app`, `package`, `title`,
+`text`), and `can_ring`, `can_share`, `can_message`, `can_remote_input` and
 `can_run_commands` from its loaded plugins.
 
 ### `PhoneMessages`
@@ -93,8 +95,13 @@ on the phone), and `can_ring`, `can_share`, `can_message`, `can_remote_input` an
 - **Plugins live at sub-paths** (`…/<id>/battery`, `findmyphone`, `share`,
   `clipboard`, `remotecontrol`, `remotekeyboard`). The `conversations` interface
   is on the device object itself.
+- **Notifications** are `activeNotifications()` on `…/<id>/notifications`, then
+  `GetAll` on each `…/notifications/<n>`. Their `internalId` is Android's
+  notification key, `0|<package>|<number>|<tag>|<uid>`, so it gives the app's
+  package. KDE Connect's own notifications (a missed call) have none.
 - **Updates:** every signal from the daemon's owner on the daemon, device,
-  battery, clipboard or remote keyboard interfaces reads everything again. That's
+  battery, clipboard, remote keyboard or notifications interfaces reads
+  everything again. That's
   a handful of calls for the one or two phones anyone has, and it only writes the
   service when something changed. A resync runs every 30 s while the daemon runs,
   and again when its owner changes.

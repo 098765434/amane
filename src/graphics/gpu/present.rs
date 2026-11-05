@@ -82,6 +82,8 @@ impl Gpu {
 
         self.forget_unshown();
 
+        self.quads.forget_undrawn_videos();
+
         self.forget_unpainted();
 
         self.forget_unread_inputs();

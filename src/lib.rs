@@ -32,6 +32,7 @@ mod scale;
 mod services;
 mod style;
 mod timing;
+pub mod video;
 mod wayland;
 mod widgets;
 mod window;
@@ -73,21 +74,24 @@ pub use popup::{
 };
 pub use process::{lines, output, spawn, spawn_activated};
 pub use serde;
+pub use services::adb::run as adb;
 pub use services::{
-    AccessPoint, Action, Appearance, Apps, Audio, AudioDevice, AudioKind, AuthPrompt, AuthRequest,
-    Backdrop, Battery, BatteryState, Bluetooth, BluetoothAdapter, BluetoothDevice, BluetoothError,
-    BluetoothOperation, Brightness, Cpu, Desktop, DesktopAction, DesktopApp, DeviceKind, Gestures,
-    Idle, KdeConnect, Link, Lock, Media, MediaPlayer, Memory, Network, Notification, Notifications,
-    Overview, PairingAnswer, PairingKind, PairingRequest, Palette, Pam, PamConfig, PamError,
-    PamMessage, PamMessageKind, PamResult, PhoneBattery, PhoneClick, PhoneDevice, PhoneKey,
-    PhoneMessages, PhoneModifiers, PhonePairState, Polkit, PowerDevice, PowerProfile, PowerState,
-    SMS_PAGE, Scheme, Service, SmsKind, SmsMessage, SmsThread, Timeout, Urgency, WarningLevel,
-    WindowInfo, Windows, Workspace, WorkspaceSwitch, Workspaces,
+    AccessPoint, Action, Adb, AdbDevice, AdbState, Appearance, Apps, Audio, AudioDevice, AudioKind,
+    AuthPrompt, AuthRequest, Backdrop, Battery, BatteryState, Bluetooth, BluetoothAdapter,
+    BluetoothDevice, BluetoothError, BluetoothOperation, Brightness, Cpu, Desktop, DesktopAction,
+    DesktopApp, DeviceKind, Gestures, Idle, KdeConnect, Link, Lock, Media, MediaPlayer, Memory,
+    Network, Notification, Notifications, Overview, PairingAnswer, PairingKind, PairingRequest,
+    Palette, Pam, PamConfig, PamError, PamMessage, PamMessageKind, PamResult, PhoneBattery,
+    PhoneClick, PhoneDevice, PhoneKey, PhoneMessages, PhoneModifiers, PhoneNotification,
+    PhonePairState, Polkit, PowerDevice, PowerProfile, PowerState, SMS_PAGE, Scheme, Service,
+    SmsKind, SmsMessage, SmsThread, Timeout, Urgency, WarningLevel, WindowInfo, Windows,
+    WirelessKind, WirelessService, Workspace, WorkspaceSwitch, Workspaces,
 };
 pub use style::{Effect, Fill, Image, Input, Mask, Radius, Shadow};
+pub use video::{Colors as VideoColors, Frame as VideoFrame, VideoFeed};
 pub use widgets::{
     Arc, Canvas, Case, Circle, Column, Decoration, Line, Path, Rectangle, Row, ScrollArea, Shape,
-    Stack, Text, TextAlign, TextDirection, TextInput, Widget,
+    Stack, Text, TextAlign, TextDirection, TextInput, Video, Widget,
 };
 
 pub use placement::Justify::{SpaceAround, SpaceBetween, SpaceEvenly};

@@ -8,7 +8,7 @@ use crate::graphics::{Area, Cap, Color, Corners};
 use super::clip::NO_CLIP;
 use super::pipeline::picture_group;
 use super::{
-    ARC, Clip, Clips, LETTER, OUTLINE, PICTURE, QUAD_SIZE, Quads, Run, SEGMENT, SHADOW,
+    ARC, Bound, Clip, Clips, LETTER, OUTLINE, PICTURE, QUAD_SIZE, Quads, Run, SEGMENT, SHADOW,
     SHADOW_REACH, SHAPE, TRAPEZOID,
 };
 
@@ -391,7 +391,13 @@ impl Quads {
         if !self.pictures.contains_key(&key) {
             let texture = picture::upload(device, queue, image);
 
-            let group = picture_group(device, &self.picture_inputs, &texture, &self.sampler);
+            let group = picture_group(
+                device,
+                &self.picture_inputs,
+                &texture,
+                &self.blank_colour,
+                &self.sampler,
+            );
 
             self.pictures.insert(key, group);
         }
@@ -405,7 +411,7 @@ impl Quads {
             clips,
             PICTURE,
             corners,
-            Some(key),
+            Some(Bound::Picture(key)),
         );
     }
 
@@ -418,7 +424,7 @@ impl Quads {
         clips: Clips,
         kind: f32,
         source: [f32; 4],
-        picture: Option<usize>,
+        picture: Option<Bound>,
     ) {
         self.push_with(
             area,
@@ -433,7 +439,7 @@ impl Quads {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn push_with(
+    pub(super) fn push_with(
         &mut self,
         area: Area,
         // the radius row: a shape's corners, or what the kind keeps there
@@ -444,7 +450,7 @@ impl Quads {
         clips: Clips,
         kind: f32,
         source: [f32; 4],
-        picture: Option<usize>,
+        picture: Option<Bound>,
     ) {
         let outer = clips.outer.unwrap_or(NO_CLIP);
         let inner = clips.inner.unwrap_or(NO_CLIP);

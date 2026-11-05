@@ -18,6 +18,9 @@ pub enum Source {
     Service(TypeId),
     Backdrop(u32),
 
+    // a video feed's newest frame
+    Video(u64),
+
     // windows' titles, which change far more often than what else is known of them
     Titles,
 }

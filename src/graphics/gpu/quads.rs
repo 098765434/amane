@@ -2,10 +2,11 @@ mod batch;
 mod clip;
 mod draw;
 mod pipeline;
+mod video;
 
 use std::collections::HashMap;
 
-use vello::wgpu::{BindGroup, BindGroupLayout, RenderPipeline, Sampler};
+use vello::wgpu::{BindGroup, BindGroupLayout, RenderPipeline, Sampler, Texture};
 
 use super::atlas::Atlas;
 
@@ -24,14 +25,25 @@ const ARC: f32 = 4.0;
 const SEGMENT: f32 = 5.0;
 const TRAPEZOID: f32 = 6.0;
 const OUTLINE: f32 = 7.0;
+const VIDEO: f32 = 8.0;
 
 // how far past its rectangle a shadow's blur is drawn, in deviations; vello cuts its own off there too
 const SHADOW_REACH: f32 = 2.5;
 
+// what a quad reads besides the atlas
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Bound {
+    // an image, by where the loaded image lives
+    Picture(usize),
+
+    // a video feed's planes
+    Video(u64),
+}
+
 // quads next to each other that read the same image, drawn in one go
 struct Run {
-    // where the image lives, none for quads that read no image
-    picture: Option<usize>,
+    // what they read, none for quads that read no image
+    picture: Option<Bound>,
 
     first: u32,
     count: u32,
@@ -56,8 +68,14 @@ pub struct Quads {
     // images already on the gpu, keyed by where the loaded image lives
     pictures: HashMap<usize, BindGroup>,
 
+    // video feeds' frames on the gpu
+    videos: video::Videos,
+
     // what quads that read no image bind in the image's place
     blank: BindGroup,
+
+    // the colour plane images bind, which they never read
+    blank_colour: Texture,
 
     // every quad's numbers one after another, as quads.wgsl reads them
     waiting: Vec<f32>,
@@ -68,9 +86,15 @@ pub struct Quads {
 }
 
 impl Quads {
+    // the feeds no window drew this frame let go of their planes
+    pub fn forget_undrawn_videos(&mut self) {
+        self.videos.forget_undrawn();
+    }
+
     // lets go of everything a hidden window drew with: its images, its letters and the room for quads
     pub fn release(&mut self) {
         self.pictures.clear();
+        self.videos = video::Videos::default();
 
         self.atlas.release();
 

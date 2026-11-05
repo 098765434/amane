@@ -4,6 +4,7 @@ use crate::graphics::image::Bitmap;
 use crate::graphics::{Area, BezierPath, Cap, Color, Corners, Gradient, Join, Renderer, Transform};
 
 use super::Command;
+use crate::video::Picture;
 
 impl Renderer {
     pub fn rectangle(&mut self, area: Area, color: Color, radius: Corners) {
@@ -84,6 +85,30 @@ impl Renderer {
         self.commands.push(Command::Image {
             image,
             transform,
+            area,
+            radius,
+            clip_transform: self.transform,
+        });
+    }
+
+    // like an image, with the frame's own size as its pixels
+    pub(crate) fn video(&mut self, area: Area, radius: Corners, picture: Picture, placement: Area) {
+        if area.width <= 0.0 || area.height <= 0.0 {
+            return;
+        }
+
+        let frame_transform = Transform::from_row(
+            placement.width / picture.frame.width as f32,
+            0.0,
+            0.0,
+            placement.height / picture.frame.height as f32,
+            placement.x,
+            placement.y,
+        );
+
+        self.commands.push(Command::Video {
+            transform: frame_transform.post_concat(self.transform),
+            picture,
             area,
             radius,
             clip_transform: self.transform,
