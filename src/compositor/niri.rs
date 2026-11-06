@@ -464,6 +464,7 @@ fn parse_window(window: &Value) -> Option<WindowInfo> {
 
         focused: window["is_focused"].as_bool().unwrap_or(false),
         floating: window["is_floating"].as_bool().unwrap_or(false),
+        fullscreen: window["is_fullscreen"].as_bool().unwrap_or(false),
 
         // null while the window is on no workspace
         workspace: window["workspace_id"].as_i64(),
