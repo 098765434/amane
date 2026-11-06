@@ -85,6 +85,20 @@ impl Bus {
         self.watch_signals(rule)
     }
 
+    /*
+     * every signal of `interface` whoever sends it, like each tray item's
+     * NewIcon, since a tray hears from programs it doesn't know beforehand
+     */
+    pub fn interface_signals(&self, interface: &str) -> Signals {
+        let rule = MatchRule::builder()
+            .msg_type(Type::Signal)
+            .interface(interface)
+            .expect("failed to watch signals: bad interface name")
+            .build();
+
+        self.watch_signals(rule)
+    }
+
     fn watch_signals(&self, rule: MatchRule<'_>) -> Signals {
         let messages = self
             .connection

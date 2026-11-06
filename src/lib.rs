@@ -84,8 +84,9 @@ pub use services::{
     Palette, Pam, PamConfig, PamError, PamMessage, PamMessageKind, PamResult, PhoneBattery,
     PhoneClick, PhoneDevice, PhoneKey, PhoneMessages, PhoneModifiers, PhoneNotification,
     PhonePairState, Polkit, PowerDevice, PowerProfile, PowerState, SMS_PAGE, Scheme, Service,
-    SmsAttachment, SmsKind, SmsMessage, SmsState, SmsThread, Timeout, Urgency, WarningLevel,
-    WindowInfo, Windows, WirelessKind, WirelessService, Workspace, WorkspaceSwitch, Workspaces,
+    SmsAttachment, SmsKind, SmsMessage, SmsState, SmsThread, Timeout, Tray, TrayItem, TrayMenuItem,
+    TrayStatus, TrayToggle, Urgency, WarningLevel, WindowInfo, Windows, WirelessKind,
+    WirelessService, Workspace, WorkspaceSwitch, Workspaces,
 };
 pub use style::{Effect, Fill, Image, Input, Mask, Radius, Shadow};
 pub use video::{Colors as VideoColors, Frame as VideoFrame, VideoFeed};

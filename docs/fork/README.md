@@ -42,6 +42,7 @@ as upstream has them; everything the fork adds is here.
 | Power profile | power-profiles-daemon | `PowerProfile` | [power-profile](system/power-profile.md) | — | done |
 | Bluetooth | signals, operations and failures, pairing agent, rfkill, discoverable | `Bluetooth::serve_agent`, `PairingRequest`, `BluetoothError` | [bluetooth](system/bluetooth.md) | — | done |
 | KDE Connect | phones: pairing, battery, ring, files, clipboard, run commands, remote input, text messages with attachments and new conversations, contact photos, addresses, notifications | `KdeConnect`, `PhoneDevice`, `PhoneMessages`, `SmsAttachment` | [kdeconnect](system/kdeconnect.md) | — | done |
+| Tray | the system tray: StatusNotifierItem watcher and host, item icons (theme, own folder or pixels), dbusmenu menus, clicks and scrolling | `Tray`, `TrayItem`, `TrayMenuItem`, `TrayStatus`, `TrayToggle` | [tray](system/tray.md) | — | done |
 | adb | Android phones over USB and Wireless debugging: devices, mDNS discovery, pairing, connecting | `Adb`, `AdbDevice`, `WirelessService`, `amane::adb` | [adb](system/adb.md) | — | done |
 | Idle | ext-idle-notify levels and ScreenSaver inhibits | `Idle` | [idle](system/idle.md) | `examples/idle.rs` | done |
 | Polkit agent | the session's authentication agent: polkit's prompts as the shell's own | `Polkit::serve_agent`, `AuthRequest` | [polkit](system/polkit.md) | — | done |
