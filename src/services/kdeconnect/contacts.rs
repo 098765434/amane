@@ -5,15 +5,34 @@
  */
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+use super::files;
 
 // shorter numbers (service codes) only match whole
 const SUFFIX_DIGITS: usize = 7;
 
+// one person in the phone's contacts
+#[derive(Debug, Default, Clone, PartialEq)]
+pub(crate) struct Person {
+    pub(crate) name: String,
+
+    // their numbers as the card writes them
+    pub(crate) numbers: Vec<String>,
+
+    // the card's photo, base64 as it came, until it's written out
+    photo_data: Option<String>,
+
+    // the photo, written out
+    pub(crate) photo: Option<PathBuf>,
+}
+
 #[derive(Debug, Default, Clone, PartialEq)]
 pub(crate) struct Contacts {
-    // each number's digits and the name it belongs to
-    numbers: Vec<(String, String)>,
+    // each number's digits and whose it is, by index into people
+    numbers: Vec<(String, usize)>,
+
+    people: Vec<Person>,
 }
 
 impl Contacts {
@@ -40,13 +59,13 @@ impl Contacts {
             }
         }
 
+        contacts.write_photos();
+
         contacts
     }
 
     pub(crate) fn add_vcard(&mut self, text: &str) {
-        let mut name = String::new();
-
-        let mut numbers = Vec::new();
+        let mut person = Person::default();
 
         for line in unfold(text) {
             let Some((key, value)) = line.split_once(':') else {
@@ -54,8 +73,9 @@ impl Contacts {
             };
 
             // TEL;TYPE=CELL:+47 ... and item1.TEL:... both name a number
-            let property = key
-                .split(';')
+            let mut parameters = key.split(';');
+
+            let property = parameters
                 .next()
                 .unwrap_or("")
                 .rsplit('.')
@@ -64,32 +84,60 @@ impl Contacts {
                 .to_ascii_uppercase();
 
             match property.as_str() {
-                "FN" => name = unescape(value),
+                "FN" => person.name = unescape(value),
                 "TEL" => {
-                    let number = digits(value.trim_start_matches("tel:"));
+                    let number = value.trim_start_matches("tel:").trim();
 
-                    if !number.is_empty() {
-                        numbers.push(number);
+                    if !digits(number).is_empty() {
+                        person.numbers.push(number.to_string());
+                    }
+                }
+                // PHOTO;ENCODING=BASE64;JPEG:... (2.1), ENCODING=b (3.0), or a data: url (4.0)
+                "PHOTO" => {
+                    let inline = parameters
+                        .any(|parameter| parameter.to_ascii_uppercase().contains("ENCODING=B"));
+
+                    let data = match value.split_once("base64,") {
+                        Some((_, data)) => Some(data),
+                        None if inline => Some(value),
+                        None => None,
+                    };
+
+                    if let Some(data) = data.filter(|data| !data.trim().is_empty()) {
+                        person.photo_data = Some(data.trim().to_string());
                     }
                 }
                 _ => {}
             }
         }
 
-        if name.is_empty() {
+        if person.name.is_empty() {
             return;
         }
 
-        for number in numbers {
-            self.numbers.push((number, name.clone()));
+        let index = self.people.len();
+
+        for number in &person.numbers {
+            self.numbers.push((digits(number), index));
+        }
+
+        self.people.push(person);
+    }
+
+    // each photo decoded into the cache once, named for what it holds
+    fn write_photos(&mut self) {
+        for person in &mut self.people {
+            let Some(data) = person.photo_data.take() else {
+                continue;
+            };
+
+            let name = format!("{}.jpg", files::name_for(&data));
+
+            person.photo = files::write_once("contacts", &name, &data);
         }
     }
 
-    /*
-     * the name for `address`: the same digits, or one ending the other, so
-     * a local number and its form with the country code are one contact
-     */
-    pub(crate) fn name(&self, address: &str) -> Option<&str> {
+    fn person(&self, address: &str) -> Option<&Person> {
         let wanted = digits(address);
 
         if wanted.is_empty() {
@@ -99,7 +147,23 @@ impl Contacts {
         self.numbers
             .iter()
             .find(|(number, _)| same_number(number, &wanted))
-            .map(|(_, name)| name.as_str())
+            .map(|(_, index)| &self.people[*index])
+    }
+
+    /*
+     * the name for `address`: the same digits, or one ending the other, so
+     * a local number and its form with the country code are one contact
+     */
+    pub(crate) fn name(&self, address: &str) -> Option<&str> {
+        self.person(address).map(|person| person.name.as_str())
+    }
+
+    pub(crate) fn photo(&self, address: &str) -> Option<&Path> {
+        self.person(address)?.photo.as_deref()
+    }
+
+    pub(crate) fn people(&self) -> &[Person] {
+        &self.people
     }
 }
 
@@ -116,7 +180,7 @@ fn folder(device: &str) -> Option<PathBuf> {
     )
 }
 
-fn same_number(a: &str, b: &str) -> bool {
+pub(crate) fn same_number(a: &str, b: &str) -> bool {
     if a == b {
         return true;
     }
@@ -126,7 +190,7 @@ fn same_number(a: &str, b: &str) -> bool {
     short.len() >= SUFFIX_DIGITS && long.ends_with(short)
 }
 
-fn digits(text: &str) -> String {
+pub(crate) fn digits(text: &str) -> String {
     text.chars().filter(char::is_ascii_digit).collect()
 }
 
@@ -192,6 +256,25 @@ mod tests {
         assert_eq!(contacts.name("12222"), None);
         assert_eq!(contacts.name("015"), None);
         assert_eq!(contacts.name(""), None);
+    }
+
+    #[test]
+    fn reads_a_folded_photo() {
+        let mut contacts = Contacts::default();
+
+        contacts.add_vcard(
+            "BEGIN:VCARD\r\nVERSION:2.1\r\nFN:Kari\r\nTEL:95723015\r\nPHOTO;ENCODING=BASE64;JPEG:/9j/4AAQ\r\n SkZJRg\r\nEND:VCARD\r\n",
+        );
+        contacts.add_vcard(
+            "BEGIN:VCARD\nVERSION:4.0\nFN:Ola\nTEL:22334455\nPHOTO:data:image/jpeg;base64,aGVp\nEND:VCARD\n",
+        );
+
+        assert_eq!(
+            contacts.people()[0].photo_data.as_deref(),
+            Some("/9j/4AAQSkZJRg")
+        );
+        assert_eq!(contacts.people()[1].photo_data.as_deref(), Some("aGVp"));
+        assert_eq!(contacts.people()[0].numbers, ["95723015"]);
     }
 
     #[test]

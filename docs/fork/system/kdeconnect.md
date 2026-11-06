@@ -43,7 +43,8 @@ for thread in messages.threads() {        // newest first
     let who = thread.title();             // contact names where the phone shared them
 }
 PhoneMessages::load_thread(thread, SMS_PAGE);  // the newest 50; messages(thread) as they come
-PhoneMessages::reply(thread, "On my way");     // shows at once as pending()
+PhoneMessages::reply(thread, "On my way", &[]);     // shows at once as pending()
+PhoneMessages::new_conversation(&numbers, "Hei", &[photo]);  // a thread started here, moved() once the phone answers
 ```
 
 ### `KdeConnect`
@@ -81,8 +82,19 @@ on the phone), `addresses` (where it is on the network, IPv4 first, for adb),
 | `threads()`, `thread(id)` | `SmsThread`s, newest first: `title`, `latest`, `unread`, `addresses` |
 | `messages(thread)` | that thread's `SmsMessage`s, oldest first, as far as they've come |
 | `load_thread(thread, count)`, `loading(thread)` | asks for the newest `count` messages |
-| `reply(thread, text)` | sends; a `pending()` message (negative uid) stands in until the phone sends it back as sent |
-| `name(address)` | the contact's name, or the number |
+| `state()` | `SmsState`: `Idle`, `Syncing`, `Ready`, or `NoAnswer` when no conversation came within 20 s of asking |
+| `reply(thread, text, files)` | sends, with files as attachments; a `pending()` message (negative uid) stands in until the phone sends it back as sent, and turns `Failed` after 2 minutes |
+| `new_conversation(addresses, text, files)` | writes to those people: in their thread when there's one, else in a thread started here (negative id); `moved(id)` gives the phone's thread once it sends the message back |
+| `retry(uid)`, `discard(uid)` | sends a failed message again, or forgets it |
+| `download(attachment)`, `downloading(unique)`, `downloaded(unique)` | fetches an attachment's whole file and opens it |
+| `name(address)`, `photo(address)` | the contact's name (or the number) and photo |
+| `contacts()`, `thread_with(addresses)` | every contact's name and number; the thread with exactly those people |
+
+`SmsMessage::attachments()` are `SmsAttachment`s: `part`, `unique`, `mime`,
+`thumbnail()` (the small picture the phone sends with the message, written to
+`$XDG_CACHE_HOME/amane/messages/thumbnails/`), and `local()` for a file sent from
+here. `sender()` is the first address of a received message, the person who
+wrote it in a group.
 
 ## How it works
 
@@ -116,13 +128,24 @@ on the phone), `addresses` (where it is on the network, IPv4 first, for adb),
 - **Messages:** `activeConversations()` answers `av` of
   `(isa(s)xiixixa(xsss))` structs: event, body, addresses, date (ms), type
   (Android's: 1 in, 2 out, 3 draft, 4 outbox, 5 failed, 6 queued), read, thread,
-  uid, sim and attachments. `conversationCreated`/`Updated` carry one as `v`;
+  uid, sim and attachments, each `(xsss)`: part id, MIME type, base64 thumbnail
+  and unique id. `conversationCreated`/`Updated` carry one as `v`;
   `conversationLoaded(x, u)` ends a `requestConversation` window. A message is
   stored once per uid.
 - **Contacts** come from the vCards the contacts plugin syncs to
   `~/.local/share/kpeoplevcard/kdeconnect-<id>/*.vcf`. A number matches by its
   digits, or one ending the other with 7 or more digits, so a local number
-  matches its `+country` form.
+  matches its `+country` form. A card's `PHOTO` (base64, any vCard version) is
+  written once to `$XDG_CACHE_HOME/amane/messages/contacts/`.
+- **Sending:** `replyToConversation(x, s, av)` and
+  `sendWithoutConversation(av, s, av)`. Each attachment is a plain path as a
+  string (the daemon opens it with `QFile`, so not a `file://` URL). Each address
+  for a new conversation is a `(s)` struct. The phone sends the message back in
+  its thread: the pending one with the same body (or, without a body, the same
+  people and attachments) is dropped, and a thread started here moves there.
+- **Attachments:** `requestAttachmentFile(x, s)` answers with
+  `attachmentReceived(path, unique)` once the daemon has the file, at once when
+  it's in its cache.
 
 ## Limits
 

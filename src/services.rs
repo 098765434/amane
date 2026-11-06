@@ -54,7 +54,8 @@ pub use gestures::Gestures;
 pub use idle::Idle;
 pub use kdeconnect::{
     KdeConnect, PairState as PhonePairState, PhoneBattery, PhoneClick, PhoneDevice, PhoneKey,
-    PhoneMessages, PhoneModifiers, PhoneNotification, SMS_PAGE, SmsKind, SmsMessage, SmsThread,
+    PhoneMessages, PhoneModifiers, PhoneNotification, SMS_PAGE, SmsAttachment, SmsKind, SmsMessage,
+    SmsState, SmsThread,
 };
 pub use lock::Lock;
 pub use media::{Media, MediaPlayer};

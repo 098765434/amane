@@ -10,6 +10,7 @@ mod actions;
 mod config;
 mod contacts;
 mod device;
+mod files;
 mod input;
 mod sms;
 
@@ -22,7 +23,9 @@ use crate::{Argument, Bus, Service};
 
 pub use device::{PairState, PhoneBattery, PhoneDevice, PhoneNotification};
 pub use input::{PhoneClick, PhoneKey, PhoneModifiers};
-pub use sms::{PAGE as SMS_PAGE, PhoneMessages, SmsKind, SmsMessage, SmsThread};
+pub use sms::{
+    PAGE as SMS_PAGE, PhoneMessages, SmsAttachment, SmsKind, SmsMessage, SmsState, SmsThread,
+};
 
 pub(crate) const KDECONNECT: &str = "org.kde.kdeconnect";
 pub(crate) const DAEMON_PATH: &str = "/modules/kdeconnect";

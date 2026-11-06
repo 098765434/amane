@@ -36,6 +36,12 @@ struct Motion {
 
     // fingers on it: how fast they're going (pixels a second, smoothed) and when they last moved
     fingers: Option<(f32, Instant)>,
+
+    // how far it could move when last drawn
+    farthest: f32,
+
+    // content added above is to leave the view where it is: the next growth moves it as far
+    keep_bottom: bool,
 }
 
 impl Motion {
@@ -76,13 +82,48 @@ pub fn get(id: &'static str) -> f32 {
 // puts it at `offset` at once
 pub fn set(id: &'static str, offset: f32) {
     OFFSETS.with_borrow_mut(|offsets| {
-        offsets.insert(
-            id,
-            Motion {
-                offset,
-                ..Motion::default()
-            },
-        );
+        let motion = offsets.entry(id).or_default();
+
+        motion.offset = offset;
+        motion.moving = None;
+        motion.fingers = None;
+    });
+}
+
+// whether it rests within `slack` of its end, as last drawn
+pub fn at_end(id: &'static str, slack: f32) -> bool {
+    OFFSETS.with_borrow(|offsets| {
+        offsets
+            .get(id)
+            .is_none_or(|motion| motion.target().min(motion.farthest) >= motion.farthest - slack)
+    })
+}
+
+// the next time the content grows, it grew above: move down as far, so the view stays
+pub fn keep_bottom(id: &'static str) {
+    OFFSETS.with_borrow_mut(|offsets| {
+        let motion = offsets.entry(id).or_default();
+
+        motion.offset = motion.now().clamp(0.0, motion.farthest);
+        motion.moving = None;
+        motion.keep_bottom = true;
+    });
+}
+
+// how far it can move now, drawn; a growth asked to keep the bottom moves it with it
+pub fn drawn(id: &'static str, farthest: f32) {
+    OFFSETS.with_borrow_mut(|offsets| {
+        let motion = offsets.entry(id).or_default();
+
+        let grown = farthest - motion.farthest;
+
+        if motion.keep_bottom && grown > 0.5 {
+            motion.offset = motion.offset.clamp(0.0, motion.farthest) + grown;
+            motion.moving = None;
+            motion.keep_bottom = false;
+        }
+
+        motion.farthest = farthest;
     });
 }
 
@@ -161,6 +202,41 @@ fn follow(motion: &mut Motion, moved: f32, stop: bool, farthest: f32, now: Insta
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn content_added_above_keeps_the_view() {
+        let id = "test.keep_bottom";
+
+        drawn(id, 300.0);
+        set(id, 120.0);
+        keep_bottom(id);
+
+        // a redraw before the content comes changes nothing
+        drawn(id, 300.0);
+        assert_eq!(get(id), 120.0);
+
+        drawn(id, 500.0);
+        assert_eq!(get(id), 320.0);
+
+        // and only the first growth counts
+        drawn(id, 600.0);
+        assert_eq!(get(id), 320.0);
+    }
+
+    #[test]
+    fn at_the_end_is_within_the_slack() {
+        let id = "test.at_end";
+
+        assert!(at_end(id, 4.0));
+
+        drawn(id, 300.0);
+        set(id, f32::MAX);
+        assert!(at_end(id, 4.0));
+
+        set(id, 290.0);
+        assert!(!at_end(id, 4.0));
+        assert!(at_end(id, 16.0));
+    }
 
     fn motion() -> Motion {
         Motion::default()

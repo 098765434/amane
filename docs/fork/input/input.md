@@ -170,3 +170,20 @@ Chords it returns `false` for go on as before: to the text input, then to `on_ke
 - Modifiers live in `src/input/modifiers.rs`; a window's key handlers are one `KeyHandlers` struct (`src/input/target.rs`).
 - Files dragged in are handled in `src/wayland/dropped.rs`: the file list is read as the drag enters, every move goes to the target's `on_files_over`, whose answer accepts or refuses the drop at that spot, and letting go tells that target the files have gone before handing them to `on_drop`.
 - While a drag runs, the dragged target keeps the cursor shape until the drop (`2e9f8e0`, see [Blur](../graphics/blur.md#drag-release-hook)).
+
+## Scrolling
+
+A `ScrollArea` coasts on after a flick on a touchpad or touchscreen, and a
+wheel's step eases in over 160 ms. Its position is kept under its id, so three
+functions act on it by id:
+
+```rust,ignore
+ScrollArea::scroll_to_end("chat");   // to the end, however tall the child grows
+ScrollArea::at_end("chat")           // within 24 px of the end, as last drawn
+ScrollArea::keep_bottom("chat");     // the next growth was added above: move as far
+```
+
+A chat follows new messages down only while `at_end`, and calls `keep_bottom`
+before asking for older messages, so what's being read stays where it is when
+they come in at the top.
+

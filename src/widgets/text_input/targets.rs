@@ -126,6 +126,13 @@ fn key_handler(text_input: &TextInput) -> InputHandler {
 
         let held = modifiers();
 
+        // a chat's field: many lines, sent with Enter, a new line with Shift+Enter
+        if multiline && key == Key::Enter && !held.shift && on_submit.is_some() {
+            run(on_submit.as_ref(), &fields::get(id).text);
+
+            return true;
+        }
+
         let mut field = fields::get(id);
 
         let outcome = field.apply(key, held, multiline);
