@@ -30,6 +30,9 @@ pub struct LayerWindow {
     // its grey content blended with what's behind it, see vibrant
     pub(crate) vibrant: bool,
 
+    // the monitor a window made once should show on, by name; none leaves it where it is
+    pub(crate) output: Option<String>,
+
     pub(crate) root: Option<Box<dyn Widget>>,
 
     pub(crate) keys: KeyHandlers,
@@ -268,6 +271,17 @@ impl LayerWindow {
         self
     }
 
+    /*
+     * shows a window made once (App::window) on the monitor named `name`, like
+     * a panel opened from the bar on that monitor; a layer surface can't move,
+     * so a new one is made there, and none leaves it where it last was
+     */
+    pub fn output(mut self, name: Option<String>) -> Self {
+        self.output = name;
+
+        self
+    }
+
     pub fn child(mut self, child: impl Widget + 'static) -> Self {
         self.root = Some(Box::new(child));
 
@@ -306,6 +320,8 @@ impl LayerWindowNeedsHeight {
             blur_region: None,
             blur_shapes: None,
             vibrant: false,
+
+            output: None,
 
             root: None,
 

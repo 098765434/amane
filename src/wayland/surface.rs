@@ -39,6 +39,12 @@ pub struct OpenWindow {
     // only windows made per monitor are tied to one, the rest let the compositor choose
     pub output: Option<WlOutput>,
 
+    // the monitor it shows on by name, once known: its own, or the one the compositor chose
+    pub on_output: Option<String>,
+
+    // the monitor its view asked to show on instead, so it's made again there
+    pub move_to: Option<String>,
+
     // the input region last sent, so only a real change is sent again
     pub input_region: Option<Vec<InputArea>>,
 

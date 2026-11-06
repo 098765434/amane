@@ -64,10 +64,14 @@ impl WaylandState {
 
         let fractional = self.make_fractional(role.wl_surface());
 
+        let on_output = output.as_ref().and_then(|output| self.output_name(output));
+
         let window = OpenWindow {
             view,
 
             output,
+            on_output,
+            move_to: None,
 
             input_region: None,
             blur_region: None,
@@ -186,6 +190,57 @@ impl WaylandState {
     }
 
     // opens again the app windows the compositor closed, letting it choose the monitor
+    pub fn output_name(&self, output: &WlOutput) -> Option<String> {
+        self.output.info(output)?.name
+    }
+
+    /*
+     * a window made once whose view asked for another monitor is made again
+     * there, popups over it first: a layer surface keeps the monitor it was
+     * made on
+     */
+    pub fn move_windows(&mut self) {
+        while let Some(index) = self
+            .windows
+            .iter()
+            .position(|window| window.move_to.is_some())
+        {
+            let name = self.windows[index].move_to.take().unwrap_or_default();
+
+            let Some(output) = self
+                .output
+                .outputs()
+                .find(|output| self.output_name(output).as_deref() == Some(name.as_str()))
+            else {
+                // no such monitor now; it stays, and asks again with its next frame
+                continue;
+            };
+
+            let surface = self.windows[index].role.wl_surface().clone();
+
+            for namespace in self.popups_over(&surface) {
+                self.close_popup_cascade(namespace);
+            }
+
+            let Some(index) = self
+                .windows
+                .iter()
+                .position(|window| window.role.wl_surface() == &surface)
+            else {
+                continue;
+            };
+
+            // the old surface goes before the new one is made
+            let view = {
+                let window = self.windows.remove(index);
+
+                window.view
+            };
+
+            self.open(view, Some(output));
+        }
+    }
+
     pub fn reopen_closed(&mut self) {
         for view in std::mem::take(&mut self.closed_views) {
             self.open(View::Plain(view), None);
