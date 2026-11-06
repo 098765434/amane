@@ -81,7 +81,8 @@ pub use services::{
     Idle, Link, Lock, Media, MediaPlayer, Memory, Network, Notification, Notifications, Overview,
     PairingAnswer, PairingKind, PairingRequest, Palette, Pam, PamConfig, PamError, PamMessage,
     PamMessageKind, PamResult, Polkit, PowerDevice, PowerProfile, PowerState, Scheme, Service,
-    Timeout, Urgency, WarningLevel, WindowInfo, Windows, Workspace, WorkspaceSwitch, Workspaces,
+    Timeout, Tray, TrayItem, TrayMenuItem, TrayStatus, TrayToggle, Urgency, WarningLevel,
+    WindowInfo, Windows, Workspace, WorkspaceSwitch, Workspaces,
 };
 pub use style::{Effect, Fill, Image, Input, Mask, Radius, Shadow};
 pub use video::{Colors as VideoColors, Frame as VideoFrame, VideoFeed};
