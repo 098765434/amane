@@ -1,5 +1,10 @@
+use std::fs::File;
 use std::io::Read;
+use std::mem;
+use std::os::fd::OwnedFd;
 use std::path::PathBuf;
+use std::sync::{Mutex, PoisonError};
+use std::thread;
 
 use smithay_client_toolkit::data_device_manager::{
     WritePipe,
@@ -15,6 +20,7 @@ use wayland_client::{
     },
 };
 
+use crate::changes;
 use crate::clipboard::DragData;
 
 use super::{
@@ -24,6 +30,36 @@ use super::{
 
 // file managers offer dragged files as a list of file:// links
 const URI_LIST: &str = "text/uri-list";
+
+/*
+ * what another program offers is read on a thread of its own, so a slow
+ * source never stalls a frame, and handed back here for the event loop
+ */
+static ARRIVED: Mutex<Vec<Arrived>> = Mutex::new(Vec::new());
+
+enum Arrived {
+    // the files held over a window, for the drag that entered as `epoch`
+    Held(u64, Vec<PathBuf>),
+
+    // what was let go, none when it couldn't be read
+    Dropped(u64, Option<DragData>),
+}
+
+// the drags whose data is still being read
+#[derive(Default)]
+pub(crate) struct Drags {
+    // counts each drag that enters, so a list read for one that already left is let go
+    epoch: u64,
+
+    // the surface a list is being read for
+    reading: Option<(u64, WlSurface)>,
+
+    // where the pointer is meanwhile, so the widget under it is asked once the list arrives
+    at: (f64, f64),
+
+    // offers let go, waiting for their data before they are finished
+    dropped: Vec<(u64, DragOffer)>,
+}
 
 impl DataDeviceHandler for WaylandState {
     fn enter(
@@ -52,15 +88,46 @@ impl DataDeviceHandler for WaylandState {
             return;
         }
 
+        self.drags.epoch += 1;
+        self.drags.at = (x, y);
+
+        // amane's own drag needs no pipe to itself
+        if let Some((_, data)) = &self.dragging_out {
+            let files = match data {
+                DragData::Files(files) => files.clone(),
+                DragData::Text(_) => Vec::new(),
+            };
+
+            self.files_held = Some((surface.clone(), files));
+
+            self.files_moved(x, y);
+
+            return;
+        }
+
         // a widget may want to know which files before they are let go, as a dock does
-        let files = self.held_files(&offer).unwrap_or_default();
+        let Some(file) = self.receive(&offer, String::from(URI_LIST)) else {
+            self.files_held = Some((surface.clone(), Vec::new()));
 
-        self.files_held = Some((surface.clone(), files));
+            self.files_moved(x, y);
 
-        self.files_moved(x, y);
+            return;
+        };
+
+        let epoch = self.drags.epoch;
+
+        self.drags.reading = Some((epoch, surface.clone()));
+
+        read_later(file, move |bytes| {
+            let list = String::from_utf8_lossy(&bytes.unwrap_or_default()).into_owned();
+
+            Arrived::Held(epoch, parse(&list))
+        });
     }
 
     fn leave(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &WlDataDevice) {
+        self.drags.reading = None;
+
         let Some((surface, files)) = self.files_held.take() else {
             return;
         };
@@ -75,6 +142,8 @@ impl DataDeviceHandler for WaylandState {
     }
 
     fn motion(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &WlDataDevice, x: f64, y: f64) {
+        self.drags.at = (x, y);
+
         self.files_moved(x, y);
     }
 
@@ -82,43 +151,51 @@ impl DataDeviceHandler for WaylandState {
 
     fn drop_performed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &WlDataDevice) {
         self.files_held = None;
+        self.drags.reading = None;
 
         let Some(offer) = self.drag_offer() else {
             return;
         };
 
+        if let Some((_, data)) = &self.dragging_out {
+            let data = data.clone();
+
+            self.let_go(&offer, Some(data));
+
+            return;
+        }
+
         let (has_files, text) = offered(&offer);
 
-        let dropped = if has_files {
-            self.held_files(&offer).map(DragData::Files)
+        let kind = if has_files {
+            Some(String::from(URI_LIST))
         } else {
-            text.and_then(|kind| self.dropped_text(&offer, kind))
-                .map(DragData::Text)
+            text
         };
 
-        offer.finish();
-        offer.destroy();
+        let Some(file) = kind.and_then(|kind| self.receive(&offer, kind)) else {
+            self.let_go(&offer, None);
 
-        let surface = offer.surface.clone();
-
-        let Some(window) = self.window(&surface) else {
             return;
         };
 
-        let x = offer.x as f32;
-        let y = offer.y as f32;
+        let epoch = self.drags.epoch;
 
-        let handled = match dropped {
-            Some(DragData::Files(files)) if !files.is_empty() => {
-                window.pointer.drop_files(x, y, files)
-            }
-            Some(DragData::Text(text)) => window.pointer.drop_text(x, y, text),
-            _ => false,
-        };
+        self.drags.dropped.push((epoch, offer));
 
-        if handled {
-            self.request_frame_on(&surface);
-        }
+        read_later(file, move |bytes| {
+            let data = bytes.map(|bytes| {
+                let text = String::from_utf8_lossy(&bytes).into_owned();
+
+                if has_files {
+                    DragData::Files(parse(&text))
+                } else {
+                    DragData::Text(text)
+                }
+            });
+
+            Arrived::Dropped(epoch, data)
+        });
     }
 }
 
@@ -242,53 +319,82 @@ impl WaylandState {
         self.dragging_out = Some((source, data));
     }
 
-    // the files held over a window, from amane's own drag without reading a pipe to itself
-    fn held_files(&self, offer: &DragOffer) -> Option<Vec<PathBuf>> {
-        if let Some((_, data)) = &self.dragging_out {
-            return match data {
-                DragData::Files(files) => Some(files.clone()),
-                DragData::Text(_) => None,
-            };
-        }
-
-        self.read_files(offer)
-    }
-
-    // the text let go over a window, the same way
-    fn dropped_text(&self, offer: &DragOffer, kind: String) -> Option<String> {
-        if let Some((_, DragData::Text(text))) = &self.dragging_out {
-            return Some(text.clone());
-        }
-
-        let mut pipe = offer.receive(kind).ok()?;
-
-        let _ = self.connection.flush();
-
-        // ponytail: blocks the event loop like read_files, text is written at once too
-        let mut text = String::new();
-
-        pipe.read_to_string(&mut text).ok()?;
-
-        Some(text)
-    }
-
-    // the files offered, none when the other program wouldn't say
-    fn read_files(&self, offer: &DragOffer) -> Option<Vec<PathBuf>> {
-        let mut pipe = offer.receive(String::from(URI_LIST)).ok()?;
+    // asks the other program to write what it offers, none when it wouldn't
+    fn receive(&self, offer: &DragOffer, kind: String) -> Option<File> {
+        let pipe = offer.receive(kind).ok()?;
 
         // the receive request has to reach the other program before it can write anything
         let _ = self.connection.flush();
 
-        /*
-         * ponytail: blocks the event loop until the other program has written
-         * the list, which is instant for file managers; read it on the loop if
-         * a slow source ever stalls a frame
-         */
-        let mut list = String::new();
+        Some(File::from(OwnedFd::from(pipe)))
+    }
 
-        pipe.read_to_string(&mut list).ok()?;
+    // what the reading threads handed back, run from the event loop's wake
+    pub(crate) fn handle_arrived_drags(&mut self) {
+        let arrived = mem::take(&mut *ARRIVED.lock().unwrap_or_else(PoisonError::into_inner));
 
-        Some(parse(&list))
+        for arrived in arrived {
+            match arrived {
+                Arrived::Held(epoch, files) => {
+                    let Some((reading, _)) = &self.drags.reading else {
+                        continue;
+                    };
+
+                    // the drag left, or another came in, while its list was read
+                    if *reading != epoch {
+                        continue;
+                    }
+
+                    let Some((_, surface)) = self.drags.reading.take() else {
+                        continue;
+                    };
+
+                    self.files_held = Some((surface, files));
+
+                    let (x, y) = self.drags.at;
+
+                    self.files_moved(x, y);
+                }
+
+                Arrived::Dropped(epoch, data) => {
+                    let Some(index) = self.drags.dropped.iter().position(|(e, _)| *e == epoch)
+                    else {
+                        continue;
+                    };
+
+                    let (_, offer) = self.drags.dropped.remove(index);
+
+                    self.let_go(&offer, data);
+                }
+            }
+        }
+    }
+
+    // finishes a let-go offer and hands what it carried to the widget under it
+    fn let_go(&mut self, offer: &DragOffer, dropped: Option<DragData>) {
+        offer.finish();
+        offer.destroy();
+
+        let surface = offer.surface.clone();
+
+        let Some(window) = self.window(&surface) else {
+            return;
+        };
+
+        let x = offer.x as f32;
+        let y = offer.y as f32;
+
+        let handled = match dropped {
+            Some(DragData::Files(files)) if !files.is_empty() => {
+                window.pointer.drop_files(x, y, files)
+            }
+            Some(DragData::Text(text)) => window.pointer.drop_text(x, y, text),
+            _ => false,
+        };
+
+        if handled {
+            self.request_frame_on(&surface);
+        }
     }
 
     // the held files moved to (x, y): the widget under them says whether they can be let go there
@@ -320,6 +426,22 @@ impl WaylandState {
             self.request_frame_on(&surface);
         }
     }
+}
+
+// reads a pipe to its end on its own thread and wakes the event loop with what came
+fn read_later(mut file: File, then: impl FnOnce(Option<Vec<u8>>) -> Arrived + Send + 'static) {
+    thread::spawn(move || {
+        let mut bytes = Vec::new();
+
+        let read = file.read_to_end(&mut bytes).ok().map(|_| bytes);
+
+        ARRIVED
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(then(read));
+
+        changes::wake();
+    });
 }
 
 // whether a drag offers files, and the best kind of text it offers

@@ -168,6 +168,9 @@ struct WaylandState {
     // the surface files are being dragged over, and the files, read as they came in
     files_held: Option<(WlSurface, Vec<std::path::PathBuf>)>,
 
+    // file lists and drops still being read from the program that offered them
+    drags: dropped::Drags,
+
     // the middle-click selection, none when the compositor lacks it
     primary_manager: Option<PrimarySelectionManagerState>,
     primary_device: Option<PrimarySelectionDevice>,
@@ -333,6 +336,7 @@ impl WaylandApp {
             data_device_manager,
             data_device: None,
             files_held: None,
+            drags: dropped::Drags::default(),
 
             primary_manager,
             primary_device: None,
