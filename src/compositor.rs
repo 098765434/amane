@@ -149,6 +149,32 @@ pub(crate) fn listen_gestures(on_change: impl FnMut(Gesture)) {
     }
 }
 
+/// The built-in panel while the compositor drives it in HDR. Only the niri
+/// fork reports HDR; elsewhere there's none.
+#[derive(Clone, Debug, PartialEq)]
+pub struct HdrPanel {
+    /// Its connector, such as `eDP-1`.
+    pub output: String,
+    /// How bright SDR white (a white window) is, in nits.
+    pub sdr_white: f64,
+    /// The brightest the panel goes, in nits, when its EDID says.
+    pub peak: Option<f64>,
+}
+
+pub(crate) fn hdr_panel() -> Option<HdrPanel> {
+    match running()? {
+        Compositor::Niri => niri::hdr_panel(),
+        Compositor::Hyprland | Compositor::Sway | Compositor::Mango => None,
+    }
+}
+
+pub(crate) fn set_sdr_white(output: &str, nits: f64) -> bool {
+    match running() {
+        Some(Compositor::Niri) => niri::set_sdr_white(output, nits),
+        _ => false,
+    }
+}
+
 pub(crate) fn act(action: Action) {
     let Some(compositor) = running() else {
         return;

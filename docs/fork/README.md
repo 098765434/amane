@@ -45,6 +45,7 @@ as upstream has them; everything the fork adds is here.
 | Tray | the system tray: StatusNotifierItem watcher and host, item icons (theme, own folder or pixels), dbusmenu menus, clicks and scrolling | `Tray`, `TrayItem`, `TrayMenuItem`, `TrayStatus`, `TrayToggle` | [tray](system/tray.md) | — | done |
 | Status items | a program's own item in the status bar and Live Activities, over the bar's `org.amane.StatusBar1`; registered again when the bar restarts | `StatusItem`, `LiveActivity`, `status_item::{ItemSpec, ActivityContent}` | [status-items](system/status-items.md) | `examples/status_item.rs` | done (client; the bar serves it) |
 | adb | Android phones over USB and Wireless debugging: devices, mDNS discovery, pairing, connecting | `Adb`, `AdbDevice`, `WirelessService`, `amane::adb` | [adb](system/adb.md) | — | done |
+| Brightness | in HDR, the panel's SDR white in place of the backlight | `Brightness::hdr`, `HdrPanel` | [brightness](system/brightness.md) | — | done |
 | Idle | ext-idle-notify levels and ScreenSaver inhibits | `Idle` | [idle](system/idle.md) | `examples/idle.rs` | done |
 | Polkit agent | the session's authentication agent: polkit's prompts as the shell's own | `Polkit::serve_agent`, `AuthRequest` | [polkit](system/polkit.md) | — | done |
 | Appearance | colour scheme, accent, contrast, reduced motion | `Appearance`, `Scheme` | [appearance](system/appearance.md) | `examples/appearance.rs` | done |

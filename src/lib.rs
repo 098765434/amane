@@ -73,6 +73,7 @@ pub use placement::{Align, Center, End, Justify, Padding, Size, Start};
 pub use popup::{
     Anchor as PopupAnchor, AnchorRect, ConstraintAdjustment, Gravity, Popup, open_popup,
 };
+pub use compositor::HdrPanel;
 pub use process::{lines, output, spawn, spawn_activated};
 pub use serde;
 pub use services::adb::run as adb;
