@@ -17,6 +17,9 @@ pub struct WindowInfo {
     // false means it is in the tiling layout
     pub(crate) floating: bool,
 
+    // fullscreen, as the niri fork reports it; a stock niri never says
+    pub(crate) fullscreen: bool,
+
     // the workspace it is on, if any
     pub(crate) workspace: Option<i64>,
 
@@ -46,6 +49,7 @@ impl WindowInfo {
             && self.app_id == other.app_id
             && self.focused == other.focused
             && self.floating == other.floating
+            && self.fullscreen == other.fullscreen
             && self.workspace == other.workspace
             && self.column == other.column
     }
@@ -56,6 +60,11 @@ impl WindowInfo {
 
     pub fn floating(&self) -> bool {
         self.floating
+    }
+
+    // whether it fills its monitor, a bar hiding for it
+    pub fn fullscreen(&self) -> bool {
+        self.fullscreen
     }
 
     pub fn workspace(&self) -> Option<i64> {
