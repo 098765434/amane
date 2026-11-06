@@ -160,6 +160,24 @@ blur/corner mask can be mis-sized or absent.
   popup over the open normal window with that name, like a menu or a
   tooltip inside an app. It wins over `.parent(...)`. The popup is
   skipped while no such window is open.
+- A view made per monitor (`App::window_per_monitor`) has one layer
+  surface per monitor, all with the same namespace. A popup parented
+  to that namespace hangs under the surface on the monitor the pointer
+  was last over (`amane::pointer_monitor()`), so a dock's or bar's
+  menu and tooltips open on the display they were asked from.
+
+## Windows made once, on a chosen monitor
+
+A layer window registered with `App::window` lets the compositor
+choose its monitor when it's made, and a layer surface can't move.
+`LayerWindow::output(Some(name))` asks for the monitor named `name`:
+when its view asks for a monitor other than the one it's on, the
+surface (and its popups) is closed and made again there after that
+dispatch (`WaylandState::move_windows`). `None` leaves it where it is.
+A panel opened from a bar uses `.output(pointer_monitor())`, recorded
+as it opens. A window moved to a monitor that's unplugged comes back
+wherever the compositor chooses. Each window learns the monitor it's
+on from `wl_surface.enter`.
 
 When a normal or layer window closes, its popups (and their
 descendants) are closed first, since xdg-shell forbids destroying a

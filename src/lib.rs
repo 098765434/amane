@@ -67,7 +67,7 @@ pub use ipc::{IpcCall, call as ipc_call, ipc_socket, ipc_socket_for};
 pub use layer_window::{
     Horizontal, InputArea, Keyboard, Layer, LayerWindow, Margin, Vertical, WindowSize, Zone,
 };
-pub use monitor::Monitor;
+pub use monitor::{Monitor, pointer_monitor};
 pub use placement::{Align, Center, End, Justify, Padding, Size, Start};
 pub use popup::{
     Anchor as PopupAnchor, AnchorRect, ConstraintAdjustment, Gravity, Popup, open_popup,

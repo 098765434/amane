@@ -59,8 +59,22 @@ impl OutputHandler for WaylandState {
 
     // dropping a window destroys its layer surface
     fn output_destroyed(&mut self, _: &Connection, _: &QueueHandle<Self>, output: WlOutput) {
+        // a window made once that was moved to this monitor comes back where the compositor chooses
+        let moved: Vec<_> = self
+            .windows
+            .iter()
+            .filter_map(|window| match window.view {
+                View::Plain(view) if window.output.as_ref() == Some(&output) => Some(view),
+                _ => None,
+            })
+            .collect();
+
         self.windows
             .retain(|window| window.output.as_ref() != Some(&output));
+
+        for view in moved {
+            self.open(View::Plain(view), None);
+        }
     }
 }
 

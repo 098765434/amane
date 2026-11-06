@@ -46,13 +46,21 @@ impl CompositorHandler for WaylandState {
         window.redraw();
     }
 
+    // a window the compositor placed learns its monitor here
     fn surface_enter(
         &mut self,
         _: &Connection,
         _: &QueueHandle<Self>,
-        _: &WlSurface,
-        _: &WlOutput,
+        surface: &WlSurface,
+        output: &WlOutput,
     ) {
+        let name = self.output_name(output);
+
+        if let Some(window) = self.window(surface)
+            && name.is_some()
+        {
+            window.on_output = name;
+        }
     }
 
     fn surface_leave(

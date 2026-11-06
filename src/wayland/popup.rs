@@ -352,6 +352,8 @@ impl WaylandState {
             view: View::Popup(view_fn),
 
             output: None,
+            on_output: None,
+            move_to: None,
             input_region: None,
             blur_region: None,
             blur_shapes: None,
@@ -411,7 +413,23 @@ impl WaylandState {
                         return Some(ParentSurface::Popup(popup.xdg_surface().clone()));
                     }
                     Role::Layer { surface, settings } if settings.namespace == ns => {
-                        return Some(ParentSurface::Layer(surface.wl_surface().clone()));
+                        // a view made per monitor has one surface on each; the
+                        // popup hangs under the one the pointer is over
+                        let here = crate::pointer_monitor();
+                        let same = self.windows.iter().find_map(|other| match &other.role {
+                            Role::Layer { surface, settings }
+                                if settings.namespace == ns
+                                    && here.is_some()
+                                    && other.on_output == here =>
+                            {
+                                Some(surface.wl_surface().clone())
+                            }
+                            _ => None,
+                        });
+
+                        return Some(ParentSurface::Layer(
+                            same.unwrap_or_else(|| surface.wl_surface().clone()),
+                        ));
                     }
                     _ => {}
                 }

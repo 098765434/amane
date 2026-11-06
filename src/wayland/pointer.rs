@@ -70,6 +70,10 @@ impl WaylandState {
             return false;
         };
 
+        if let (PointerEventKind::Enter { .. }, Some(name)) = (&event.kind, &window.on_output) {
+            crate::monitor::set_pointer_monitor(name);
+        }
+
         let pointer = &mut window.pointer;
 
         let (x, y) = event.position;

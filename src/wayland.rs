@@ -391,6 +391,9 @@ impl WaylandApp {
                 .dispatch(None, &mut self.state)
                 .expect("failed to dispatch events");
 
+            // windows asked onto another monitor are made again there
+            self.state.move_windows();
+
             // Reconcile popup slots (open/close) after each dispatch tick.
             self.state.reconcile_popups();
 

@@ -39,6 +39,14 @@ impl OpenWindow {
             return false;
         };
 
+        // a window made once can be asked onto another monitor, and is made again there
+        if matches!(self.view, super::surface::View::Plain(_))
+            && window.output.is_some()
+            && window.output != self.on_output
+        {
+            self.move_to = window.output.clone();
+        }
+
         self.update_input_region(window);
         self.update_blur_region(window);
 
