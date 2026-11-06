@@ -2204,7 +2204,7 @@ dependencies = [
 [[package]]
 name = "vello"
 version = "0.11.0"
-source = "git+https://github.com/098765434/vello?branch=ocbk#46585523afff9ff403164902fd81f63794bd48d3"
+source = "git+https://github.com/098765434/vello?rev=46585523afff9ff403164902fd81f63794bd48d3#46585523afff9ff403164902fd81f63794bd48d3"
 dependencies = [
  "bytemuck",
  "futures-intrusive",
@@ -2222,7 +2222,7 @@ dependencies = [
 [[package]]
 name = "vello_encoding"
 version = "0.11.0"
-source = "git+https://github.com/098765434/vello?branch=ocbk#46585523afff9ff403164902fd81f63794bd48d3"
+source = "git+https://github.com/098765434/vello?rev=46585523afff9ff403164902fd81f63794bd48d3#46585523afff9ff403164902fd81f63794bd48d3"
 dependencies = [
  "bytemuck",
  "guillotiere",
@@ -2234,7 +2234,7 @@ dependencies = [
 [[package]]
 name = "vello_shaders"
 version = "0.11.0"
-source = "git+https://github.com/098765434/vello?branch=ocbk#46585523afff9ff403164902fd81f63794bd48d3"
+source = "git+https://github.com/098765434/vello?rev=46585523afff9ff403164902fd81f63794bd48d3#46585523afff9ff403164902fd81f63794bd48d3"
 dependencies = [
  "bytemuck",
  "log",

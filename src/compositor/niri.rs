@@ -130,7 +130,9 @@ pub(crate) fn hdr_panel() -> Option<HdrPanel> {
             .iter()
             .any(|kind| name.starts_with(kind));
 
-        let lit = output.get("current_mode").is_some_and(|mode| !mode.is_null());
+        let lit = output
+            .get("current_mode")
+            .is_some_and(|mode| !mode.is_null());
 
         let hdr = output.get("hdr_enabled").and_then(Value::as_bool) == Some(true);
 

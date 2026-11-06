@@ -8,6 +8,8 @@
 //! `.visible(false)` tells the backend to dismiss any live popup; returning
 //! `.visible(true)` tells it to (re)create one on the next frame.
 
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use std::rc::Rc;
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -15,7 +17,7 @@ use crate::changes;
 use crate::input::KeyHandlers;
 use crate::{Key, Widget};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Gravity {
     None,
     Top,
@@ -25,32 +27,22 @@ pub enum Gravity {
     TopLeft,
     TopRight,
     BottomLeft,
+    #[default]
     BottomRight,
 }
 
-impl Default for Gravity {
-    fn default() -> Self {
-        Self::BottomRight
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Anchor {
     None,
     Top,
     Bottom,
     Left,
     Right,
+    #[default]
     TopLeft,
     TopRight,
     BottomLeft,
     BottomRight,
-}
-
-impl Default for Anchor {
-    fn default() -> Self {
-        Self::TopLeft
-    }
 }
 
 bitflags::bitflags! {
@@ -156,7 +148,7 @@ impl Popup {
     /*
      * its light and dark grey content blended with what the compositor
      * frosted behind it rather than painted over it, on a compositor with
-     * niri-vibrancy: Apple's vibrant labels on a material
+     * niri-vibrancy: labels that stay legible on any backdrop
      */
     pub fn vibrant(mut self, vibrant: bool) -> Self {
         self.vibrant = vibrant;

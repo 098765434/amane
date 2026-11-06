@@ -102,8 +102,10 @@ fn best(pixmaps: &Value, size: u32) -> Option<(u32, u32, Vec<u8>)> {
 
 // argb in network byte order, as the protocol sends it, to rgba
 fn to_rgba(argb: &[u8]) -> Vec<u8> {
-    argb.chunks_exact(4)
-        .flat_map(|pixel| [pixel[1], pixel[2], pixel[3], pixel[0]])
+    argb.as_chunks::<4>()
+        .0
+        .iter()
+        .flat_map(|&[a, r, g, b]| [r, g, b, a])
         .collect()
 }
 

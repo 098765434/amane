@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use std::sync::{Mutex, PoisonError};
 
 use wayland_client::{Connection, Dispatch, Proxy, QueueHandle};
@@ -190,12 +192,18 @@ impl Dispatch<NiriSecureFillTargetV1, TargetData> for WaylandState {
             }
 
             niri_secure_fill_target_v1::Event::Filled => {
-                if let Some(done) = data.done.lock().unwrap_or_else(PoisonError::into_inner).take()
+                if let Some(done) = data
+                    .done
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .take()
                 {
                     done(Ok(()));
                 }
 
-                state.spent_fill_targets.retain(|spent| spent.target != *proxy);
+                state
+                    .spent_fill_targets
+                    .retain(|spent| spent.target != *proxy);
             }
 
             niri_secure_fill_target_v1::Event::Refused { reason } => {
@@ -210,12 +218,18 @@ impl Dispatch<NiriSecureFillTargetV1, TargetData> for WaylandState {
                     _ => FillError::Changed,
                 };
 
-                if let Some(done) = data.done.lock().unwrap_or_else(PoisonError::into_inner).take()
+                if let Some(done) = data
+                    .done
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .take()
                 {
                     done(Err(error));
                 }
 
-                state.spent_fill_targets.retain(|spent| spent.target != *proxy);
+                state
+                    .spent_fill_targets
+                    .retain(|spent| spent.target != *proxy);
             }
         }
     }

@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use wayland_client::{Connection, Dispatch, QueueHandle};
 
 use super::WaylandState;

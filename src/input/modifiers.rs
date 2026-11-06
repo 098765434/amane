@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use std::sync::atomic::{AtomicU8, Ordering};
 
 // the keyboard modifiers held right now, set from the compositor's modifier events

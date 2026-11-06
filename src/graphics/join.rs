@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 // how a line turns a corner
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Join {

@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use smithay_client_toolkit::reexports::calloop::{
     LoopHandle,
     timer::{TimeoutAction, Timer},

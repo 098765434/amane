@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use std::path::PathBuf;
 use std::sync::{Mutex, PoisonError};
 
@@ -33,7 +35,10 @@ impl Clipboard {
      * clipboard after `clear_after` if nothing was copied since. The text is wiped once gone
      */
     pub fn copy_secret(text: zeroize::Zeroizing<String>, clear_after: std::time::Duration) {
-        request(Request::CopySecret(String::from(text.as_str()), clear_after));
+        request(Request::CopySecret(
+            String::from(text.as_str()),
+            clear_after,
+        ));
     }
 }
 

@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use std::env;
 use std::fs;
 use std::io;
@@ -201,11 +203,17 @@ mod tests {
         };
 
         save(&path, &appearance, true).unwrap();
-        assert_eq!(fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+        assert_eq!(
+            fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
 
         // saved again over it, still private
         save(&path, &appearance, true).unwrap();
-        assert_eq!(fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+        assert_eq!(
+            fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
         assert_eq!(load::<Appearance>(&path), appearance);
 
         let _ = fs::remove_dir_all(&folder);

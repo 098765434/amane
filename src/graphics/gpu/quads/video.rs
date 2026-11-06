@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 /*
  * video frames as two planes on the gpu, brightness and colour, kept per
  * feed and written over in place as frames come; the quad turns them into

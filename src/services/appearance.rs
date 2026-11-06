@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use crate::{Argument, Bus, Color, Service, Value};
 
 const PORTAL: &str = "org.freedesktop.portal.Desktop";

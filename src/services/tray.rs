@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 /*
  * the system tray: the icons programs like Steam, Discord, Nextcloud or
  * nm-applet put in a status bar, by the StatusNotifierItem protocol, with

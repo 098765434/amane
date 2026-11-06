@@ -1,0 +1,3 @@
+# unwraps and dbg! are fine in tests, where a panic is the failure report
+allow-unwrap-in-tests = true
+allow-dbg-in-tests = true

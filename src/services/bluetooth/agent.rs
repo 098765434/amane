@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, Once, PoisonError};
 use std::thread;

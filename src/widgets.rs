@@ -42,7 +42,6 @@ pub trait Widget {
         self.draw(renderer, area);
 
         self.collect_targets(area, targets);
-
     }
 
     // widgets that react to the pointer add their area, containers pass theirs on to children

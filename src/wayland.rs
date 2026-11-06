@@ -69,6 +69,9 @@ use crate::{Cursor, LayerWindow, Monitor};
 
 use surface::{OpenWindow, View};
 
+// a popup's namespace and what runs when the compositor dismisses it
+type DismissHandler = (&'static str, std::rc::Rc<dyn Fn()>);
+
 struct WaylandState {
     // every window has its own layer surface and gpu, and is dropped before the connection
     windows: Vec<OpenWindow>,
@@ -77,7 +80,7 @@ struct WaylandState {
     popup_views: Vec<popup::PopupSlot>,
 
     // on_dismiss callbacks keyed by popup namespace
-    popup_dismiss_handlers: Vec<(&'static str, std::rc::Rc<dyn Fn()>)>,
+    popup_dismiss_handlers: Vec<DismissHandler>,
 
     // popups the compositor dismissed; kept closed until the app hides+shows
     // them, so we never reopen with a stale grab serial every tick

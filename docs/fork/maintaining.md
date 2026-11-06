@@ -9,14 +9,15 @@ rules. What each feature does is in the [index](README.md).
 |---|---|
 | Upstream | `https://github.com/MystiaFin/amane` (remote: `upstream`) |
 | Fork point | upstream commit `72e23eb` (tag `fork-base`), the real upstream tree the fork was authored against |
-| Fork branch | `ocbk` (upstream `main` is kept in sync for PRs) |
+| Fork branch | `ocbk`; the fork's `main` mirrors upstream's `main` (fast-forward it: `git push origin upstream/main:main`) |
 | The delta | `git log --oneline fork-base..ocbk` |
 
 The fork point is a real upstream commit, so `git log fork-base..HEAD` and `git range-diff` line
 up against genuine upstream history.
 
-Branches: `ocbk` is the only work branch. The local `power` branch is already merged into `ocbk`
-and can be deleted. There is no `app-windows` branch; that work was done on `ocbk`.
+Branches: `ocbk` is the only work branch, and `main` only follows upstream. Anything else is
+merged into `ocbk` and can be deleted: the local `power` branch and `origin/gesture-services`
+both are.
 
 ## Upstream files stay as they were
 
@@ -29,8 +30,37 @@ All fork documentation lives in `docs/fork/`. Upstream's mdBook (`docs/src/`) an
 git diff --stat fork-base HEAD -- docs/src ARCHITECTURE.md   # prints nothing
 ```
 
-So a rebase only ever conflicts on `FORK.md` and the README banner line, plus the fork's code.
+So the docs only ever conflict on `FORK.md` and the README banner line. The code is another
+matter: the fork rewrites a good part of some upstream files, and those are where a rebase
+conflicts. By lines changed, the largest are `src/widgets/text_input/field.rs`,
+`src/graphics/gpu/paint.rs`, `src/graphics/gpu/quads/draw.rs`, `src/compositor/niri.rs`,
+`src/wayland/dropped.rs`, `src/graphics/path.rs`, `src/input/pointer.rs`,
+`src/graphics/gpu/quads/batch.rs`, `src/widgets/scroll_area/offsets.rs`,
+`src/widgets/text_input.rs`, `src/graphics/font.rs`, `src/animation.rs` and
+`src/wayland/normal.rs`; and `Cargo.lock` conflicts every time (take upstream's, then let cargo
+add the fork's crates back). List them again with:
+
+```sh
+git diff --stat fork-base HEAD -- src Cargo.lock | sort -t'|' -k2 -rn | head -20
+```
+
 The crate doc at the top of `src/lib.rs` is a few fork lines linking here.
+
+## Lints
+
+The lints in `Cargo.toml` (`[lints.rust]`, `[lints.clippy]`) are ones the whole crate already
+passes, upstream's code included. A lint upstream's code fails is allowed there for the crate,
+with the reason beside it (`needless_range_loop`, for upstream's image filters), rather than with
+an attribute in an upstream file, which a rebase would have to carry.
+
+The fork's own files hold themselves to more: each module file the fork added starts with
+
+```rust
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+```
+
+and its submodules inherit it. Give a new fork module the same line. `clippy.toml` allows
+`unwrap` and `dbg!` in tests. CI (`.github/workflows/fork.yml`) runs clippy with `-D warnings`.
 
 ## Commit map
 
@@ -61,10 +91,29 @@ The crate doc at the top of `src/lib.rs` is a few fork lines linking here.
 | vello's scratch buffers sized for a shell (fork of vello), `vello-stats` | `6fd7bd5`, `3e9d18c` | `Cargo.toml` (`[patch.crates-io]`), `flake.nix`, `src/graphics/gpu/flush.rs`; [memory](internals/memory.md) | the sizing belongs upstream in vello, not amane |
 | Hidden windows release their GPU memory, spares age out, Fifo presents | `3e9d18c` | `src/graphics/gpu.rs`, `src/graphics/gpu/{pool,present,target,atlas,quads}.rs`, `src/wayland/update.rs`; [memory](internals/memory.md) | yes |
 | `vello N` in the frame log; an empty vibrant layer unmaps and releases; a hide waits for the gpu; wgpu counts under `vello-stats` | `767c1d0`, `6dbdb9f`, `30e46a3` | `src/timing.rs`, `src/wayland/{redraw,vibrancy}.rs`, `src/graphics/gpu.rs`, `src/graphics/gpu/present.rs` | the log and the wait yes; the layer needs the niri fork |
-| vello's scratch pool let go when idle (`AMANE_VELLO_IDLE`), fork of vello's `vello` crate too | see git log | `Cargo.toml` (`[patch.crates-io]`), `flake.nix`, `src/wayland/idle_gpu.rs`, `src/graphics/gpu/shared.rs`; [memory](internals/memory.md) | the pool ageing belongs upstream in vello |
-| Drop shadows drawn by the quads (`AMANE_VELLO_SHADOWS`) | see git log | `src/graphics/gpu/quads.wgsl`, `src/graphics/gpu/quads/{batch,draw}.rs`, `src/graphics/gpu/paint.rs`; [memory](internals/memory.md) | yes |
-| Arcs, lines and areas under a line drawn by the quads (`AMANE_VELLO_SHAPES`); paths know when they are one arc | see git log | `src/graphics/path.rs`, `src/graphics/gpu/quads.wgsl`, `src/graphics/gpu/quads/{batch,draw}.rs`, `src/graphics/gpu/paint.rs`; [memory](internals/memory.md) | yes |
-| Fork docs and housekeeping | `be25bb3`, `fe941a9`, `fe45a04`, `6bfdba8`, `033b216`, `81aa6c4`, and the `docs(fork)` commits | `FORK.md`, `docs/fork/` | no |
+| vello's scratch pool let go when idle (`AMANE_VELLO_IDLE`), fork of vello's `vello` crate too | `efa3bfc` | `Cargo.toml` (`[patch.crates-io]`), `flake.nix`, `src/wayland/idle_gpu.rs`, `src/graphics/gpu/shared.rs`; [memory](internals/memory.md) | the pool ageing belongs upstream in vello |
+| Drop shadows drawn by the quads (`AMANE_VELLO_SHADOWS`) | `9d1df38` | `src/graphics/gpu/quads.wgsl`, `src/graphics/gpu/quads/{batch,draw}.rs`, `src/graphics/gpu/paint.rs`; [memory](internals/memory.md) | yes |
+| Arcs, lines and areas under a line drawn by the quads (`AMANE_VELLO_SHAPES`); paths know when they are one arc | `51a14a1` | `src/graphics/path.rs`, `src/graphics/gpu/quads.wgsl`, `src/graphics/gpu/quads/{batch,draw}.rs`, `src/graphics/gpu/paint.rs`; [memory](internals/memory.md) | yes |
+| Quads: small filled outlines, two-stop gradients | `8d099e5` | `src/graphics/gpu/quads.wgsl`, `src/graphics/gpu/quads/{batch,draw,pipeline}.rs`, `src/graphics/gpu/paint.rs` | yes |
+| Shadow spread, a pausable shader clock, frame stats; shader reloads follow links | `8ed7f16`, `a1c6311` | `src/style/shadow.rs`, `src/graphics/shader_files.rs`, `src/graphics/gpu/{shade,present}.rs` | yes |
+| Colour emoji: colour fonts' letters drawn as pictures | `6fbea6e` | `src/graphics/{image,letter}.rs`, `src/graphics/renderer/text.rs` | yes |
+| ScrollArea coasting after a flick, eased wheel steps | `54bf6f4` | `src/widgets/scroll_area/{offsets,targets}.rs` | yes |
+| Layer windows: `Zone::Thickness`; settings go with the frame's commit and clicks survive a redraw; an app's window comes back after its monitor goes; windows put on a monitor, popups under the pointer's monitor | `8320df7`, `2e06481`, `d89a557`, `9192b70` | `src/layer_window.rs`, `src/monitor.rs`, `src/wayland/{layer,output,windows,redraw,update,compositor}.rs` | yes |
+| Drops read off the event loop | `ba5faf7` | `src/wayland/{dropped,wake}.rs` | yes |
+| D-Bus: errors with their reason, one sender's signals, owner changes, error replies | `a0ef626` | `src/dbus/{bus,error,method,signal}.rs` | yes |
+| Battery on AC from the adapter | `ac012d8` | `src/services/battery.rs` | yes |
+| Bluetooth: BlueZ's signals, operations and failures; the pairing agent | `dabb319` | `src/services/bluetooth/{actions,adapter,agent,errors,model}.rs` | yes |
+| Tray: StatusNotifierItem watcher and host, dbusmenu menus | `168413e` | `src/services/tray/`, `src/dbus/signal.rs` | yes |
+| Status items and activities: a client of the bar's `org.amane.StatusBar1` | `d84c88c` | `src/status_item.rs`, `src/status_item/{client,protocol}.rs`; `examples/status_item.rs` | no, the bar's own interface |
+| Polkit: the session's authentication agent | `db14388` | `src/services/polkit.rs`, `src/services/polkit/agent.rs` | yes |
+| KDE Connect: phones, text messages, contacts, attachments, file and text sharing | `b5be6de`, `60c969e`, `e1ea6ab`, `8a19284`, `711ed5f`; docs `613d918` | `src/services/kdeconnect/` | yes |
+| Video frames, adb, the phone's address and notifications | `af0f854` | `src/video.rs`, `src/widgets/video.rs`, `src/graphics/gpu/quads/video.rs`, `src/services/adb.rs`; adds `ffmpeg-next` | the video yes; adb is the shell's |
+| Input method, secure fill, passwords that leave no copies | `74b5ddb` | `src/wayland/{input_method_v2,secure_fill}.rs`, `src/services/focused_field.rs`, `protocols/niri-secure-fill-v1.xml`; `examples/input_method.rs` | the input method yes; secure fill needs the niri fork |
+| MimeApps: default apps the way xdg-open picks them | `1d0bd3e` | `src/services/apps/{defaults,mime}.rs` | yes |
+| `WindowInfo::fullscreen` and `::workspace` | `00b7103` | `src/services/window_info.rs`, `src/compositor/niri.rs` | no, needs the niri fork's `is_fullscreen` |
+| Brightness: SDR white in place of the backlight while the panel is in HDR | `5c57d28` | `src/services/brightness.rs`, `src/compositor/niri.rs` | no, needs the niri fork's HDR |
+| CI, lints and formatting | `18ddea4`, `14eb0dd`, `db47c38`, `01180f7` | `.github/workflows/fork.yml`, `Cargo.toml` (`[lints]`), `clippy.toml`, the fork's files | no |
+| Fork docs and housekeeping | `be25bb3`, `fe941a9`, `fe45a04`, `6bfdba8`, `033b216`, `81aa6c4`, and the `docs(fork)` commits; `1d60d4e` and others edited `ARCHITECTURE.md`, reset to upstream's by `7d257a6` | `FORK.md`, `docs/fork/` | no |
 
 `389fc29` stops letters being dropped when the glyph atlas fills mid-frame: the queued letters
 are drawn, the atlas restarts, and the letter is placed again. A skipped frame also no longer

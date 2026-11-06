@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 /*
  * a vibrant window's drawing split three ways for niri-vibrancy: its
  * translucent white content goes on a layer the compositor adds to what's
@@ -8,7 +10,7 @@
  *
  * the compositor subtracts the darker layer as it is drawn, so that layer
  * holds how far each pixel darkens: a grey c at alpha a goes on it as
- * 1 - c at alpha a, which darkens by a(1 - c), Apple's plus-darker
+ * 1 - c at alpha a, which darkens by a(1 - c): plus-darker, D + c - 1
  */
 
 use super::Color;
@@ -86,8 +88,8 @@ fn push_wrapped(layers: &mut Layers, inner: Layers, wrap: impl Fn(Vec<Command>) 
     }
 }
 
-// only flat shapes and letters in translucent white or black are vibrant: Apple's
-// vibrant labels and fills. A material's tint or an opaque background is grey too,
+// only flat shapes and letters in translucent white or black are vibrant: the
+// labels and fills that stay legible on a material. A material's tint or an opaque background is grey too,
 // but it is painted, not blended
 fn layer_of(command: &Command) -> Layer {
     let color = match command {

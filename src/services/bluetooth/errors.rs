@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use crate::BusError;
 
 // why a connect, pair or other bluetooth action didn't happen

@@ -186,5 +186,4 @@ impl Widget for Layout {
             child.draw_and_collect_targets(renderer, child_area, targets);
         }
     }
-
 }

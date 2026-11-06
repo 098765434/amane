@@ -1,0 +1,52 @@
+# The fork's own CI, for the ocbk branch. A file of its own, so upstream's
+# test.yml stays untouched and a rebase never conflicts here.
+name: fork
+
+on:
+  push:
+    branches: [ocbk]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # the flake's dev shell lists every library amane links
+      - uses: cachix/install-nix-action@v31
+
+      - name: rustfmt
+        run: nix develop -c cargo fmt --check
+
+      # needless_range_loop is allowed for upstream's image filters
+      # (graphics/image/shrink.rs, soften.rs), which the fork leaves as they
+      # are so a rebase doesn't conflict there
+      - name: clippy
+        run: nix develop -c cargo clippy --all-targets --locked -- -D warnings
+
+      # only the library tests, they run without a compositor
+      - name: test
+        run: nix develop -c cargo test --lib --locked
+
+      - name: doc
+        run: nix develop -c cargo doc --no-deps --locked
+
+  # no other vendor's platform terms on the lines the fork added (amane-shell's
+  # scripts/lint-terms, against the fork point)
+  terms:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: actions/checkout@v4
+        with:
+          repository: 098765434/amane-shell
+          path: .amane-shell
+
+      - name: lint-terms
+        run: .amane-shell/scripts/lint-terms --diff fork-base

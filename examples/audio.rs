@@ -1,6 +1,6 @@
 use amane::{
     App, Audio, Button, Color, Full, Layer, LayerWindow, Parent, Rectangle, Row, Scroll, Service,
-    Text, Vertical, Widget, children,
+    Text, Vertical, Widget,
 };
 
 const BUTTON: Color = Color::rgb(0x31, 0x32, 0x44);

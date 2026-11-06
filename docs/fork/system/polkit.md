@@ -47,5 +47,5 @@ polkitd is refused with `…Error.Failed`.
 ## In the shell
 
 `amane-shell` calls `Polkit::serve_agent()` at start and draws the request as its alert
-(`components/polkit_prompt.rs`): the action's message, the helper's lines, a password field,
+(`src/surfaces/alert/polkit.rs`): the action's message, the helper's lines, a password field,
 **Cancel** and **Authenticate**. Return answers, Escape cancels.

@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 /*
  * moving pictures handed in from another thread, like a decoded video
  * stream: the newest frame replaces the last, and only the windows showing
