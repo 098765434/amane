@@ -35,12 +35,13 @@ as upstream has them; everything the fork adds is here.
 | Text styling | parley layout: italic, line height, spacing, case, decoration, align, direction, axes | `Case`, `Decoration`, `TextAlign`, `TextDirection`, `Weight::Number` | [text](graphics/text.md) | `examples/text.rs` | done |
 | Video | NV12 frames from another thread, drawn as quads | `VideoFeed`, `VideoFrame`, `Video` | [video](graphics/video.md) | — | done |
 | Animation | spring easing that keeps its speed, `retime` | `Easing::Spring`, `Animation::retime` | [animation](graphics/animation.md) | — | done |
+| Scrolling | coasting after a flick, eased wheel steps, following a chat's end, keeping the view as content is added above | `ScrollArea::scroll_to_end`, `at_end`, `keep_bottom` | [input](input/input.md#scrolling) | — | done |
 | `on_track` | pointer motion that redraws nothing; also scroll source, modifiers, shortcuts, double clicks | `on_track`, `Scroll`, `modifiers` | [input](input/input.md) | — | done |
 | Text input | selection, editing keys, undo, multiline, IME | `TextInput` | [text-input](input/text-input.md) | `examples/text_editor.rs` | done |
 | Battery | UPower: state, warning, time left, peripherals | `Battery`, `PowerDevice` | [battery](system/battery.md) | `examples/system.rs` | done |
 | Power profile | power-profiles-daemon | `PowerProfile` | [power-profile](system/power-profile.md) | — | done |
 | Bluetooth | signals, operations and failures, pairing agent, rfkill, discoverable | `Bluetooth::serve_agent`, `PairingRequest`, `BluetoothError` | [bluetooth](system/bluetooth.md) | — | done |
-| KDE Connect | phones: pairing, battery, ring, files, clipboard, run commands, remote input, text messages, addresses, notifications | `KdeConnect`, `PhoneDevice`, `PhoneMessages` | [kdeconnect](system/kdeconnect.md) | — | done |
+| KDE Connect | phones: pairing, battery, ring, files, clipboard, run commands, remote input, text messages with attachments and new conversations, contact photos, addresses, notifications | `KdeConnect`, `PhoneDevice`, `PhoneMessages`, `SmsAttachment` | [kdeconnect](system/kdeconnect.md) | — | done |
 | adb | Android phones over USB and Wireless debugging: devices, mDNS discovery, pairing, connecting | `Adb`, `AdbDevice`, `WirelessService`, `amane::adb` | [adb](system/adb.md) | — | done |
 | Idle | ext-idle-notify levels and ScreenSaver inhibits | `Idle` | [idle](system/idle.md) | `examples/idle.rs` | done |
 | Polkit agent | the session's authentication agent: polkit's prompts as the shell's own | `Polkit::serve_agent`, `AuthRequest` | [polkit](system/polkit.md) | — | done |

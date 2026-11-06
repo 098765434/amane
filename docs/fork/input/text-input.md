@@ -22,7 +22,7 @@ one-line input scrolls sideways to keep the cursor in sight.
 
 ### Many lines
 
-`.multiline(true)` makes Enter start a new line, and Up and Down move between lines. `on_submit` isn't called. The input is as tall as its lines, so put it in a `ScrollArea` for a long text:
+`.multiline(true)` makes Enter start a new line, and Up and Down move between lines. With `on_submit` set as well, Enter sends instead, like a chat's field, and Shift+Enter starts a new line. The input is as tall as its lines, so put it in a `ScrollArea` for a long text:
 
 ```rust,ignore
 ScrollArea::new("notes", TextInput::new("notes").multiline(true).on_change(save))

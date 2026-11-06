@@ -136,7 +136,11 @@ impl TextInput {
         self
     }
 
-    // runs when Enter is pressed in a one-line input
+    /*
+     * runs when Enter is pressed in a one-line input; a multiline one with
+     * this set sends with Enter too, like a chat's, and Shift+Enter starts
+     * a new line
+     */
     pub fn on_submit(mut self, handler: impl Fn(String) + 'static) -> Self {
         self.on_submit = Some(Rc::new(handler));
 

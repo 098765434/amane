@@ -45,6 +45,18 @@ impl ScrollArea {
         offsets::set(id, f32::MAX);
     }
 
+    // whether it's scrolled to its end, give or take a few pixels: a chat
+    // follows new messages down only while it is
+    pub fn at_end(id: &'static str) -> bool {
+        offsets::at_end(id, 24.0)
+    }
+
+    // content about to be added above the view, like a chat's older messages,
+    // leaves what's shown where it is instead of pushing it down
+    pub fn keep_bottom(id: &'static str) {
+        offsets::keep_bottom(id);
+    }
+
     // how far the child can move up before its bottom edge meets the area's
     fn farthest(&self, area: Area) -> f32 {
         let content = self.child.height().resolve(area.height);
@@ -73,6 +85,8 @@ impl Widget for ScrollArea {
     }
 
     fn draw(&self, renderer: &mut Renderer, area: Area) {
+        offsets::drawn(self.id, self.farthest(area));
+
         let mut inside = renderer.group();
 
         self.child.draw(&mut inside, self.child_area(area));
