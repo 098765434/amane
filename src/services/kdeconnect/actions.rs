@@ -90,28 +90,50 @@ impl KdeConnect {
         let device = device.to_string();
 
         worker::run(move || {
-            let bus = Bus::session();
-
-            let path = format!("{}/share", device_path(&device));
-
-            for file in files {
-                let url = file_url(&file);
-
-                let result = bus.try_call(
-                    KDECONNECT,
-                    &path,
-                    "org.kde.kdeconnect.device.share",
-                    "shareUrl",
-                    &[Argument::from(url)],
-                );
-
-                if let Err(error) = result {
-                    fail(&device, error.message());
-
-                    return;
-                }
+            if let Err(error) = KdeConnect::share_files_now(&device, &files) {
+                fail(&device, &error);
             }
         });
+    }
+
+    /*
+     * the same, waiting for the daemon to take each file, for a caller on a
+     * thread of its own that tells how it went; the files go on to the phone
+     * after it answers
+     */
+    pub fn share_files_now(device: &str, files: &[PathBuf]) -> Result<(), String> {
+        let bus = Bus::session();
+
+        let path = format!("{}/share", device_path(device));
+
+        for file in files {
+            bus.try_call(
+                KDECONNECT,
+                &path,
+                "org.kde.kdeconnect.device.share",
+                "shareUrl",
+                &[Argument::from(file_url(file))],
+            )
+            .map_err(|error| error.message().to_string())?;
+        }
+
+        Ok(())
+    }
+
+    // text for the phone to show, or a link for it to open, waiting as above
+    pub fn share_text_now(device: &str, text: &str) -> Result<(), String> {
+        let path = format!("{}/share", device_path(device));
+
+        Bus::session()
+            .try_call(
+                KDECONNECT,
+                &path,
+                "org.kde.kdeconnect.device.share",
+                "shareText",
+                &[Argument::from(text)],
+            )
+            .map(|_| ())
+            .map_err(|error| error.message().to_string())
     }
 
     // this computer's clipboard now, to the phone's
