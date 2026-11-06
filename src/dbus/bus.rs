@@ -148,6 +148,33 @@ impl Bus {
         let _ = connection.emit_signal(None::<&str>, path, interface, name, &body);
     }
 
+    /*
+     * sent to one program only, by its unique name like :1.42, as a server
+     * tells the client that registered something what happened to it
+     */
+    pub fn emit_to(
+        &self,
+        destination: &str,
+        path: &str,
+        interface: &str,
+        name: &str,
+        arguments: &[Argument],
+    ) {
+        let Some(connection) = self.connection else {
+            return;
+        };
+
+        if arguments.is_empty() {
+            let _ = connection.emit_signal(Some(destination), path, interface, name, &());
+
+            return;
+        }
+
+        let body = convert::body(arguments);
+
+        let _ = connection.emit_signal(Some(destination), path, interface, name, &body);
+    }
+
     // false when another program already owns the name, amane never takes it from them
     pub fn own(&self, name: &str) -> bool {
         let Some(connection) = self.connection else {
