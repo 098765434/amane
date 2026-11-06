@@ -32,11 +32,30 @@ pub const TEXT_TYPES: [&str; 5] = [
     "STRING",
 ];
 
+// what marks a copy as a password, for clipboard histories (KDE's, and the shell's)
+pub const PASSWORD_HINT: &str = "x-kde-passwordManagerHint";
+
 // what amane has put on the clipboard and the primary selection, kept to send when asked
 #[derive(Default)]
 pub struct Copied {
     pub clipboard: Option<(CopyPasteSource, String)>,
     pub primary: Option<(PrimarySelectionSource, String)>,
+
+    // the clipboard's copy is a password, wiped when it goes
+    pub secret: bool,
+}
+
+impl Copied {
+    // the clipboard's copy goes, a password's text wiped
+    pub fn drop_clipboard(&mut self) {
+        if let Some((_, mut text)) = self.clipboard.take()
+            && self.secret
+        {
+            zeroize::Zeroize::zeroize(&mut text);
+        }
+
+        self.secret = false;
+    }
 }
 
 impl WaylandState {
@@ -51,6 +70,7 @@ impl WaylandState {
         for request in requests {
             match request {
                 Request::Copy(board, text) => self.copy(board, text),
+                Request::CopySecret(text, clear_after) => self.copy_secret(text, clear_after),
                 Request::Paste(board, then) => self.paste(board, then),
             }
         }
@@ -73,6 +93,7 @@ impl WaylandState {
 
                 source.set_selection(device, serial);
 
+                self.copied.drop_clipboard();
                 self.copied.clipboard = Some((source, text));
             }
 
@@ -88,6 +109,46 @@ impl WaylandState {
 
                 self.copied.primary = Some((source, text));
             }
+        }
+    }
+
+    fn copy_secret(&mut self, mut text: String, clear_after: std::time::Duration) {
+        use smithay_client_toolkit::reexports::calloop::timer::{TimeoutAction, Timer};
+        use wayland_client::Proxy;
+
+        let (Some(serial), Some(manager), Some(device)) =
+            (self.last_input_serial, &self.data_device_manager, &self.data_device)
+        else {
+            zeroize::Zeroize::zeroize(&mut text);
+            return;
+        };
+
+        let mut types = TEXT_TYPES.to_vec();
+        types.push(PASSWORD_HINT);
+
+        let source = manager.create_copy_paste_source(&self.qh, types);
+        source.set_selection(device, serial);
+
+        let id = source.inner().id();
+
+        self.copied.drop_clipboard();
+        self.copied.clipboard = Some((source, text));
+        self.copied.secret = true;
+
+        // taken off the clipboard later, unless something else was copied since
+        if let Some(loop_handle) = &self.loop_handle {
+            let _ = loop_handle.insert_source(Timer::from_duration(clear_after), move |_, _, state| {
+                if state
+                    .copied
+                    .clipboard
+                    .as_ref()
+                    .is_some_and(|(source, _)| source.inner().id() == id)
+                {
+                    state.copied.drop_clipboard();
+                }
+
+                TimeoutAction::Drop
+            });
         }
     }
 
@@ -165,6 +226,9 @@ pub fn read_text(pipe: ReadPipe, then: Then) {
 // writes on its own thread, a reader that is slow to take it can't stall drawing
 pub fn write_bytes(pipe: WritePipe, bytes: Vec<u8>) {
     let mut file = File::from(OwnedFd::from(pipe));
+
+    // wiped once written, as it can be a password copied with copy_secret
+    let bytes = zeroize::Zeroizing::new(bytes);
 
     thread::spawn(move || {
         let _ = file.write_all(&bytes);

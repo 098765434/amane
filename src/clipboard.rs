@@ -26,6 +26,15 @@ impl Clipboard {
     pub fn paste(then: impl FnOnce(String) + Send + 'static) {
         request(Request::Paste(Board::Clipboard, Box::new(then)));
     }
+
+    /*
+     * puts a password on the clipboard the way password managers do: it's also offered as
+     * x-kde-passwordManagerHint, so clipboard histories leave it out, and it's taken off the
+     * clipboard after `clear_after` if nothing was copied since. The text is wiped once gone
+     */
+    pub fn copy_secret(text: zeroize::Zeroizing<String>, clear_after: std::time::Duration) {
+        request(Request::CopySecret(String::from(text.as_str()), clear_after));
+    }
 }
 
 impl PrimarySelection {
@@ -57,6 +66,7 @@ pub(crate) type Then = Box<dyn FnOnce(String) + Send>;
 
 pub(crate) enum Request {
     Copy(Board, String),
+    CopySecret(String, std::time::Duration),
     Paste(Board, Then),
 }
 

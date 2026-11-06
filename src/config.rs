@@ -21,6 +21,9 @@ pub trait Settings:
 
     // the file's name without .json, like "appearance"
     const FILE: &'static str;
+
+    // only its owner can read it (0600), for settings that say something private
+    const PRIVATE: bool = false;
 }
 
 /*
@@ -62,7 +65,7 @@ impl<T: Settings> Config<T> {
             return;
         }
 
-        if let Err(error) = save(&Self::path(), &config.value) {
+        if let Err(error) = save(&Self::path(), &config.value, T::PRIVATE) {
             eprintln!("amane: failed to save {}: {error}", Self::path().display());
         }
     }
@@ -131,7 +134,10 @@ fn load<T: Settings>(path: &PathBuf) -> T {
     }
 }
 
-fn save<T: Settings>(path: &PathBuf, value: &T) -> io::Result<()> {
+fn save<T: Settings>(path: &PathBuf, value: &T, private: bool) -> io::Result<()> {
+    use std::io::Write;
+    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+
     if let Some(folder) = path.parent() {
         fs::create_dir_all(folder)?;
     }
@@ -141,7 +147,26 @@ fn save<T: Settings>(path: &PathBuf, value: &T) -> io::Result<()> {
     // written next to it, then moved over it in one step
     let temporary = path.with_extension("json.new");
 
-    fs::write(&temporary, text + "\n")?;
+    // a private file is its owner's from the moment it exists, never readable on the way
+    let mode = if private { 0o600 } else { 0o644 };
+
+    let _ = fs::remove_file(&temporary);
+
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(mode)
+        .open(&temporary)?;
+
+    file.write_all((text + "\n").as_bytes())?;
+
+    // the umask may have taken bits away, never added any; a private file is set exactly
+    if private {
+        file.set_permissions(fs::Permissions::from_mode(0o600))?;
+    }
+
+    drop(file);
+
     fs::rename(&temporary, path)
 }
 
@@ -164,6 +189,29 @@ mod tests {
     }
 
     #[test]
+    fn a_private_file_is_only_its_owners() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let folder = env::temp_dir().join(format!("amane-config-private-{}", std::process::id()));
+        let path = folder.join("passwords.json");
+
+        let appearance = Appearance {
+            accent: String::from("blue"),
+            dark: true,
+        };
+
+        save(&path, &appearance, true).unwrap();
+        assert_eq!(fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+
+        // saved again over it, still private
+        save(&path, &appearance, true).unwrap();
+        assert_eq!(fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+        assert_eq!(load::<Appearance>(&path), appearance);
+
+        let _ = fs::remove_dir_all(&folder);
+    }
+
+    #[test]
     fn saves_and_loads_settings_and_fills_in_what_is_missing() {
         let folder = env::temp_dir().join(format!("amane-config-{}", std::process::id()));
         let path = folder.join("appearance.json");
@@ -173,7 +221,7 @@ mod tests {
             dark: true,
         };
 
-        save(&path, &appearance).unwrap();
+        save(&path, &appearance, false).unwrap();
 
         assert_eq!(load::<Appearance>(&path), appearance);
 

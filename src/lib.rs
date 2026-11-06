@@ -79,6 +79,7 @@ pub use process::{lines, output, spawn, spawn_activated};
 pub use serde;
 pub use services::adb::run as adb;
 pub use services::{
+    FieldOwner, FillError, FocusedField, Hints as FieldHints, Purpose as FieldPurpose,
     AccessPoint, Action, Adb, AdbDevice, AdbState, Appearance, Apps, Audio, AudioDevice, AudioKind,
     AuthPrompt, AuthRequest, Backdrop, Battery, BatteryState, Bluetooth, BluetoothAdapter,
     BluetoothDevice, BluetoothError, BluetoothOperation, Brightness, Cpu, Desktop, DesktopAction,

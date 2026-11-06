@@ -34,7 +34,7 @@ Lines only break where the text has a line break; a long line is cut off at the 
 
 ### Reading the text and focus
 
-Next to upstream's `TextInput::set_text`, `TextInput::text` reads what an input holds, by name, and `TextInput::has_focus` says whether it takes the keys, to draw a focus ring.
+Next to upstream's `TextInput::set_text`, `TextInput::text` reads what an input holds, by name, and `TextInput::has_focus` says whether it takes the keys, to draw a focus ring. `TextInput::take_secret` takes a password input's text out and leaves the input empty. The text comes in a `Zeroizing<String>` that wipes itself when dropped: read a password this way to hand it on, as an unlock prompt does.
 
 ### Keys
 
@@ -62,11 +62,13 @@ Text selected with the mouse or with `Shift` becomes the primary selection, and 
 
 ### Input methods
 
-Where the compositor supports `text-input-v3`, an input method like fcitx5 or IBus can type into the input, for languages a keyboard can't type directly. While it's composing, its unfinished text is shown underlined at the cursor. Only what it finishes goes into the text and reaches `on_change`. A password input tells the input method it's sensitive.
+Where the compositor supports `text-input-v3`, an input method like fcitx5 or IBus can type into the input, for languages a keyboard can't type directly. While it's composing, its unfinished text is shown underlined at the cursor. Only what it finishes goes into the text and reaches `on_change`.
+
+A password input tells the input method it's a password (`ContentPurpose::Password`, `SensitiveData | HiddenText`), and sends it no surrounding text: the input method never learns what a password holds. It takes only the input method's finished text. Preedit isn't shown, and requests to delete around the cursor are ignored.
 
 ### Passwords
 
-`password` changes what's drawn, and keeps the text off the clipboard and the primary selection. The text passed to `on_change` and `on_submit` is the real text.
+`password` changes what's drawn, and keeps the text off the clipboard and the primary selection. Copy and cut wipe what they took instead of copying it. A password input keeps no undo history. Its text grows into a new buffer only after the old one is wiped, and is wiped again when the input is cleared or dropped, so old copies don't stay in freed memory. The text passed to `on_change` and `on_submit` is the real text, a copy that's wiped once the handler returns. A handler that keeps it should keep it in a `Zeroizing<String>`.
 
 ## Design / internals
 

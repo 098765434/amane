@@ -121,7 +121,15 @@ impl TextInput {
 
     // what the input holds right now
     pub fn text(id: &'static str) -> String {
-        fields::get(id).text
+        fields::get(id).text.clone()
+    }
+
+    /*
+     * a password input's text, taken out so the input is left empty; the buffer wipes
+     * itself when dropped, so read this instead of `text` to hand a password on
+     */
+    pub fn take_secret(id: &'static str) -> zeroize::Zeroizing<String> {
+        fields::take(id)
     }
 
     // whether the input takes the keys right now, to draw it as focused

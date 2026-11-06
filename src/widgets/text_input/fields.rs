@@ -24,10 +24,33 @@ pub fn get(id: &'static str) -> Field {
     FIELDS.with_borrow(|fields| fields.get(id).cloned().unwrap_or_default())
 }
 
-pub fn set(id: &'static str, field: Field) {
+pub fn set(id: &'static str, mut field: Field) {
+    // a password input's text stays a password's, whoever puts it there
+    if kind(id).0 {
+        field.set_secret(true);
+    }
+
     FIELDS.with_borrow_mut(|fields| {
         fields.insert(id, field);
     });
+}
+
+/*
+ * takes a password input's text out and leaves it empty; the text comes back in a
+ * buffer that wipes itself, for code that hands it on, like an unlock prompt
+ */
+pub fn take(id: &'static str) -> zeroize::Zeroizing<String> {
+    FIELDS.with_borrow_mut(|fields| {
+        let Some(field) = fields.get_mut(id) else {
+            return zeroize::Zeroizing::new(String::new());
+        };
+
+        let taken = zeroize::Zeroizing::new(field.text.clone());
+
+        field.clear();
+
+        taken
+    })
 }
 
 pub fn set_on_change(id: &'static str, on_change: Option<TextHandler>) {
@@ -66,6 +89,14 @@ pub fn change(id: &'static str, edit: impl FnOnce(&mut Field) -> bool) {
 pub fn set_kind(id: &'static str, password: bool, multiline: bool) {
     KINDS.with_borrow_mut(|kinds| {
         kinds.insert(id, (password, multiline));
+    });
+
+    FIELDS.with_borrow_mut(|fields| {
+        if let Some(field) = fields.get_mut(id)
+            && field.is_secret() != password
+        {
+            field.set_secret(password);
+        }
     });
 }
 

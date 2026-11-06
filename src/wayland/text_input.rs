@@ -97,15 +97,17 @@ impl WaylandState {
 
         let (x, y, width, height) = text_input::cursor_area();
 
+        let kind = text_input::kind(id);
+
         let sent = Sent {
-            surrounding: surrounding(&field.text, field.cursor, field.anchor),
+            surrounding: surrounding_for(&field.text, field.cursor, field.anchor, kind.0),
             cursor: (
                 (x * scale) as i32,
                 (y * scale) as i32,
                 (width * scale).ceil() as i32,
                 (height * scale).ceil() as i32,
             ),
-            kind: text_input::kind(id),
+            kind,
         };
 
         if method.enabled && method.sent.as_ref() == Some(&sent) {
@@ -162,6 +164,39 @@ impl WaylandState {
             return;
         };
 
+        let Pending {
+            preedit,
+            commit,
+            delete,
+        } = pending;
+
+        let mut commit = commit.map(zeroize::Zeroizing::new);
+
+        // a password takes only finished text: no preedit shown, nothing taken away around it
+        if text_input::kind(id).0 {
+            if let Some((mut text, _)) = preedit {
+                zeroize::Zeroize::zeroize(&mut text);
+            }
+
+            let Some(commit) = commit.take() else {
+                return;
+            };
+
+            text_input::change(id, |field| {
+                field.preedit = None;
+
+                field.commit_input_method(0, 0, &commit)
+            });
+
+            return;
+        }
+
+        let pending = Pending {
+            preedit,
+            commit: None,
+            delete,
+        };
+
         text_input::change(id, |field| {
             // the lengths are bytes around the cursor, the field counts letters
             let before: String = field.text.chars().take(field.cursor).collect();
@@ -177,7 +212,7 @@ impl WaylandState {
             );
 
             let changed =
-                field.commit_input_method(before, after, pending.commit.as_deref().unwrap_or(""));
+                field.commit_input_method(before, after, commit.as_deref().map_or("", |text| text));
 
             field.preedit = pending.preedit.map(|(text, cursor)| {
                 // a cursor of -1 hides it, and it is in bytes like the rest
@@ -199,6 +234,20 @@ fn letters_in(bytes: &[u8], range: impl std::slice::SliceIndex<[u8], Output = [u
         .chars()
         .filter(|letter| *letter != char::REPLACEMENT_CHARACTER)
         .count()
+}
+
+// a password's text never goes to the input method, only that it is one
+fn surrounding_for(
+    text: &str,
+    cursor: usize,
+    anchor: Option<usize>,
+    password: bool,
+) -> (String, i32, i32) {
+    if password {
+        return (String::new(), 0, 0);
+    }
+
+    surrounding(text, cursor, anchor)
 }
 
 // the text around the cursor, with the cursor and selection end in bytes, kept under the limit
@@ -301,6 +350,18 @@ impl Dispatch<ZwpTextInputManagerV3, ()> for WaylandState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_password_sends_no_surrounding_text() {
+        assert_eq!(
+            surrounding_for("hunter2", 7, None, true),
+            (String::new(), 0, 0)
+        );
+        assert_eq!(
+            surrounding_for("hello", 5, None, false),
+            (String::from("hello"), 5, 5)
+        );
+    }
 
     #[test]
     fn surrounding_text_counts_bytes() {
