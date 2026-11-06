@@ -32,7 +32,7 @@ as upstream has them; everything the fork adds is here.
 | Vibrancy | grey content blended with the frosted backdrop | `vibrant` | [blur](graphics/blur.md#vibrancy-niri-vibrancy-v1) | — | done, niri fork |
 | Canvas paths | SVG paths, placing, trimming, line joins; 64 shader rows | `Path::svg`, `Join` | [canvas](graphics/canvas.md) | `examples/stroke_clock.rs` | done |
 | Shader effects | multi-pass WGSL over a rectangle's drawing, its backdrop or an image; hot reload; compile errors; a pausable shader clock; frame stats; shadow spread | `Effect`, `Input`, `shader_errors`, `pause_shader_time`, `frame_stats`, `Shadow::spread` | [effects](graphics/effects.md) | `examples/effect.rs` | done |
-| Text styling | parley layout: italic, line height, spacing, case, decoration, align, direction, axes | `Case`, `Decoration`, `TextAlign`, `TextDirection`, `Weight::Number` | [text](graphics/text.md) | `examples/text.rs` | done |
+| Text styling | parley layout: italic, line height, spacing, case, decoration, align, direction, axes; color emoji | `Case`, `Decoration`, `TextAlign`, `TextDirection`, `Weight::Number` | [text](graphics/text.md) | `examples/text.rs` | done |
 | Video | NV12 frames from another thread, drawn as quads | `VideoFeed`, `VideoFrame`, `Video` | [video](graphics/video.md) | — | done |
 | Animation | spring easing that keeps its speed, `retime` | `Easing::Spring`, `Animation::retime` | [animation](graphics/animation.md) | — | done |
 | Scrolling | coasting after a flick, eased wheel steps, following a chat's end, keeping the view as content is added above | `ScrollArea::scroll_to_end`, `at_end`, `keep_bottom` | [input](input/input.md#scrolling) | — | done |

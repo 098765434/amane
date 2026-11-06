@@ -1,4 +1,5 @@
-use swash::scale::{Render, Source};
+use swash::scale::image::Content;
+use swash::scale::{Render, Source, StrikeWith};
 use swash::zeno::{Angle, Format, Transform};
 
 use crate::graphics::font::{self, Face};
@@ -51,6 +52,62 @@ pub fn rasterize(face: Face, id: u16, size: f32) -> Option<Letter> {
             left: placement.left as f32,
             top: -placement.top as f32,
             coverage: image.data,
+        })
+    })
+}
+
+// one color letter, like an emoji, turned into pixels: plain rgba
+pub struct ColorLetter {
+    pub width: u32,
+    pub height: u32,
+
+    // where the pixels sit from the pen on the baseline
+    pub left: f32,
+    pub top: f32,
+
+    pub rgba: Vec<u8>,
+}
+
+// whether the face draws its letters in color, like Noto Color Emoji, instead of as outlines
+pub fn is_color(face: Face) -> bool {
+    font::with_context(|context| {
+        let scaler = context
+            .builder(face.font)
+            .normalized_coords(face.coords)
+            .build();
+
+        scaler.has_color_bitmaps() || scaler.has_color_outlines()
+    })
+}
+
+// a color face's letter at `size` pixels: its embedded picture, or its layers of color outlines
+pub fn rasterize_color(face: Face, id: u16, size: f32) -> Option<ColorLetter> {
+    font::with_context(|context| {
+        let mut scaler = context
+            .builder(face.font)
+            .normalized_coords(face.coords)
+            .size(size)
+            .build();
+
+        let image = Render::new(&[
+            Source::ColorOutline(0),
+            Source::ColorBitmap(StrikeWith::BestFit),
+        ])
+        .format(Format::Alpha)
+        .render(&mut scaler, id)?;
+
+        let placement = image.placement;
+
+        if placement.width == 0 || placement.height == 0 || image.content != Content::Color {
+            return None;
+        }
+
+        Some(ColorLetter {
+            width: placement.width,
+            height: placement.height,
+            left: placement.left as f32,
+            top: -placement.top as f32,
+            rgba: image.data,
         })
     })
 }

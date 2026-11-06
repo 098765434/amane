@@ -49,6 +49,17 @@ impl Bitmap {
         }
     }
 
+    // pixels made here, like a color letter's: plain rgba, width × height × 4 bytes
+    pub(crate) fn from_rgba(width: u32, height: u32, pixels: Vec<u8>) -> Self {
+        debug_assert_eq!(pixels.len(), (width * height * 4) as usize);
+
+        Self {
+            width,
+            height,
+            pixels: Arc::new(pixels),
+        }
+    }
+
     pub fn width(&self) -> u32 {
         self.width
     }

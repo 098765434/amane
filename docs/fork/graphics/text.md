@@ -51,6 +51,9 @@ font's own spacing. With one, the whole line boxes count, as in CSS and design t
 
 `examples/text.rs` shows every style.
 
+Emoji draw in their own colors. fontique falls back to a color font such as Noto Color Emoji
+for them, and nothing has to be set.
+
 ## Design / internals
 
 - `src/widgets/text/style.rs` holds the `Style` (size, font, weight, italic, line height,
@@ -66,3 +69,10 @@ font's own spacing. With one, the whole line boxes count, as in CSS and design t
   variation coordinates and faked bold or italic, so the atlas and outline caches tell weights of
   one variable font apart.
 - fontconfig is no longer a dependency; fontique finds fonts.
+- **Color letters.** A face with color bitmaps (CBDT, as Noto Color Emoji has) or color outlines
+  (COLR) has no plain outline to fill, so the atlas would get nothing. `Renderer::text` asks once
+  per font whether it's a color one, and each run of letters in one face asks once. Its letters are
+  rendered by swash at the size they show on screen (`letter::rasterize_color`), kept as
+  `Bitmap`s (at most 1024, then emptied), and drawn with `Renderer::image`. So they go to the
+  quads as pictures, and their textures are cached by the bitmap's pointer like any image's. They
+  keep their own colors, so a text color or fade doesn't tint them.
