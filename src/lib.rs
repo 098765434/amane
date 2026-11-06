@@ -30,6 +30,7 @@ mod portal;
 mod process;
 mod scale;
 mod services;
+pub mod status_item;
 mod style;
 mod timing;
 pub mod video;
@@ -88,6 +89,7 @@ pub use services::{
     TrayStatus, TrayToggle, Urgency, WarningLevel, WindowInfo, Windows, WirelessKind,
     WirelessService, Workspace, WorkspaceSwitch, Workspaces,
 };
+pub use status_item::{LiveActivity, StatusItem};
 pub use style::{Effect, Fill, Image, Input, Mask, Radius, Shadow};
 pub use video::{Colors as VideoColors, Frame as VideoFrame, VideoFeed};
 pub use widgets::{

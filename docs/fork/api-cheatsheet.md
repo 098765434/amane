@@ -61,6 +61,8 @@ changes. Each section matches a section there.
 | `WorkspaceSwitch` (niri fork) | `output`, `workspace_idx`, `active_workspace_idx` | |
 | `Desktop` (niri fork) | `obscured(output)` | |
 
+Status items (not a `Service`, a client of the bar's `org.amane.StatusBar1`): `StatusItem::register(ItemSpec)` → `update`, `remove`, `spec`, `on_event(ItemEvent)`; `LiveActivity::start(ActivityContent)` → `update(content, alert)`, `end(Dismiss)`, `content`, `on_event(ActivityEvent)`. `Bus::emit_to(destination, …)` sends a signal to one program.
+
 ## Layer windows and popups
 
 | Code | Does |
