@@ -40,7 +40,7 @@ use crate::changes;
 
 pub use adb::{Adb, AdbDevice, AdbState, WirelessKind, WirelessService};
 pub use appearance::{Appearance, Scheme};
-pub use apps::{Apps, DesktopAction, DesktopApp};
+pub use apps::{Apps, DesktopAction, DesktopApp, MimeApps};
 pub use audio::{Audio, AudioDevice, AudioKind};
 pub use backdrop::Backdrop;
 pub use battery::{Battery, BatteryState, DeviceKind, PowerDevice, WarningLevel};

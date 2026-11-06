@@ -17,7 +17,8 @@ pub fn id(applications: &Path, path: &Path) -> Option<String> {
     Some(id)
 }
 
-// none for files that are not programs, or that ask not to be shown in menus
+// none for files that are not programs, or that are hidden (deleted); one that asks not to be
+// shown in menus is kept, marked so, since it may still open links or files
 pub fn read(path: &Path, icons: &HashMap<String, PathBuf>) -> Option<DesktopApp> {
     let text = fs::read_to_string(path).ok()?;
 
@@ -33,9 +34,11 @@ fn parse(text: &str, icons: &HashMap<String, PathBuf>) -> Option<DesktopApp> {
         return None;
     }
 
-    if is_true(fields.get("NoDisplay")) || is_true(fields.get("Hidden")) {
+    if is_true(fields.get("Hidden")) {
         return None;
     }
+
+    let shown = !is_true(fields.get("NoDisplay"));
 
     let name = fields.get("Name")?.to_string();
     let exec_codes = fields.get("Exec")?.to_string();
@@ -71,6 +74,7 @@ fn parse(text: &str, icons: &HashMap<String, PathBuf>) -> Option<DesktopApp> {
         categories,
         keywords,
         actions,
+        shown,
     })
 }
 

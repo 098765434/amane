@@ -78,3 +78,25 @@ uses one, is in [Activation](../windows/activation.md).
 
 - The MIME lookup is `src/services/apps/mime.rs`, read from the shared-mime-info files.
 - Commits: `0ebcfd2` (categories, keywords), `d9d3d46` (actions), `7f48e10` (`Apps::find_icon`), `c029184` (MIME, `opens`, `launch_with`), `3c3d56b` (`id`), `82337f2` (`spawn_activated`).
+
+## Default apps: `MimeApps` (fork addition)
+
+`MimeApps` answers which app opens a kind of file or link, the way `xdg-open` does. It reads
+every `mimeapps.list` in the spec's order: config dirs before data dirs' `applications/`, and in
+each dir a `$desktop-mimeapps.list` before the plain one. With no default listed it falls back to
+the data dirs' `mimeinfo.cache`. It is polled every three seconds.
+
+- `default_app(kind)` is the first listed default that is installed, else the cache's.
+- `handlers(kind)` lists the apps that open the kind: the shown ones that list it (or a kind it
+  comes from), the ones `[Added Associations]` says open it, and any listed default.
+- `set_default(kinds, id)` writes `kind=id;` lines into `[Default Applications]` of
+  `~/.config/mimeapps.list`. A kind the app doesn't list itself also goes under
+  `[Added Associations]`. The same key is taken out of `~/.config/$desktop-mimeapps.list`, which
+  would otherwise still win. Every other line stays as it was, and a symlinked file (home-manager)
+  is refused.
+- `reset(kinds)` takes those lines away again. `own()` lists the defaults the user's file sets.
+
+`Apps` also keeps `NoDisplay` entries now, since they still open links (a password manager's
+`x-scheme-handler`, for example). `Apps::list` still shows only the shown ones. `Apps::all` and
+`Apps::get(id)` include the rest, and `DesktopApp::shown` tells them apart.
+`DesktopApp::opens_type(kind)` and `Apps::mime_type(name)` expose the shared MIME database.
