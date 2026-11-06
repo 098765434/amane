@@ -73,6 +73,7 @@ pub use popup::{
     Anchor as PopupAnchor, AnchorRect, ConstraintAdjustment, Gravity, Popup, open_popup,
 };
 pub use compositor::HdrPanel;
+pub use services::MimeApps;
 pub use process::{lines, output, spawn, spawn_activated};
 pub use serde;
 pub use services::{

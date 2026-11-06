@@ -1,4 +1,5 @@
 mod data_dirs;
+mod defaults;
 mod desktop_app;
 mod exec;
 mod icons;
@@ -13,12 +14,17 @@ use std::time::Duration;
 
 use crate::Service;
 
+pub use defaults::MimeApps;
 pub use desktop_app::{DesktopAction, DesktopApp};
 
 // the programs a launcher can show, read from the .desktop files in the xdg data dirs
 #[derive(Default)]
 pub struct Apps {
+    // the ones menus show
     list: Vec<DesktopApp>,
+
+    // those and the NoDisplay ones, which only open links or files
+    all: Vec<DesktopApp>,
 }
 
 // polled, so programs installed while the shell runs show up
@@ -35,14 +41,15 @@ impl Service for Apps {
     // scanned outside the lock, so a view reading the list never waits on the disk
     fn listen() {
         loop {
-            let list = scan();
+            let all = scan();
 
             let mut apps = Self::write();
 
-            if apps.list == list {
+            if apps.all == all {
                 apps.quiet();
             } else {
-                apps.list = list;
+                apps.list = all.iter().filter(|app| app.shown).cloned().collect();
+                apps.all = all;
             }
 
             drop(apps);
@@ -56,6 +63,21 @@ impl Apps {
     // sorted by name, without the ones marked hidden or not to be shown
     pub fn list(&self) -> &[DesktopApp] {
         &self.list
+    }
+
+    // every entry, the NoDisplay ones too: those open links or files without showing in menus
+    pub fn all(&self) -> &[DesktopApp] {
+        &self.all
+    }
+
+    // the entry with the desktop file id `id`, like "org.mozilla.firefox.desktop"
+    pub fn get(&self, id: &str) -> Option<&DesktopApp> {
+        self.all.iter().find(|app| app.id == id)
+    }
+
+    // what kind of file a name like "notes.md" is, as the shared mime database says
+    pub fn mime_type(name: &str) -> Option<String> {
+        mime::mime_type(std::path::Path::new(name))
     }
 
     // an icon file for `icon`, a theme icon name or a full path, for an app with no desktop entry

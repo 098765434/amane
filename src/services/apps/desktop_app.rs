@@ -20,6 +20,8 @@ pub struct DesktopApp {
     pub(crate) categories: Vec<String>,
     pub(crate) keywords: Vec<String>,
     pub(crate) actions: Vec<DesktopAction>,
+    // false for NoDisplay: kept out of menus, but it may still open links or files
+    pub(crate) shown: bool,
 }
 
 // one of an app's [Desktop Action] sections: another way to start it, like "New Private Window"
@@ -88,7 +90,17 @@ impl DesktopApp {
 
     // whether it opens `file`, by the kind of file its name says it is
     pub fn opens(&self, file: &Path) -> bool {
-        mime::mime_type(file).is_some_and(|kind| mime::opens(&self.mime_types, &kind))
+        mime::mime_type(file).is_some_and(|kind| self.opens_type(&kind))
+    }
+
+    // whether it opens files of `kind`, like "image/png", or of a kind that one comes from
+    pub fn opens_type(&self, kind: &str) -> bool {
+        mime::opens(&self.mime_types, kind)
+    }
+
+    // whether menus show it; a NoDisplay entry only opens links or files
+    pub fn shown(&self) -> bool {
+        self.shown
     }
 
     // the command lines that open `files` with it, one a file for a program that takes one at a time
