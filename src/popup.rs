@@ -15,7 +15,7 @@ use crate::changes;
 use crate::input::KeyHandlers;
 use crate::{Key, Widget};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Gravity {
     None,
     Top,
@@ -25,32 +25,22 @@ pub enum Gravity {
     TopLeft,
     TopRight,
     BottomLeft,
+    #[default]
     BottomRight,
 }
 
-impl Default for Gravity {
-    fn default() -> Self {
-        Self::BottomRight
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Anchor {
     None,
     Top,
     Bottom,
     Left,
     Right,
+    #[default]
     TopLeft,
     TopRight,
     BottomLeft,
     BottomRight,
-}
-
-impl Default for Anchor {
-    fn default() -> Self {
-        Self::TopLeft
-    }
 }
 
 bitflags::bitflags! {

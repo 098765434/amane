@@ -81,7 +81,10 @@ impl WaylandState {
             return;
         };
 
-        let active = self.ime.as_ref().is_some_and(|ime| ime.active && !ime.unavailable);
+        let active = self
+            .ime
+            .as_ref()
+            .is_some_and(|ime| ime.active && !ime.unavailable);
 
         let popup = view();
         let wanted = active && popup.visible;

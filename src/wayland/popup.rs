@@ -165,10 +165,10 @@ impl WaylandState {
                     parent: Some(p),
                     ..
                 } = &w.role
+                    && *p == current
+                    && !order.contains(ns)
                 {
-                    if *p == current && !order.contains(ns) {
-                        order.push(*ns);
-                    }
+                    order.push(*ns);
                 }
             }
             i += 1;
@@ -280,7 +280,7 @@ impl WaylandState {
                 Role::Layer { surface, .. } if surface.wl_surface() == &ls => Some(surface.clone()),
                 _ => None,
             }) {
-                let _ = LayerSurface::get_popup(&found, sctk_popup.xdg_popup());
+                LayerSurface::get_popup(&found, sctk_popup.xdg_popup());
             }
         }
 

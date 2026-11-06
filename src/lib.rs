@@ -48,6 +48,7 @@ pub use timing::{FrameStats, frame_stats};
 // for deriving Settings without depending on serde yourself: #[serde(crate = "amane::serde")]
 pub use app::App;
 pub use blur::{BlurShape, blur_fades, material_available};
+pub use compositor::HdrPanel;
 pub use dbus::{Argument, Bus, BusError, Method, Signal, Value};
 pub use files::watch_file;
 pub use full::Full;
@@ -73,24 +74,23 @@ pub use placement::{Align, Center, End, Justify, Padding, Size, Start};
 pub use popup::{
     Anchor as PopupAnchor, AnchorRect, ConstraintAdjustment, Gravity, Popup, open_popup,
 };
-pub use compositor::HdrPanel;
-pub use services::MimeApps;
 pub use process::{lines, output, spawn, spawn_activated};
 pub use serde;
+pub use services::MimeApps;
 pub use services::adb::run as adb;
 pub use services::{
-    FieldOwner, FillError, FocusedField, Hints as FieldHints, Purpose as FieldPurpose,
     AccessPoint, Action, Adb, AdbDevice, AdbState, Appearance, Apps, Audio, AudioDevice, AudioKind,
     AuthPrompt, AuthRequest, Backdrop, Battery, BatteryState, Bluetooth, BluetoothAdapter,
     BluetoothDevice, BluetoothError, BluetoothOperation, Brightness, Cpu, Desktop, DesktopAction,
-    DesktopApp, DeviceKind, Gestures, Idle, KdeConnect, Link, Lock, Media, MediaPlayer, Memory,
-    Network, Notification, Notifications, Overview, PairingAnswer, PairingKind, PairingRequest,
-    Palette, Pam, PamConfig, PamError, PamMessage, PamMessageKind, PamResult, PhoneBattery,
-    PhoneClick, PhoneDevice, PhoneKey, PhoneMessages, PhoneModifiers, PhoneNotification,
-    PhonePairState, Polkit, PowerDevice, PowerProfile, PowerState, SMS_PAGE, Scheme, Service,
-    SmsAttachment, SmsKind, SmsMessage, SmsState, SmsThread, Timeout, Tray, TrayItem, TrayMenuItem,
-    TrayStatus, TrayToggle, Urgency, WarningLevel, WindowInfo, Windows, WirelessKind,
-    WirelessService, Workspace, WorkspaceSwitch, Workspaces,
+    DesktopApp, DeviceKind, FieldOwner, FillError, FocusedField, Gestures, Hints as FieldHints,
+    Idle, KdeConnect, Link, Lock, Media, MediaPlayer, Memory, Network, Notification, Notifications,
+    Overview, PairingAnswer, PairingKind, PairingRequest, Palette, Pam, PamConfig, PamError,
+    PamMessage, PamMessageKind, PamResult, PhoneBattery, PhoneClick, PhoneDevice, PhoneKey,
+    PhoneMessages, PhoneModifiers, PhoneNotification, PhonePairState, Polkit, PowerDevice,
+    PowerProfile, PowerState, Purpose as FieldPurpose, SMS_PAGE, Scheme, Service, SmsAttachment,
+    SmsKind, SmsMessage, SmsState, SmsThread, Timeout, Tray, TrayItem, TrayMenuItem, TrayStatus,
+    TrayToggle, Urgency, WarningLevel, WindowInfo, Windows, WirelessKind, WirelessService,
+    Workspace, WorkspaceSwitch, Workspaces,
 };
 pub use status_item::{LiveActivity, StatusItem};
 pub use style::{Effect, Fill, Image, Input, Mask, Radius, Shadow};

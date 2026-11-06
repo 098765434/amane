@@ -164,9 +164,9 @@ impl MimeApps {
     // takes the user's own default for each of `kinds` away, back to the system's
     pub fn reset(kinds: &[String]) -> Result<(), String> {
         edit(|text| {
-            kinds
-                .iter()
-                .fold(text.to_string(), |text, kind| with_value(&text, DEFAULTS, kind, None))
+            kinds.iter().fold(text.to_string(), |text, kind| {
+                with_value(&text, DEFAULTS, kind, None)
+            })
         })?;
 
         Self::write().update();
@@ -309,7 +309,10 @@ fn entries(text: &str) -> Vec<(String, String, Vec<String>)> {
     let mut entries = Vec::new();
 
     for line in text.lines().map(str::trim) {
-        if let Some(name) = line.strip_prefix('[').and_then(|line| line.strip_suffix(']')) {
+        if let Some(name) = line
+            .strip_prefix('[')
+            .and_then(|line| line.strip_suffix(']'))
+        {
             section = name.to_string();
         } else if let Some((kind, ids)) = line.split_once('=')
             && !line.starts_with('#')
@@ -450,7 +453,12 @@ mod tests {
 
     #[test]
     fn replaces_and_takes_away() {
-        let text = with_value(LIST, DEFAULTS, "x-scheme-handler/bitwarden", Some("other.desktop;"));
+        let text = with_value(
+            LIST,
+            DEFAULTS,
+            "x-scheme-handler/bitwarden",
+            Some("other.desktop;"),
+        );
 
         assert!(text.contains("x-scheme-handler/bitwarden=other.desktop;\n"));
 
@@ -464,11 +472,16 @@ mod tests {
     fn adds_a_missing_section() {
         let text = with_value("", DEFAULTS, "inode/directory", Some("nautilus.desktop;"));
 
-        assert_eq!(text, "[Default Applications]\ninode/directory=nautilus.desktop;\n");
+        assert_eq!(
+            text,
+            "[Default Applications]\ninode/directory=nautilus.desktop;\n"
+        );
 
         let text = with_value(&text, ADDED, "image/png", Some("loupe.desktop;"));
 
-        assert!(text.ends_with("nautilus.desktop;\n\n[Added Associations]\nimage/png=loupe.desktop;\n"));
+        assert!(
+            text.ends_with("nautilus.desktop;\n\n[Added Associations]\nimage/png=loupe.desktop;\n")
+        );
     }
 
     #[test]

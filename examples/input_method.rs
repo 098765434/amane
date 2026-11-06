@@ -47,7 +47,11 @@ fn status() -> Window {
                 .map_or(String::from("exe unknown"), |exe| exe.display().to_string()),
             owner.app_id,
             if owner.sandboxed { ", sandboxed" } else { "" },
-            if owner.takes_text { "" } else { ", no text input" },
+            if owner.takes_text {
+                ""
+            } else {
+                ", no text input"
+            },
         ),
         None => String::from("owner not known yet"),
     };
@@ -64,7 +68,11 @@ fn status() -> Window {
                 format!(
                     "{:?}{}{}",
                     field.purpose(),
-                    if field.is_password() { " (password)" } else { "" },
+                    if field.is_password() {
+                        " (password)"
+                    } else {
+                        ""
+                    },
                     if field.own() { " (ours)" } else { "" },
                 )
             } else {
@@ -75,19 +83,22 @@ fn status() -> Window {
         format!("last fill: {}", status.last),
     ];
 
-    Window::new().title("input method").size(520.0, 160.0).child(
-        Rectangle::new()
-            .width(amane::Parent)
-            .height(amane::Parent)
-            .fill("#1e1e2e")
-            .align_child(Center, Center)
-            .child(Column::new(
-                lines
-                    .into_iter()
-                    .map(|line| Box::new(Text::new(&line).color(Color::WHITE)) as _)
-                    .collect(),
-            )),
-    )
+    Window::new()
+        .title("input method")
+        .size(520.0, 160.0)
+        .child(
+            Rectangle::new()
+                .width(amane::Parent)
+                .height(amane::Parent)
+                .fill("#1e1e2e")
+                .align_child(Center, Center)
+                .child(Column::new(
+                    lines
+                        .into_iter()
+                        .map(|line| Box::new(Text::new(&line).color(Color::WHITE)) as _)
+                        .collect(),
+                )),
+        )
 }
 
 // shown by any field that isn't ours; a click fills it

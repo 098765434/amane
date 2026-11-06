@@ -116,9 +116,11 @@ impl WaylandState {
         use smithay_client_toolkit::reexports::calloop::timer::{TimeoutAction, Timer};
         use wayland_client::Proxy;
 
-        let (Some(serial), Some(manager), Some(device)) =
-            (self.last_input_serial, &self.data_device_manager, &self.data_device)
-        else {
+        let (Some(serial), Some(manager), Some(device)) = (
+            self.last_input_serial,
+            &self.data_device_manager,
+            &self.data_device,
+        ) else {
             zeroize::Zeroize::zeroize(&mut text);
             return;
         };
@@ -137,18 +139,19 @@ impl WaylandState {
 
         // taken off the clipboard later, unless something else was copied since
         if let Some(loop_handle) = &self.loop_handle {
-            let _ = loop_handle.insert_source(Timer::from_duration(clear_after), move |_, _, state| {
-                if state
-                    .copied
-                    .clipboard
-                    .as_ref()
-                    .is_some_and(|(source, _)| source.inner().id() == id)
-                {
-                    state.copied.drop_clipboard();
-                }
+            let _ =
+                loop_handle.insert_source(Timer::from_duration(clear_after), move |_, _, state| {
+                    if state
+                        .copied
+                        .clipboard
+                        .as_ref()
+                        .is_some_and(|(source, _)| source.inner().id() == id)
+                    {
+                        state.copied.drop_clipboard();
+                    }
 
-                TimeoutAction::Drop
-            });
+                    TimeoutAction::Drop
+                });
         }
     }
 
