@@ -21,6 +21,8 @@ pub fn insert(handle: &LoopHandle<'static, WaylandState>) {
 
             state.handle_clipboard_requests();
 
+            state.handle_arrived_drags();
+
             state.handle_spawn_requests();
 
             // what other threads handed back, like pasted text, runs like a handler

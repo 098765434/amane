@@ -36,7 +36,7 @@ Rectangle::new()
 
 ### Files from other programs
 
-Files dragged in from a file manager go to the innermost `on_drop` under the pointer. While they're held, `on_files_over` hears where they are and which files they are (Amane reads the list as the drag comes in), and its answer shows in the pointer: `false` and the drag shows it can't be let go there. A window with no `on_files_over` under the files takes them anywhere.
+Files dragged in from a file manager go to the innermost `on_drop` under the pointer. While they're held, `on_files_over` hears where they are and which files they are (Amane reads the list as the drag comes in, on a thread of its own, so `on_files_over` is first called a moment after they arrive; until then the drag shows it can't be let go), and its answer shows in the pointer: `false` and the drag shows it can't be let go there. A window with no `on_files_over` under the files takes them anywhere. What is let go is read the same way, off the event loop, and handed to `on_drop` or `on_text_drop` once it has all come, so a slow program never stalls a frame.
 
 ```rust,ignore
 Rectangle::new()
