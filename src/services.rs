@@ -12,6 +12,7 @@ pub(crate) mod focused_field;
 mod gestures;
 mod idle;
 mod kdeconnect;
+mod keyboard_layouts;
 mod lock;
 mod media;
 mod memory;
@@ -61,6 +62,7 @@ pub use kdeconnect::{
     PhoneMessages, PhoneModifiers, PhoneNotification, SMS_PAGE, SmsAttachment, SmsKind, SmsMessage,
     SmsState, SmsThread,
 };
+pub use keyboard_layouts::KeyboardLayouts;
 pub use lock::Lock;
 pub use media::{Media, MediaPlayer};
 pub use memory::Memory;
