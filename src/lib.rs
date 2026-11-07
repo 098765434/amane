@@ -77,8 +77,9 @@ pub use services::MimeApps;
 pub use process::{lines, output, spawn, spawn_activated};
 pub use serde;
 pub use services::{
-    AccessPoint, Action, Appearance, Apps, Audio, AudioDevice, AudioKind, AuthPrompt, AuthRequest,
-    Backdrop, Battery, BatteryState, Bluetooth, BluetoothAdapter, BluetoothDevice, BluetoothError,
+    FieldOwner, FillError, FocusedField, Hints as FieldHints, Purpose as FieldPurpose, AccessPoint,
+    Action, Appearance, Apps, Audio, AudioDevice, AudioKind, AuthPrompt, AuthRequest, Backdrop,
+    Battery, BatteryState, Bluetooth, BluetoothAdapter, BluetoothDevice, BluetoothError,
     BluetoothOperation, Brightness, Cpu, Desktop, DesktopAction, DesktopApp, DeviceKind, Gestures,
     Idle, Link, Lock, Media, MediaPlayer, Memory, Network, Notification, Notifications, Overview,
     PairingAnswer, PairingKind, PairingRequest, Palette, Pam, PamConfig, PamError, PamMessage,

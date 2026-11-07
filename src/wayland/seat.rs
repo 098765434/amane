@@ -68,6 +68,13 @@ impl SeatHandler for WaylandState {
                     self.input_method =
                         Some(super::text_input::InputMethod::new(manager, &seat, qh));
                 }
+
+                if let Some(manager) = &self.ime_manager {
+                    self.ime = Some(super::input_method_v2::ImeServer::new(manager, &seat, qh));
+
+                    <crate::FocusedField as crate::Service>::write()
+                        .set_available(true, self.secure_fill.is_some());
+                }
             }
 
             _ => {}
@@ -97,6 +104,12 @@ impl SeatHandler for WaylandState {
                 }
 
                 self.input_method = None;
+
+                if self.ime.take().is_some() {
+                    self.fill_target = None;
+
+                    <crate::FocusedField as crate::Service>::write().set_available(false, false);
+                }
             }
 
             _ => {}

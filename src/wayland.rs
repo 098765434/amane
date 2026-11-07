@@ -6,6 +6,7 @@ mod compositor;
 pub(crate) mod dropped;
 mod idle;
 mod idle_gpu;
+mod input_method_v2;
 mod keyboard;
 mod layer;
 mod lock;
@@ -16,6 +17,7 @@ mod popup;
 mod redraw;
 mod scale;
 mod seat;
+mod secure_fill;
 mod socket;
 mod surface;
 mod text_input;
@@ -182,6 +184,20 @@ struct WaylandState {
     text_input_manager: Option<smithay_client_toolkit::reexports::protocols::wp::text_input::zv3::client::zwp_text_input_manager_v3::ZwpTextInputManagerV3>,
     input_method: Option<text_input::InputMethod>,
 
+    /*
+     * this app as the seat's input method, only after App::input_method: the popup's view,
+     * the manager to make it with once the seat has a keyboard, and the input method then
+     */
+    input_popup_view: Option<crate::popup::PopupView>,
+    ime_manager: Option<wayland_protocols_misc::zwp_input_method_v2::client::zwp_input_method_manager_v2::ZwpInputMethodManagerV2>,
+    ime: Option<input_method_v2::ImeServer>,
+
+    // fills checked by the compositor (niri-secure-fill), the target for the focused field, and
+    // the targets filled that wait for their answer
+    secure_fill: Option<secure_fill::protocol::niri_secure_fill_manager_v1::NiriSecureFillManagerV1>,
+    fill_target: Option<secure_fill::Target>,
+    spent_fill_targets: Vec<secure_fill::Target>,
+
     // what is being dragged out to another program
     dragging_out: Option<(DragSource, crate::DragData)>,
 
@@ -214,6 +230,7 @@ impl WaylandApp {
         popup_views: Vec<fn() -> Popup>,
         per_monitor: Vec<fn(&Monitor) -> LayerWindow>,
         lock_view: Option<fn(&Monitor) -> LayerWindow>,
+        input_method: Option<fn() -> Popup>,
         handlers: Option<IpcHandlers>,
         scale_factor: ScaleFactor,
         app_id: String,
@@ -276,6 +293,15 @@ impl WaylandApp {
         let primary_manager = PrimarySelectionManagerState::bind(&globals, &qh).ok();
 
         let text_input_manager = globals.bind(&qh, 1..=1, ()).ok();
+
+        // the input method and checked fills, only for an app that asked to be the input method
+        let (ime_manager, secure_fill) = match input_method {
+            Some(_) => (
+                globals.bind(&qh, 1..=1, ()).ok(),
+                globals.bind(&qh, 1..=1, ()).ok(),
+            ),
+            None => (None, None),
+        };
 
         // windows per monitor are opened once the compositor describes each monitor
         let mut state = WaylandState {
@@ -343,6 +369,13 @@ impl WaylandApp {
             copied: clipboard::Copied::default(),
             text_input_manager,
             input_method: None,
+            input_popup_view: input_method
+                .map(|view| std::sync::Arc::new(view) as crate::popup::PopupView),
+            ime_manager,
+            ime: None,
+            secure_fill,
+            fill_target: None,
+            spent_fill_targets: Vec::new(),
             dragging_out: None,
             last_press_serial: None,
             last_press: None,
@@ -400,6 +433,9 @@ impl WaylandApp {
 
             // Reconcile popup slots (open/close) after each dispatch tick.
             self.state.reconcile_popups();
+
+            self.state.handle_fill_requests();
+            self.state.reconcile_input_popup();
 
             self.state.sync_input_method();
         }

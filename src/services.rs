@@ -7,6 +7,7 @@ mod bluetooth;
 mod brightness;
 mod cpu;
 mod desktop;
+pub(crate) mod focused_field;
 mod gestures;
 mod idle;
 mod lock;
@@ -48,6 +49,7 @@ pub use bluetooth::{
 pub use brightness::Brightness;
 pub use cpu::Cpu;
 pub use desktop::Desktop;
+pub use focused_field::{FieldOwner, FillError, FocusedField, Hints, Purpose};
 pub use gestures::Gestures;
 pub use idle::Idle;
 pub use lock::Lock;

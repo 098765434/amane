@@ -38,6 +38,7 @@ as upstream has them; everything the fork adds is here.
 | Scrolling | coasting after a flick, eased wheel steps, following a chat's end, keeping the view as content is added above | `ScrollArea::scroll_to_end`, `at_end`, `keep_bottom` | [input](input/input.md#scrolling) | — | done |
 | `on_track` | pointer motion that redraws nothing; also scroll source, modifiers, shortcuts, double clicks | `on_track`, `Scroll`, `modifiers` | [input](input/input.md) | — | done |
 | Text input | selection, editing keys, undo, multiline, IME | `TextInput` | [text-input](input/text-input.md) | `examples/text_editor.rs` | done |
+| Input method | be the seat's input method: a popup by the focused field in any app, and checked fill through niri-secure-fill | `App::input_method`, `FocusedField`, `FieldOwner`, `FillError` | [input-method](input/input-method.md) | `examples/input_method.rs` | done, niri fork for fill |
 | Battery | UPower: state, warning, time left, peripherals | `Battery`, `PowerDevice` | [battery](system/battery.md) | `examples/system.rs` | done |
 | Power profile | power-profiles-daemon | `PowerProfile` | [power-profile](system/power-profile.md) | — | done |
 | Bluetooth | signals, operations and failures, pairing agent, rfkill, discoverable | `Bluetooth::serve_agent`, `PairingRequest`, `BluetoothError` | [bluetooth](system/bluetooth.md) | — | done |
@@ -66,7 +67,7 @@ as upstream has them; everything the fork adds is here.
   [canvas](graphics/canvas.md), [text](graphics/text.md), [video](graphics/video.md),
   [animation](graphics/animation.md).
 - **Input:** pointer and keyboard additions. [input](input/input.md),
-  [text-input](input/text-input.md).
+  [text-input](input/text-input.md), [input-method](input/input-method.md).
 - **System:** D-Bus and portal services. [battery](system/battery.md),
   [power-profile](system/power-profile.md), [bluetooth](system/bluetooth.md),
   [kdeconnect](system/kdeconnect.md), [tray](system/tray.md),

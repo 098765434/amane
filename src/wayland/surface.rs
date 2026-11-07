@@ -136,6 +136,9 @@ pub enum Role {
         state: WindowState,
     },
 
+    // the input method's popup by the focused field in another app, placed by the compositor
+    InputPopup(super::input_method_v2::InputPopupSurface),
+
     Popup {
         popup: SctkPopup,
 
@@ -213,6 +216,9 @@ impl OpenWindow {
 
             // popups are configured with explicit sizes by the compositor
             Role::Popup { .. } => (0, 0),
+
+            // the view gives its size, the compositor only places it
+            Role::InputPopup(_) => (0, 0),
         }
     }
 }
@@ -224,6 +230,7 @@ impl Role {
             Role::Lock(lock_surface) => lock_surface.wl_surface(),
             Role::Normal { window, .. } => window.wl_surface(),
             Role::Popup { popup, .. } => popup.wl_surface(),
+            Role::InputPopup(popup) => &popup.surface,
         }
     }
 

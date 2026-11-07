@@ -22,6 +22,7 @@ pub struct App {
     popups: Vec<fn() -> Popup>,
     per_monitor: Vec<fn(&Monitor) -> LayerWindow>,
     lock: Option<fn(&Monitor) -> LayerWindow>,
+    input_method: Option<fn() -> Popup>,
 
     handlers: IpcHandlers,
     ipc_disabled: bool,
@@ -86,6 +87,21 @@ impl App {
      */
     pub fn lock(mut self, view: fn(&Monitor) -> LayerWindow) -> Self {
         self.lock = Some(view);
+
+        self
+    }
+
+    /*
+     * makes this app the seat's input method, which there is one of: FocusedField then
+     * says what kind of field has the keyboard in any app, the popup shows by that field
+     * while its view says .visible(true) (its anchor settings are not used, the compositor
+     * places it), and FocusedField::fill puts text in where the compositor can check the
+     * field (niri-secure-fill). It types nothing and never sees what a field holds. Only
+     * one app should call it, like the shell; with another input method running (fcitx5,
+     * ibus) the compositor gives the seat to that one and FocusedField stays unavailable
+     */
+    pub fn input_method(mut self, view: fn() -> Popup) -> Self {
+        self.input_method = Some(view);
 
         self
     }
@@ -164,6 +180,7 @@ impl App {
             self.popups,
             self.per_monitor,
             self.lock,
+            self.input_method,
             if self.ipc_disabled {
                 None
             } else {
