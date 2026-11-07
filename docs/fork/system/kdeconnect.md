@@ -116,7 +116,7 @@ wrote it in a group.
   battery, clipboard, remote keyboard or notifications interfaces reads
   everything again. That's
   a handful of calls for the one or two phones anyone has, and it only writes the
-  service when something changed. A resync runs every 30 s while the daemon runs,
+  service when something changed. A resync runs every 5 min while the daemon runs and something watches,
   and again when its owner changes.
 - **Two settings have no D-Bus setter.** amane writes them to the plugins'
   QSettings files, as kdeconnect's own pages do:

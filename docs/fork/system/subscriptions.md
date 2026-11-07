@@ -41,15 +41,17 @@ services the open windows' last frames read (`WaylandState::publish_watched`).
 
 The default polling `listen` checks after each sleep; an unwatched service parks its thread
 until it is watched again, then polls at once. A service in amane with its own polling loop
-(`Network`, `Palette`) calls `store::wait_while_unread::<Self>(idle)` after its sleep, and reads
+(`Palette`, and `Rfkill` or `LockKeys` when they fall back to polling) calls `store::wait_while_unread::<Self>(idle)` after its sleep, and reads
 itself through `store::find` there, since its own `read()` would count as watching.
 
 The first frame of a window that starts showing a stopped service draws the value from before
 it stopped; the poll that follows a moment later draws the fresh one.
 
-Services with an idle stop (30 s, `services::IDLE_STOP`): `Cpu`, `Memory`, `Media`, `Palette`
-and `Network`. `Brightness` keeps polling: the OSD reads it once per key press, and a stale
-value there would step from the wrong level.
+Services with an idle stop (30 s, `services::IDLE_STOP`): `Cpu`, `Memory`, `Media` and
+`Palette`, and the polling fallbacks of `Rfkill` and `LockKeys`. `Network` follows
+NetworkManager's signals and resyncs only while watched. `Brightness` polls only where the
+kernel's uevents can't be read, since the OSD reads it once per key press and a stale value
+there would step from the wrong level.
 
 ## Design / internals
 

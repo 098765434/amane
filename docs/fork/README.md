@@ -48,13 +48,18 @@ as upstream has them; everything the fork adds is here.
 | Tray | the system tray: StatusNotifierItem watcher and host, item icons (theme, own folder or pixels), dbusmenu menus, clicks and scrolling | `Tray`, `TrayItem`, `TrayMenuItem`, `TrayStatus`, `TrayToggle` | [tray](system/tray.md) | — | done |
 | Status items | a program's own item in the status bar and its activities (something going on now), over the bar's `org.amane.StatusBar1`; registered again when the bar restarts | `StatusItem`, `LiveActivity`, `status_item::{ItemSpec, ActivityContent}` | [status-items](system/status-items.md) | `examples/status_item.rs` | done (client; the bar serves it) |
 | adb | Android phones over USB and Wireless debugging: devices, mDNS discovery, pairing, connecting | `Adb`, `AdbDevice`, `WirelessService`, `amane::adb` | [adb](system/adb.md) | — | done |
-| Brightness | in HDR, the panel's SDR white in place of the backlight | `Brightness::hdr`, `HdrPanel` | [brightness](system/brightness.md) | — | done |
+| Brightness | in HDR, the panel's SDR white in place of the backlight; uevents instead of polling | `Brightness::hdr`, `HdrPanel` | [brightness](system/brightness.md) | — | done |
 | Idle | ext-idle-notify levels and ScreenSaver inhibits | `Idle` | [idle](system/idle.md) | `examples/idle.rs` | done |
 | Polkit agent | the session's authentication agent: polkit's prompts as the shell's own | `Polkit::serve_agent`, `AuthRequest` | [polkit](system/polkit.md) | — | done |
 | Appearance | colour scheme, accent, contrast, reduced motion | `Appearance`, `Scheme` | [appearance](system/appearance.md) | `examples/appearance.rs` | done |
 | Audio | device lists, kinds, default switching | `AudioDevice`, `AudioKind` | [audio](system/audio.md) | `examples/audio.rs` | done |
 | Notifications | timeout, hints, icon path, expire | `Timeout`, `Notifications::expire` | [notifications](system/notifications.md) | `examples/notifications.rs` | done |
 | Apps and processes | desktop entry id, categories, actions, MIME, opening files | `DesktopApp`, `DesktopAction` | [apps-and-processes](system/apps-and-processes.md) | `examples/apps.rs` | done |
+| Radios | rfkill switches from `/dev/rfkill`, airplane mode, blocking | `Rfkill`, `Radio` | [rfkill](system/rfkill.md) | — | done |
+| Session | logind: active, locked and idle hints, lock requests, sleep, inhibitors | `Logind` | [logind](system/logind.md) | — | done |
+| Clipboard watcher | the selection as it changes, from any program, for a history | `ClipboardWatcher` | [clipboard-watcher](system/clipboard-watcher.md) | — | done |
+| Network | NetworkManager's signals; VPN, WireGuard, hotspot and wired profiles | `Network::profiles`, `NetworkProfile`, `Wired` | [network](system/network.md) | — | done |
+| Lock keys | Caps Lock and Num Lock | `LockKeys` | [lock-keys](system/lock-keys.md) | — | done |
 | Timers | jobs and redraws on the event loop at a time | `Timer`, `TimerHandle`, `redraw_after` | [timer](system/timer.md) | — | done |
 | Subscriptions | one service following another; polling only while watched | `Service::subscribe`, `Subscription`, `Service::idle_stop` | [subscriptions](system/subscriptions.md) | — | done |
 | Launching | starting programs without panics, each in its own systemd scope | `Launch`, `LaunchError` | [apps-and-processes](system/apps-and-processes.md#each-program-in-its-own-scope) | — | done |
@@ -80,7 +85,9 @@ as upstream has them; everything the fork adds is here.
   [polkit](system/polkit.md),
   [appearance](system/appearance.md), [audio](system/audio.md),
   [notifications](system/notifications.md), [apps-and-processes](system/apps-and-processes.md),
-  [ipc](system/ipc.md).
+  [ipc](system/ipc.md), [rfkill](system/rfkill.md), [logind](system/logind.md),
+  [clipboard-watcher](system/clipboard-watcher.md), [network](system/network.md),
+  [lock-keys](system/lock-keys.md).
 - **Internals:** how the fork changes amane inside, and the resource plan.
   [architecture](internals/architecture.md) (sources, `on_track`, frame skip, GPU bounds, frozen
   windows), [memory](internals/memory.md) (what a process holds in GPU memory and RAM, the vello

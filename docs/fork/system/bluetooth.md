@@ -11,7 +11,7 @@ Upstream's guide is [Bluetooth](../../src/bluetooth.md). Everything it describes
 ## State
 
 - **Start-up:** the service reads the whole tree once with `GetManagedObjects`. After that it applies `InterfacesAdded`, `InterfacesRemoved` and `PropertiesChanged` from `org.bluez`, in the order BlueZ sent them (`services/bluetooth/model.rs`).
-- **Re-reads:** the tree is read again when `org.bluez` changes owner (bluetoothd restarted or came back), and every 30 s in case a signal was missed.
+- **Re-reads:** the tree is read again when `org.bluez` changes owner (bluetoothd restarted or came back), and every 5 min while something watches, in case a signal was missed.
 - **Redraws:** the service is written only when what it shows changed. Signal strength counts in whole bars (`signal()`, 1–4), so a search doesn't redraw at every dBm.
 - **Adapter:** the first powered adapter by path, otherwise the first one. Only its devices are listed.
 
