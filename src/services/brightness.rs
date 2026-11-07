@@ -1,9 +1,11 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Once;
 use std::thread;
 use std::time::Duration;
 
-use crate::compositor::{self, HdrPanel};
+use crate::compositor::{self, HdrPanel, niri::client};
+use crate::services::uevent;
 use crate::services::worker;
 use crate::{Argument, Bus, Service};
 
@@ -20,7 +22,7 @@ const HDR_DIMMEST: f64 = 25.0;
 // the OLED's backlight reaches at full outside HDR
 const HDR_BRIGHTEST: f64 = 500.0;
 
-// how many polls apart the compositor is asked whether HDR is on
+// how many polls apart the compositor is asked whether HDR is on, when it can't say itself
 const HDR_EVERY: u32 = 4;
 
 #[derive(Default)]
@@ -37,9 +39,9 @@ pub struct Brightness {
 }
 
 /*
- * polled, because the kernel doesn't announce a change to the
- * backlight file; half a second keeps brightness keys feeling live.
- * whether HDR is on is asked every two seconds
+ * the kernel sends a uevent when the backlight is set, and the niri fork says when its outputs
+ * changed (HDR, SDR white), so nothing polls; without either, the old polls come back: the
+ * backlight every half second, HDR every two
  */
 impl Service for Brightness {
     fn new() -> Self {
@@ -58,31 +60,38 @@ impl Service for Brightness {
         Duration::from_millis(500)
     }
 
-    /*
-     * the compositor is asked before the write is taken: its answer can take up
-     * to its two-second timeout, and readers shouldn't wait on it
-     */
     fn listen() {
-        let mut polls = 0;
-
-        loop {
-            thread::sleep(Self::interval());
-
-            polls += 1;
-            let hdr = (polls >= HDR_EVERY).then(|| {
-                polls = 0;
-                compositor::hdr_panel()
+        static OUTPUTS: Once = Once::new();
+        let pushed_hdr = client::features().has("outputs-changed");
+        if pushed_hdr {
+            OUTPUTS.call_once(|| {
+                thread::spawn(|| {
+                    compositor::listen_outputs_changed(|| {
+                        // asked outside the write: the answer can take up to two seconds
+                        let hdr = compositor::hdr_panel();
+                        let mut brightness = Self::write();
+                        let changed = brightness.hdr != hdr;
+                        brightness.hdr = hdr;
+                        if !brightness.update() && !changed {
+                            brightness.quiet();
+                        }
+                    });
+                });
             });
-
-            let mut brightness = Self::write();
-            if let Some(hdr) = hdr {
-                brightness.hdr = hdr;
-            }
-
-            if !brightness.update() {
-                brightness.quiet();
-            }
         }
+
+        if let Some(events) = uevent::listen("backlight") {
+            // a set between new() and listening would otherwise wait for the next one
+            Self::refresh_level();
+            for event in events {
+                if event.action == "change" {
+                    Self::refresh_level();
+                }
+            }
+            // the events stopped: poll from here on
+        }
+
+        Self::poll(pushed_hdr);
     }
 
     fn update(&mut self) -> bool {
@@ -111,6 +120,36 @@ impl Service for Brightness {
 }
 
 impl Brightness {
+    fn refresh_level() {
+        let mut brightness = Self::write();
+        if !brightness.update() {
+            brightness.quiet();
+        }
+    }
+
+    fn poll(pushed_hdr: bool) {
+        let mut polls = 0;
+
+        loop {
+            thread::sleep(Self::interval());
+
+            polls += 1;
+            let hdr = (!pushed_hdr && polls >= HDR_EVERY).then(|| {
+                polls = 0;
+                compositor::hdr_panel()
+            });
+
+            let mut brightness = Self::write();
+            if let Some(hdr) = hdr {
+                brightness.hdr = hdr;
+            }
+
+            if !brightness.update() {
+                brightness.quiet();
+            }
+        }
+    }
+
     pub fn present(&self) -> bool {
         self.path.is_some() || self.hdr.is_some()
     }

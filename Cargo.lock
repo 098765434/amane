@@ -21,6 +21,7 @@ dependencies = [
  "bitflags",
  "chrono",
  "inotify",
+ "libc",
  "libpulse-binding",
  "log",
  "parley",

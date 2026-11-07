@@ -169,6 +169,12 @@ pub fn wait_while_unread<S: Service>(idle: Duration) -> bool {
     slot::<S>().use_.wait_while_unread(idle)
 }
 
+/// Whether nothing has watched the service for `idle`: no open window's last frame read it, and
+/// nothing read it within `idle`. For a listener that resyncs only while watched.
+pub(crate) fn unwatched<S: Service>(idle: Duration) -> bool {
+    slot::<S>().use_.unwatched(idle)
+}
+
 // how long a service that panicked waits before it listens again
 const RESTART_DELAY: Duration = Duration::from_secs(5);
 

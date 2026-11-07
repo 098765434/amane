@@ -211,7 +211,22 @@ stream, every listener's channel closes and its `listen` returns, as before.
 
 The configured layouts and the one in use, from `KeyboardLayoutsChanged` and
 `KeyboardLayoutSwitched` on the same stream: `names()`, `current()`, `current_index()`,
-`switchable()`. Empty elsewhere.
+`switchable()`. Empty elsewhere. `niri::switch_keyboard_layout(index)` switches.
+
+### `Casts` (fork addition, niri only)
+
+The screencasts niri runs, from `CastsChanged`, `CastStartedOrChanged` and `CastStopped` on the
+same stream: `all()`, `active()`, `any_active()`, for a privacy indicator without polling.
+
+### `LockKeys` (fork addition)
+
+Caps Lock and Num Lock, from the fork's `KeyboardLockKeysChanged` on the same stream. See
+[lock-keys](../system/lock-keys.md).
+
+### Outputs changed (the niri fork)
+
+The fork's `OutputsChanged` (feature `outputs-changed`) carries nothing; amane's `Brightness`
+asks `Outputs` again when it comes, instead of every two seconds.
 
 ## Asking niri: `amane::niri` (fork addition)
 
@@ -225,6 +240,12 @@ up to two seconds for its answer, so call it from a service thread, not a view. 
 | `niri::outputs()` | each output's name, make, model, logical place, and the fork's HDR fields |
 | `niri::windows()`, `niri::focused_window()` | windows with their `pid`, workspace, focus, floating, and the fork's `is_fullscreen` |
 | `niri::casts()` | screencasts: kind, target (an output or a window), whether active, the casting `pid` |
+
+Each output also lists its `modes` and `current_mode` (`Output::mode()`).
+
+Actions, each `Result<(), NiriError>`: `focus_window(id)`, `switch_keyboard_layout(index)`,
+`power_off_monitors()`, `quit()` (without asking), `set_output_mode(output, mode)` (until niri
+reads its config again) and `stop_cast(session_id)`.
 
 The fork-only actions check `features()` first: `SdrBrightness` is sent only when niri has
 `hdr`, and `Windows::move_to` on stock niri focuses the window before `MoveColumnToIndex`,

@@ -105,12 +105,23 @@ that can't run. Code: `src/launch.rs`; commit `b2f770a`.
 - The MIME lookup is `src/services/apps/mime.rs`, read from the shared-mime-info files.
 - Commits: `0ebcfd2` (categories, keywords), `d9d3d46` (actions), `7f48e10` (`Apps::find_icon`), `c029184` (MIME, `opens`, `launch_with`), `3c3d56b` (`id`), `82337f2` (`spawn_activated`), `b2f770a` (`Launch`, scopes).
 
+## Apps rescans
+
+`Apps` looks at the data dirs' `applications/` folders every 30 s and scans again (every
+desktop file and icon theme) only when one of them changed. The comparison is a fingerprint
+(`src/services/apps/fingerprint.rs`): where each folder really is, its modification time and
+size. On NixOS a system switch points `/run/current-system` at a new store path, whose files all
+carry the same time, so the real path is what changes.
+
 ## Default apps: `MimeApps` (fork addition)
 
 `MimeApps` answers which app opens a kind of file or link, the way `xdg-open` does. It reads
 every `mimeapps.list` in the spec's order: config dirs before data dirs' `applications/`, and in
 each dir a `$desktop-mimeapps.list` before the plain one. With no default listed it falls back to
-the data dirs' `mimeinfo.cache`. It is polled every three seconds.
+the data dirs' `mimeinfo.cache`. The user's own `~/.config/mimeapps.list` is watched with
+`watch_file`, so a change shows at once; the other lists and the caches change with a system
+switch, so every 30 s their [fingerprint](#apps-rescans) is compared, and they're read again only
+when it moved.
 
 - `default_app(kind)` is the first listed default that is installed, else the cache's.
 - `handlers(kind)` lists the apps that open the kind: the shown ones that list it (or a kind it

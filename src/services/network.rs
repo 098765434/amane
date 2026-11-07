@@ -1,16 +1,27 @@
 mod access_point;
+mod connections;
 mod link;
 mod manager;
 mod profile;
 mod wifi;
 
+use std::sync::mpsc::{self, RecvTimeoutError};
 use std::thread;
+use std::time::{Duration, Instant};
 
-use crate::services::worker;
-use crate::{Service, Value};
+use crate::services::{IDLE_STOP, store, worker};
+use crate::{Bus, Service, Value};
 
 pub use access_point::AccessPoint;
+pub use connections::{Profile as NetworkProfile, Wired};
 pub use link::Link;
+
+// a burst of signals is read as one change: the refetch waits until they pause this long
+const SETTLE: Duration = Duration::from_millis(250);
+// but no longer than this from the first
+const BURST: Duration = Duration::from_secs(1);
+// a refetch without a signal, in case one went missing, only while something watches
+const RESYNC: Duration = Duration::from_secs(60);
 
 #[derive(Default)]
 pub struct Network {
@@ -29,32 +40,70 @@ pub struct Network {
 
     // empty without a wifi device, or with the radio off
     access_points: Vec<AccessPoint>,
+
+    // every saved profile, and whether each is up
+    profiles: Vec<NetworkProfile>,
+
+    wired: Option<Wired>,
 }
 
 /*
- * polled, because the access point's strength
- * changes all the time without a new connection
+ * follows networkmanager's signals: a device, an access point or a connection changing sends
+ * one, and the profiles' settings are read again only when one of those changed
  */
 impl Service for Network {
     fn new() -> Self {
-        fetch()
+        fetch(&connections::saved())
     }
 
     /*
      * networkmanager is asked outside the lock, so a slow answer never
      * holds up a frame, and nothing is written when nothing changed, so
-     * the windows aren't redrawn every second for no reason
+     * the windows aren't redrawn for no reason
      */
     fn listen() {
+        // true when the signal was about saved profiles
+        let (sender, signals) = mpsc::channel::<bool>();
+        thread::spawn(move || {
+            for signal in Bus::system().signals_from(manager::NAME) {
+                let settings = signal.path().starts_with(connections::SETTINGS_PATH);
+                if sender.send(settings).is_err() {
+                    break;
+                }
+            }
+        });
+
+        let mut saved = connections::saved();
         loop {
-            thread::sleep(Self::interval());
+            let settings = match signals.recv_timeout(RESYNC) {
+                Ok(about_settings) => {
+                    let mut settings = about_settings;
+                    let first = Instant::now();
+                    while first.elapsed() < BURST {
+                        match signals.recv_timeout(SETTLE) {
+                            Ok(about_settings) => settings |= about_settings,
+                            Err(_) => break,
+                        }
+                    }
+                    settings
+                }
+                Err(RecvTimeoutError::Timeout) => {
+                    if store::unwatched::<Self>(IDLE_STOP) {
+                        continue;
+                    }
+                    true
+                }
+                // no system bus: nothing to follow
+                Err(RecvTimeoutError::Disconnected) => return,
+            };
 
-            super::store::wait_while_unread::<Self>(super::IDLE_STOP);
-
-            let fresh = fetch();
+            if settings {
+                saved = connections::saved();
+            }
+            let fresh = fetch(&saved);
 
             // read as the service's own, which doesn't count as watching it
-            let same = super::store::find::<Self>()
+            let same = store::find::<Self>()
                 .read()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .shows_same(&fresh);
@@ -99,6 +148,8 @@ impl Network {
             && step(self.strength) == step(other.strength)
             && self.wifi_enabled == other.wifi_enabled
             && self.connecting == other.connecting
+            && self.profiles == other.profiles
+            && self.wired == other.wired
     }
 
     pub fn connected(&self) -> bool {
@@ -127,6 +178,26 @@ impl Network {
 
     pub fn access_points(&self) -> &[AccessPoint] {
         &self.access_points
+    }
+
+    /// Every saved connection profile, with whether each is up.
+    pub fn profiles(&self) -> &[NetworkProfile] {
+        &self.profiles
+    }
+
+    /// The VPN and WireGuard profiles.
+    pub fn vpns(&self) -> impl Iterator<Item = &NetworkProfile> {
+        self.profiles.iter().filter(|profile| profile.is_vpn())
+    }
+
+    /// The hotspot this machine runs, if any.
+    pub fn hotspot(&self) -> Option<&NetworkProfile> {
+        self.profiles.iter().rfind(|profile| profile.is_hotspot())
+    }
+
+    /// The first Ethernet device with a cable in.
+    pub fn wired(&self) -> Option<&Wired> {
+        self.wired.as_ref()
     }
 }
 
@@ -166,6 +237,25 @@ impl Network {
     pub fn set_wifi(enabled: bool) {
         worker::run(move || manager::set_wifi(enabled));
     }
+
+    /// Brings a profile up by its UUID, like a VPN or a hotspot.
+    pub fn activate(uuid: &str) {
+        let uuid = uuid.to_owned();
+        worker::run(move || connections::activate(&uuid));
+    }
+
+    /// Takes a profile down by its UUID.
+    pub fn deactivate(uuid: &str) {
+        let uuid = uuid.to_owned();
+        worker::run(move || connections::deactivate(&uuid));
+    }
+
+    /// Connects a device, like the [`wired`](Self::wired) one, with its best profile, or
+    /// disconnects it.
+    pub fn set_device(interface: &str, connected: bool) {
+        let interface = interface.to_owned();
+        worker::run(move || connections::set_device(&interface, connected));
+    }
 }
 
 /*
@@ -199,11 +289,13 @@ fn ssid(bytes: &Value) -> String {
     String::from_utf8_lossy(&raw).into_owned()
 }
 
-// asks networkmanager for everything shown, from scratch
-fn fetch() -> Network {
+// asks networkmanager for everything shown, with the profiles' settings as last read
+fn fetch(saved: &[connections::Saved]) -> Network {
     // networks to join are listed even while offline
     let mut network = Network {
         wifi_enabled: manager::wifi_enabled(),
+        profiles: connections::profiles(saved, &connections::active()),
+        wired: connections::wired(&connections::devices()),
         ..Network::default()
     };
 

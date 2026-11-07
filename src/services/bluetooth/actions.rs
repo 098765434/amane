@@ -1,8 +1,6 @@
 #![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fs::OpenOptions;
-use std::io::Write as _;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Mutex, PoisonError};
 use std::thread;
@@ -362,7 +360,7 @@ fn power(adapter: &str, powered: bool) -> Result<(), BluetoothError> {
     }
 
     // a hardware switch can't be lifted from here, and then this stays blocked
-    unblock().map_err(|_| BluetoothError::Blocked)?;
+    crate::Rfkill::set_blocked(Some("bluetooth"), false).map_err(|_| BluetoothError::Blocked)?;
 
     let since = Instant::now();
 
@@ -374,24 +372,6 @@ fn power(adapter: &str, powered: bool) -> Result<(), BluetoothError> {
             result => return result,
         }
     }
-}
-
-/*
- * lifts rfkill's soft block on every bluetooth radio, as `rfkill unblock
- * bluetooth` does: one change-all event written to /dev/rfkill, which the
- * seat's user may write
- */
-fn unblock() -> std::io::Result<()> {
-    // struct rfkill_event: idx (u32), type, op, soft, hard
-    const TYPE_BLUETOOTH: u8 = 2;
-    const OP_CHANGE_ALL: u8 = 3;
-
-    let event = [0, 0, 0, 0, TYPE_BLUETOOTH, OP_CHANGE_ALL, 0, 0];
-
-    OpenOptions::new()
-        .write(true)
-        .open("/dev/rfkill")?
-        .write_all(&event)
 }
 
 fn scan() {

@@ -6,6 +6,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use super::fingerprint::Fingerprint;
 use super::{Apps, DesktopApp, data_dirs};
 use crate::Service;
 
@@ -34,14 +35,18 @@ pub struct MimeApps {
     cached: HashMap<String, Vec<String>>,
 }
 
-// polled, so a change made with xdg-mime or another settings app shows up
+/*
+ * the user's own list is watched, so a change from xdg-mime or a settings app shows up at
+ * once; the system's lists (and mimeinfo.cache) change with a system switch, so they're only
+ * looked at every half minute, and read again when one of them moved
+ */
 impl Service for MimeApps {
     fn new() -> Self {
         load()
     }
 
     fn interval() -> Duration {
-        Duration::from_secs(3)
+        Duration::from_secs(30)
     }
 
     fn update(&mut self) -> bool {
@@ -55,6 +60,43 @@ impl Service for MimeApps {
 
         true
     }
+
+    fn listen() {
+        if let Some(own) = config_home().map(|home| home.join("mimeapps.list")) {
+            std::thread::spawn(move || {
+                if let Some(folder) = own.parent() {
+                    let _ = fs::create_dir_all(folder);
+                }
+                for () in crate::watch_file(&own.to_string_lossy()) {
+                    reload();
+                }
+            });
+        }
+
+        let mut seen = system_fingerprint();
+        loop {
+            std::thread::sleep(Self::interval());
+            let now = system_fingerprint();
+            if now != seen {
+                seen = now;
+                reload();
+            }
+        }
+    }
+}
+
+fn reload() {
+    let mut apps = MimeApps::write();
+    if !apps.update() {
+        apps.quiet();
+    }
+}
+
+fn system_fingerprint() -> Fingerprint {
+    let caches = data_dirs::find()
+        .into_iter()
+        .map(|dir| dir.join("applications/mimeinfo.cache"));
+    Fingerprint::of(lists().into_iter().chain(caches))
 }
 
 impl MimeApps {

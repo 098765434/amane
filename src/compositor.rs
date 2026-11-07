@@ -146,6 +146,34 @@ pub(crate) fn listen_keyboard_layouts(on_change: impl FnMut(Vec<String>, u8)) {
     }
 }
 
+/// Caps Lock and Num Lock whenever either changes; returns right away unless this is the niri
+/// fork with `lock-keys`.
+pub(crate) fn listen_lock_keys(on_change: impl FnMut(bool, bool)) {
+    if let Some(Compositor::Niri) = running()
+        && niri::client::features().has("lock-keys")
+    {
+        niri::listen_lock_keys(on_change);
+    }
+}
+
+/// Calls back whenever the outputs changed; returns right away unless this is the niri fork with
+/// `outputs-changed`.
+pub(crate) fn listen_outputs_changed(on_change: impl FnMut()) {
+    if let Some(Compositor::Niri) = running()
+        && niri::client::features().has("outputs-changed")
+    {
+        niri::listen_outputs_changed(on_change);
+    }
+}
+
+/// Every running screencast whenever the set changes; returns right away on a compositor other
+/// than niri.
+pub(crate) fn listen_casts(on_change: impl FnMut(Vec<niri::client::Cast>)) {
+    if let Some(Compositor::Niri) = running() {
+        niri::listen_casts(on_change);
+    }
+}
+
 pub(crate) fn listen_gestures(on_change: impl FnMut(Gesture)) {
     let Some(compositor) = running() else {
         return;

@@ -15,8 +15,18 @@ found on an amdgpu OLED panel. While that's so, `Brightness` moves niri's SDR wh
 - `present()` is also true for such a panel.
 - `hdr()` returns the panel (`HdrPanel`: connector, SDR white, peak) while this applies.
 
-niri is asked whether HDR is on every fourth poll, about every two seconds. On any other
-compositor, `hdr()` is always none and nothing changes.
+## Without polling
+
+- **The backlight** is read again on the kernel's `change` uevent for the `backlight`
+  subsystem, which `SetBrightness` and the panel's own keys both send
+  (`src/services/uevent.rs`: one netlink socket for the program, kernel group 1, no udev
+  needed).
+- **HDR** is asked again when the niri fork sends `OutputsChanged` (feature
+  `outputs-changed`), which it does after a hotplug, a mode, HDR or SDR-white change.
+
+Without uevents the backlight is polled every half second as before; without
+`outputs-changed`, HDR every two seconds. On any other compositor, `hdr()` is always none and
+nothing changes.
 
 niri keeps an IPC change only until it reads its config again. Keeping the level is up to the
 app; amane-shell writes it into its `displays.kdl` once it has rested.

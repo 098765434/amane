@@ -99,6 +99,8 @@ struct Mirror {
     view_seen: bool,
     switch_seen: bool,
     keyboard: Option<(Vec<String>, u8)>,
+    lock_keys: Option<(bool, bool)>,
+    casts: Option<Vec<super::client::Cast>>,
 }
 
 impl Mirror {
@@ -123,6 +125,14 @@ impl Mirror {
                 if let Some((_, idx)) = &mut self.keyboard {
                     *idx = *current;
                 }
+            }
+            Event::LockKeys {
+                caps_lock,
+                num_lock,
+            } => self.lock_keys = Some((*caps_lock, *num_lock)),
+            Event::Casts(_) | Event::CastChanged(_) | Event::CastStopped { .. } => {
+                let casts = self.casts.get_or_insert_with(Vec::new);
+                super::apply_cast(casts, event.clone());
             }
             _ => {}
         }
@@ -192,6 +202,15 @@ impl Mirror {
                 current: *current,
             });
         }
+        if let Some((caps_lock, num_lock)) = self.lock_keys {
+            events.push(Event::LockKeys {
+                caps_lock,
+                num_lock,
+            });
+        }
+        if let Some(casts) = &self.casts {
+            events.push(Event::Casts(casts.clone()));
+        }
         events
     }
 }
@@ -221,6 +240,8 @@ mod tests {
                 Event::WorkspaceSwitch { .. } => "WorkspaceSwitch",
                 Event::DesktopObscured { .. } => "DesktopObscured",
                 Event::KeyboardLayouts { .. } => "KeyboardLayouts",
+                Event::LockKeys { .. } => "LockKeys",
+                Event::Casts(_) => "Casts",
                 _ => "other",
             })
             .collect()
@@ -264,6 +285,32 @@ mod tests {
             panic!("workspaces first");
         };
         assert_eq!(list[0].windows, 1);
+    }
+
+    #[test]
+    fn lock_keys_and_casts_are_replayed() {
+        let mirror = mirror(&[
+            r#"{"KeyboardLockKeysChanged":{"caps_lock":true,"num_lock":false}}"#,
+            r#"{"OutputsChanged":{}}"#,
+            r#"{"CastsChanged":{"casts":[]}}"#,
+            r#"{"CastStartedOrChanged":{"cast":{"stream_id":2,"session_id":1,"kind":"PipeWire","target":{"Output":{"name":"eDP-1"}},"is_dynamic_target":false,"is_active":true,"pid":99,"pw_node_id":55}}}"#,
+            r#"{"CastStartedOrChanged":{"cast":{"stream_id":3,"session_id":1,"kind":"PipeWire","target":{"Nothing":{}},"is_dynamic_target":true,"is_active":false,"pid":null,"pw_node_id":56}}}"#,
+            r#"{"CastStopped":{"stream_id":2}}"#,
+        ]);
+        let replay = mirror.replay();
+        assert_eq!(names(&replay), ["LockKeys", "Casts"]);
+        assert!(matches!(
+            replay[0],
+            Event::LockKeys {
+                caps_lock: true,
+                num_lock: false
+            }
+        ));
+        let Event::Casts(casts) = &replay[1] else {
+            panic!("casts second");
+        };
+        assert_eq!(casts.len(), 1);
+        assert_eq!(casts[0].stream_id, 3);
     }
 
     #[test]
