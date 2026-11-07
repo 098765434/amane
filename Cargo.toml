@@ -78,5 +78,5 @@ members = ["cli", "cli/template/example"]
 # dependency repeats both lines in its own root manifest; a patch only applies
 # from there. See docs/fork/internals/memory.md.
 [patch.crates-io]
-vello = { git = "https://github.com/098765434/vello", rev = "46585523afff9ff403164902fd81f63794bd48d3" }
-vello_encoding = { git = "https://github.com/098765434/vello", rev = "46585523afff9ff403164902fd81f63794bd48d3" }
+vello = { git = "https://github.com/098765434/vello", rev = "8b61bd281d2d3be32f4de66b1e3c05b10fe7b8e6" }
+vello_encoding = { git = "https://github.com/098765434/vello", rev = "8b61bd281d2d3be32f4de66b1e3c05b10fe7b8e6" }

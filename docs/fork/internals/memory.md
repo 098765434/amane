@@ -76,7 +76,7 @@ GPU (below). The heaviest example, `canvas` (a stroked clock face and spirograph
 takes 36k lines, 37k segments and 940 tiles; `blur_shapes` at a full 2881×1769 output takes
 11.7k tiles and 3.1k segments. Every limit is 3–7× above the largest value seen.
 
-**Switching it off.** `VELLO_SCRATCH=upstream` in the environment restores upstream's sizes
+**Switching it off.** `AMANE_VELLO_SCRATCH=upstream` in the environment restores upstream's sizes
 without a rebuild. If a scene that came out blank fills in, it overflowed: report it with the
 `scratch` line below.
 
