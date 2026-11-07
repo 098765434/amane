@@ -1,11 +1,14 @@
 use crate::{Argument, Bus, Value};
 
-const PATH: &str = "/org/mpris/MediaPlayer2";
+pub(super) const PATH: &str = "/org/mpris/MediaPlayer2";
 
-const INTERFACE: &str = "org.mpris.MediaPlayer2.Player";
+pub(super) const INTERFACE: &str = "org.mpris.MediaPlayer2.Player";
 
 // where a player keeps its own name, like "Spotify"
 const ROOT_INTERFACE: &str = "org.mpris.MediaPlayer2";
+
+// every mpris player owns a bus name under this one
+pub(super) const NAMESPACE: &str = "org.mpris.MediaPlayer2";
 
 // every mpris player owns a bus name starting with this
 const PREFIX: &str = "org.mpris.MediaPlayer2.";

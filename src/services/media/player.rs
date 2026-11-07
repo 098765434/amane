@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::Value;
 use crate::services::worker;
@@ -20,7 +20,11 @@ pub struct MediaPlayer {
 
     pub(crate) playing: bool,
 
+    // where the track was when `read_at` was, and how fast it moves on in thousandths of real
+    // time; players don't announce the position while playing, so it is worked out from these
     pub(crate) position: Duration,
+    pub(crate) rate_milli: u32,
+    pub(crate) read_at: Instant,
     pub(crate) length: Duration,
 }
 
@@ -40,6 +44,8 @@ impl MediaPlayer {
             playing: properties.get("PlaybackStatus").text() == "Playing",
 
             position: micros(properties.get("Position")),
+            rate_milli: rate_milli(properties.get("Rate")),
+            read_at: Instant::now(),
             length: micros(metadata.get("mpris:length")),
         }
     }
@@ -69,8 +75,24 @@ impl MediaPlayer {
         self.playing
     }
 
+    // worked out from the last reading while playing, never past the end
     pub fn position(&self) -> Duration {
-        self.position
+        self.position_at(Instant::now())
+    }
+
+    fn position_at(&self, now: Instant) -> Duration {
+        if !self.playing {
+            return self.position;
+        }
+
+        let moved = now.saturating_duration_since(self.read_at) * self.rate_milli / 1000;
+        let position = self.position + moved;
+
+        if self.length > Duration::ZERO {
+            position.min(self.length)
+        } else {
+            position
+        }
     }
 
     pub fn length(&self) -> Duration {
@@ -105,9 +127,68 @@ fn first_artist(artists: &Value) -> String {
     String::from(first.text())
 }
 
+// 1.0 when the player doesn't say, as the spec has it
+fn rate_milli(rate: &Value) -> u32 {
+    match rate {
+        Value::Number(rate) if *rate >= 0.0 => (rate * 1000.0).round() as u32,
+        _ => 1000,
+    }
+}
+
 // mpris counts time in microseconds, and a missing value reads as 0
 fn micros(value: &Value) -> Duration {
     let micros = value.number().max(0.0) as u64;
 
     Duration::from_micros(micros)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn player(playing: bool, rate_milli: u32, read_at: Instant) -> MediaPlayer {
+        MediaPlayer {
+            name: String::from("org.mpris.MediaPlayer2.test"),
+            identity: String::from("Test"),
+            title: String::from("Song"),
+            artist: String::new(),
+            art_url: String::new(),
+            playing,
+            position: Duration::from_secs(10),
+            rate_milli,
+            read_at,
+            length: Duration::from_secs(60),
+        }
+    }
+
+    #[test]
+    fn works_out_the_position_from_the_last_reading() {
+        let read_at = Instant::now();
+        let later = read_at + Duration::from_secs(5);
+
+        assert_eq!(
+            player(true, 1000, read_at).position_at(later),
+            Duration::from_secs(15)
+        );
+        assert_eq!(
+            player(true, 2000, read_at).position_at(later),
+            Duration::from_secs(20)
+        );
+        assert_eq!(
+            player(false, 1000, read_at).position_at(later),
+            Duration::from_secs(10)
+        );
+
+        let much_later = read_at + Duration::from_secs(600);
+        assert_eq!(
+            player(true, 1000, read_at).position_at(much_later),
+            Duration::from_secs(60)
+        );
+    }
+
+    #[test]
+    fn a_missing_rate_is_normal_speed() {
+        assert_eq!(rate_milli(&Value::Number(1.5)), 1500);
+        assert_eq!(rate_milli(&Value::default()), 1000);
+    }
 }
