@@ -44,10 +44,7 @@ as upstream has them; everything the fork adds is here.
 | Battery | UPower: state, warning, time left, peripherals | `Battery`, `PowerDevice` | [battery](system/battery.md) | `examples/system.rs` | done |
 | Power profile | power-profiles-daemon | `PowerProfile` | [power-profile](system/power-profile.md) | — | done |
 | Bluetooth | signals, operations and failures, pairing agent, rfkill, discoverable | `Bluetooth::serve_agent`, `PairingRequest`, `BluetoothError` | [bluetooth](system/bluetooth.md) | — | done |
-| KDE Connect | phones: pairing, battery, ring, files, clipboard, run commands, remote input, text messages with attachments and new conversations, contact photos, addresses, notifications | `KdeConnect`, `PhoneDevice`, `PhoneMessages`, `SmsAttachment` | [kdeconnect](system/kdeconnect.md) | — | done |
 | Tray | the system tray: StatusNotifierItem watcher and host, item icons (theme, own folder or pixels), dbusmenu menus, clicks and scrolling | `Tray`, `TrayItem`, `TrayMenuItem`, `TrayStatus`, `TrayToggle` | [tray](system/tray.md) | — | done |
-| Status items | a program's own item in the status bar and its activities (something going on now), over the bar's `org.amane.StatusBar1`; registered again when the bar restarts | `StatusItem`, `LiveActivity`, `status_item::{ItemSpec, ActivityContent}` | [status-items](system/status-items.md) | `examples/status_item.rs` | done (client; the bar serves it) |
-| adb | Android phones over USB and Wireless debugging: devices, mDNS discovery, pairing, connecting | `Adb`, `AdbDevice`, `WirelessService`, `amane::adb` | [adb](system/adb.md) | — | done |
 | Brightness | in HDR, the panel's SDR white in place of the backlight; uevents instead of polling | `Brightness::hdr`, `HdrPanel` | [brightness](system/brightness.md) | — | done |
 | Idle | ext-idle-notify levels and ScreenSaver inhibits | `Idle` | [idle](system/idle.md) | `examples/idle.rs` | done |
 | Polkit agent | the session's authentication agent: polkit's prompts as the shell's own; `polkit-agent` feature | `Polkit::serve_agent`, `serve_agent_with`, `AuthRequest` | [polkit](system/polkit.md) | — | done |
@@ -82,8 +79,7 @@ as upstream has them; everything the fork adds is here.
   [text-input](input/text-input.md), [input-method](input/input-method.md).
 - **System:** D-Bus and portal services. [battery](system/battery.md),
   [power-profile](system/power-profile.md), [bluetooth](system/bluetooth.md),
-  [kdeconnect](system/kdeconnect.md), [tray](system/tray.md),
-  [status-items](system/status-items.md), [adb](system/adb.md), [idle](system/idle.md),
+  [tray](system/tray.md), [idle](system/idle.md),
   [polkit](system/polkit.md),
   [appearance](system/appearance.md), [audio](system/audio.md),
   [notifications](system/notifications.md), [apps-and-processes](system/apps-and-processes.md),
@@ -99,6 +95,21 @@ as upstream has them; everything the fork adds is here.
 
 [api-cheatsheet.md](api-cheatsheet.md) has the fork's rows for upstream's
 [cheatsheet](../src/cheatsheet.md).
+
+## Moved to amane-shell
+
+Features only amane-shell and its apps use went to crates of their own in
+[amane-shell](https://github.com/098765434/amane-shell) (Phase 9 of its roadmap), so this fork
+stays a generic library:
+
+| Was | Now |
+|---|---|
+| `status_item` (`StatusItem`, `LiveActivity`, the `org.amane.StatusBar1` wire types) | `amane-status` (`crates/status`) |
+| `KdeConnect`, `PhoneMessages` and the phone types | `amane-phone` (`crates/phone`) |
+| `Adb`, `amane::adb`, mDNS discovery (and the `mdns-sd` dependency) | `amane-phone` |
+
+They build on public amane API: `Bus`, `Service`, `run_in_order`, `Service::watched_within`,
+`Service::peek` and `ServiceError` ([errors](system/errors.md)).
 
 ## Other repos
 
