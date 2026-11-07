@@ -98,6 +98,11 @@ pub enum Event {
     // the answer to Outputs changed; it carries nothing (the niri fork)
     OutputsChanged,
 
+    // niri read its config, at the start and on each change; failed when it couldn't
+    ConfigLoaded {
+        failed: bool,
+    },
+
     // every screencast, sent first and whenever the set is replaced
     Casts(Vec<client::Cast>),
 
@@ -188,14 +193,7 @@ pub(crate) fn set_sdr_white(output: &str, nits: f64) -> bool {
         return false;
     }
 
-    let request = json!({
-        "Output": {
-            "output": output,
-            "action": { "SdrBrightness": { "nits": nits } }
-        }
-    });
-
-    ask(&request).is_some_and(|reply| reply.get("Ok").is_some())
+    client::set_output(output, client::OutputChange::SdrBrightness(nits)).is_ok()
 }
 
 pub fn focus_workspace(id: i64) {
@@ -229,6 +227,7 @@ pub fn listen(mut on_change: impl FnMut(Vec<Workspace>)) {
             Event::WindowLayouts(_)
                 | Event::LockKeys { .. }
                 | Event::OutputsChanged
+                | Event::ConfigLoaded { .. }
                 | Event::Casts(_)
                 | Event::CastChanged(_)
                 | Event::CastStopped { .. }
@@ -523,6 +522,9 @@ fn parse(line: &str) -> Option<Event> {
             num_lock: body["num_lock"].as_bool()?,
         }),
         "OutputsChanged" => Some(Event::OutputsChanged),
+        "ConfigLoaded" => Some(Event::ConfigLoaded {
+            failed: body["failed"].as_bool()?,
+        }),
         "CastsChanged" => Some(Event::Casts(
             body["casts"]
                 .as_array()?
@@ -738,6 +740,7 @@ impl State {
             | Event::KeyboardLayoutSwitched { .. }
             | Event::LockKeys { .. }
             | Event::OutputsChanged
+            | Event::ConfigLoaded { .. }
             | Event::Casts(_)
             | Event::CastChanged(_)
             | Event::CastStopped { .. }
@@ -857,7 +860,13 @@ mod tests {
             Some(Event::KeyboardLayouts { current: 0, .. })
         ));
 
+        // a config read, for changes that only last until the next one
+        assert!(matches!(
+            parse(r#"{"ConfigLoaded":{"failed":true}}"#),
+            Some(Event::ConfigLoaded { failed: true })
+        ));
+
         // events amane doesn't use are skipped
-        assert!(parse(r#"{"ConfigLoaded":{"failed":false}}"#).is_none());
+        assert!(parse(r#"{"ConfigReloadFailed":{}}"#).is_none());
     }
 }

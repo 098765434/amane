@@ -239,15 +239,18 @@ up to two seconds for its answer, so call it from a service thread, not a view. 
 | Function | Answers |
 |---|---|
 | `niri::features()` | the fork's [`Features`](https://github.com/098765434/niri/blob/ocbk/docs/fork/ipc/features.md): `.has("hdr")`, `.version("blur-shapes")`, `.is_fork()`. Asked once and kept; empty on stock niri, which can't parse the request |
-| `niri::outputs()` | each output's name, make, model, logical place, and the fork's HDR fields |
+| `niri::outputs()` | each output's name, make, model, serial, size in millimetres, logical place and `Transform`, VRR, and the fork's HDR fields |
 | `niri::windows()`, `niri::focused_window()` | windows with their `pid`, workspace, focus, floating, and the fork's `is_fullscreen` |
 | `niri::casts()` | screencasts: kind, target (an output or a window), whether active, the casting `pid` |
 
 Each output also lists its `modes` and `current_mode` (`Output::mode()`).
 
 Actions, each `Result<(), NiriError>`: `focus_window(id)`, `switch_keyboard_layout(index)`,
-`power_off_monitors()`, `quit()` (without asking), `set_output_mode(output, mode)` (until niri
-reads its config again) and `stop_cast(session_id)`.
+`power_off_monitors()`, `quit()` (without asking), `set_output(output, change)` and
+`set_output_mode(output, mode)`, and `stop_cast(session_id)`. An `OutputChange` turns an
+output on or off, or sets its mode (or a custom one), scale, `Transform`, position, VRR, HDR
+or SDR white; niri keeps it until it reads its config again. `follow_config_loads(on_load)`
+calls back at each read (it blocks, so give it a thread), for making such changes again.
 
 The fork-only actions check `features()` first: `SdrBrightness` is sent only when niri has
 `hdr`, and `Windows::move_to` on stock niri focuses the window before `MoveColumnToIndex`,
