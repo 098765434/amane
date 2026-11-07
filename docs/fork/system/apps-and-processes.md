@@ -58,13 +58,18 @@ let icon = Apps::find_icon("org.gnome.Nautilus");
 
 | Function | Does | Waits? |
 |---|---|---|
-| `amane::spawn_activated(command)` | like `spawn`, letting the program take the focus | no |
+| `Launch::argv(&[..]).activated()` | starts a program and its arguments as they are, letting it take the focus | no |
+| `Launch::shell(line).activated()` | the same for a command line, through `sh -c` | no |
+| `amane::spawn_activated(command)` | `Launch::shell(command).activated()` | no |
 
-A launcher, a dock or a button that opens an app should use `spawn_activated` instead of `spawn`,
-and call it from input:
+A launcher, a dock or a button that opens an app should launch this way instead of with `spawn`,
+and call it from input, since the compositor's token stands for that input. The program starts
+once the token comes, on the event loop; without an event loop, or on a compositor that gives no
+tokens, it starts at once. One that can't start is logged. Prefer `argv`: a file name or link
+passed to it needs no quoting for the shell.
 
 ```rust,ignore
-.on_click(|_| amane::spawn_activated("firefox"))
+.on_click(|_| amane::Launch::argv(&["xdg-open", &link]).activated())
 ```
 
 `DesktopApp::launch` and `launch_with` launch this way. How the token works, and how an amane app

@@ -61,7 +61,7 @@ as upstream has them; everything the fork adds is here.
 | Lock keys | Caps Lock and Num Lock | `LockKeys` | [lock-keys](system/lock-keys.md) | — | done |
 | Timers | jobs and redraws on the event loop at a time | `Timer`, `TimerHandle`, `redraw_after` | [timer](system/timer.md) | — | done |
 | Subscriptions | one service following another; polling only while watched | `Service::subscribe`, `Subscription`, `Service::idle_stop` | [subscriptions](system/subscriptions.md) | — | done |
-| Launching | starting programs without panics, each in its own systemd scope | `Launch`, `LaunchError` | [apps-and-processes](system/apps-and-processes.md#each-program-in-its-own-scope) | — | done |
+| Launching | starting programs without panics, each in its own systemd scope, with the compositor's token when asked | `Launch`, `Launch::activated`, `LaunchError` | [apps-and-processes](system/apps-and-processes.md#each-program-in-its-own-scope) | — | done |
 | IPC | a socket per app-id, one copy per app, calling another app | `ipc_call`, `App::on_activate` | [ipc](system/ipc.md) | `examples/app_window.rs` | done |
 
 ## Groups
