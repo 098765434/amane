@@ -2,15 +2,27 @@ use std::collections::HashMap;
 use std::env;
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::UnixStream;
-use std::time::Duration;
 
 use serde_json::{Value, json};
 
-use super::{Action, Gesture, HdrPanel};
+use super::Gesture;
 use crate::{WindowInfo, Workspace};
 
 pub mod client;
 mod stream;
+
+// the fork's additions: asking niri once, more of its events, and following them
+mod events;
+mod ipc;
+mod listen;
+
+use events::*;
+pub(crate) use ipc::{hdr_panel, set_sdr_white};
+pub use listen::{
+    act, listen_casts, listen_gestures, listen_keyboard_layouts, listen_lock_keys,
+    listen_outputs_changed, listen_windows,
+};
+use listen::{apply_cast, apply_gesture, apply_window};
 
 // the niri events amane uses, everything else niri sends is skipped
 #[derive(Clone)]
@@ -139,63 +151,6 @@ pub fn send(request: &str) -> Option<UnixStream> {
     Some(stream)
 }
 
-// sends one request and reads niri's one-line answer, or none in two seconds
-fn ask(request: &Value) -> Option<Value> {
-    let stream = send(&request.to_string())?;
-
-    stream.set_read_timeout(Some(Duration::from_secs(2))).ok()?;
-
-    let mut reply = String::new();
-
-    BufReader::new(stream).read_line(&mut reply).ok()?;
-
-    serde_json::from_str(&reply).ok()
-}
-
-/*
- * the built-in panel while niri drives it in HDR: in PQ the panel takes
- * its light from the signal, so the backlight no longer dims it; SDR white
- * is niri's `sdr-brightness`, 203 nits when the config leaves it out
- */
-pub(crate) fn hdr_panel() -> Option<HdrPanel> {
-    let reply = ask(&json!("Outputs"))?;
-
-    let outputs = reply.get("Ok")?.get("Outputs")?.as_object()?;
-
-    outputs.values().find_map(|output| {
-        let name = output.get("name")?.as_str()?;
-
-        let built_in = ["eDP", "LVDS", "DSI"]
-            .iter()
-            .any(|kind| name.starts_with(kind));
-
-        let lit = output
-            .get("current_mode")
-            .is_some_and(|mode| !mode.is_null());
-
-        let hdr = output.get("hdr_enabled").and_then(Value::as_bool) == Some(true);
-
-        (built_in && lit && hdr).then(|| HdrPanel {
-            output: name.to_string(),
-            sdr_white: output
-                .get("sdr_brightness")
-                .and_then(Value::as_f64)
-                .unwrap_or(203.0),
-            peak: output.get("peak_luminance").and_then(Value::as_f64),
-        })
-    })
-}
-
-// SDR white on `output`, in nits, until niri reads its config again
-pub(crate) fn set_sdr_white(output: &str, nits: f64) -> bool {
-    // stock niri has no HDR to set
-    if !client::features().has("hdr") {
-        return false;
-    }
-
-    client::set_output(output, client::OutputChange::SdrBrightness(nits)).is_ok()
-}
-
 pub fn focus_workspace(id: i64) {
     let request = json!({
         "Action": {
@@ -239,260 +194,6 @@ pub fn listen(mut on_change: impl FnMut(Vec<Workspace>)) {
 
         on_change(state.list.clone());
     }
-}
-
-// follows the same event stream as `listen` (one connection, shared: stream.rs),
-// but hands over the full window list (and whether niri's overview is open) after each window event
-pub fn listen_windows(mut on_change: impl FnMut(Vec<WindowInfo>, bool)) {
-    let mut windows: HashMap<u64, WindowInfo> = HashMap::new();
-    let mut overview = false;
-
-    for event in stream::subscribe() {
-        // only emit on events the bar reads (windows or overview); plain
-        // workspace events on the same stream change nothing here
-        if apply_window(&mut windows, &mut overview, event) {
-            let mut list: Vec<WindowInfo> = windows.values().cloned().collect();
-
-            list.sort_by_key(|window| window.id);
-
-            on_change(list, overview);
-        }
-    }
-}
-
-// true when the event changed something the caller shows, so it should emit
-fn apply_window(windows: &mut HashMap<u64, WindowInfo>, overview: &mut bool, event: Event) -> bool {
-    match event {
-        Event::Overview { open } => {
-            *overview = open;
-            true
-        }
-
-        Event::Windows(list) => {
-            *windows = list.into_iter().map(|w| (w.id, w)).collect();
-            true
-        }
-
-        Event::WindowChanged(window) => {
-            // niri sends WindowFocusChanged for focus moves, but a change
-            // event can also arrive already focused; keep the "one focused"
-            // invariant either way
-            if window.focused {
-                for other in windows.values_mut() {
-                    other.focused = false;
-                }
-            }
-
-            windows.insert(window.id, window);
-            true
-        }
-
-        Event::WindowClosed { id } => {
-            windows.remove(&id);
-            true
-        }
-
-        // sizes change on every frame of a resize, so only a move counts
-        Event::WindowLayouts(changes) => {
-            let mut moved = false;
-
-            for (id, column) in changes {
-                if let Some(window) = windows.get_mut(&id)
-                    && window.column != column
-                {
-                    window.column = column;
-                    moved = true;
-                }
-            }
-
-            moved
-        }
-
-        Event::WindowFocus { id } => {
-            for (window_id, window) in windows.iter_mut() {
-                window.focused = Some(*window_id) == id;
-            }
-            true
-        }
-
-        _ => false,
-    }
-}
-
-// follows the same event stream, but hands over the live gesture values
-// (overview progress, view offset, workspace-switch progress) after each
-// gesture event
-pub fn listen_gestures(mut on_change: impl FnMut(Gesture)) {
-    let mut gesture = Gesture::default();
-
-    for event in stream::subscribe() {
-        // only the gesture events (and DesktopObscured) move anything here; every
-        // other event on the shared stream is ignored
-        if apply_gesture(&mut gesture, event) {
-            on_change(gesture.clone());
-        }
-    }
-}
-
-// follows the same event stream for the keyboard layouts and the one in use
-pub fn listen_keyboard_layouts(mut on_change: impl FnMut(Vec<String>, u8)) {
-    let mut names = Vec::new();
-
-    for event in stream::subscribe() {
-        match event {
-            Event::KeyboardLayouts {
-                names: list,
-                current,
-            } => {
-                names = list;
-                on_change(names.clone(), current);
-            }
-            Event::KeyboardLayoutSwitched { current } => on_change(names.clone(), current),
-            _ => {}
-        }
-    }
-}
-
-// follows the same event stream for Caps Lock and Num Lock (the niri fork)
-pub fn listen_lock_keys(mut on_change: impl FnMut(bool, bool)) {
-    for event in stream::subscribe() {
-        if let Event::LockKeys {
-            caps_lock,
-            num_lock,
-        } = event
-        {
-            on_change(caps_lock, num_lock);
-        }
-    }
-}
-
-// calls back after each OutputsChanged (the niri fork)
-pub fn listen_outputs_changed(mut on_change: impl FnMut()) {
-    for event in stream::subscribe() {
-        if matches!(event, Event::OutputsChanged) {
-            on_change();
-        }
-    }
-}
-
-// hands over every running screencast after each cast event
-pub fn listen_casts(mut on_change: impl FnMut(Vec<client::Cast>)) {
-    let mut casts: Vec<client::Cast> = Vec::new();
-
-    for event in stream::subscribe() {
-        if apply_cast(&mut casts, event) {
-            on_change(casts.clone());
-        }
-    }
-}
-
-fn apply_cast(casts: &mut Vec<client::Cast>, event: Event) -> bool {
-    match event {
-        Event::Casts(list) => *casts = list,
-        Event::CastChanged(cast) => {
-            match casts.iter_mut().find(|c| c.stream_id == cast.stream_id) {
-                Some(known) => *known = cast,
-                None => casts.push(cast),
-            }
-            casts.sort_by_key(|cast| cast.stream_id);
-        }
-        Event::CastStopped { stream_id } => casts.retain(|cast| cast.stream_id != stream_id),
-        _ => return false,
-    }
-    true
-}
-
-// true when a gesture event updated the snapshot, so the caller should emit
-fn apply_gesture(gesture: &mut Gesture, event: Event) -> bool {
-    match event {
-        Event::OverviewProgress { progress } => {
-            gesture.overview_progress = progress;
-            true
-        }
-
-        Event::ViewOffset {
-            output,
-            view_pos,
-            active_column_idx,
-        } => {
-            gesture.output = output;
-            gesture.view_pos = view_pos;
-            gesture.active_column_idx = active_column_idx;
-            true
-        }
-
-        Event::WorkspaceSwitch {
-            output,
-            workspace_idx,
-            active_workspace_idx,
-        } => {
-            gesture.output = output;
-            gesture.workspace_idx = workspace_idx;
-            gesture.active_workspace_idx = active_workspace_idx;
-            true
-        }
-
-        Event::DesktopObscured { output, obscured } => {
-            gesture.obscured.insert(output, obscured);
-            true
-        }
-
-        _ => false,
-    }
-}
-
-// sends a control request and drains the one-line reply, so niri never sees a
-// connection that closed mid-request (as `focus_workspace` does)
-pub fn act(action: Action) {
-    let request = match action {
-        Action::FocusWindow(id) => json!({ "Action": { "FocusWindow": { "id": id } } }),
-        Action::CloseWindow(id) => json!({ "Action": { "CloseWindow": { "id": id } } }),
-        Action::FullscreenWindow(id) => {
-            json!({ "Action": { "FullscreenWindow": { "id": id } } })
-        }
-        Action::ToggleFloating(id) => {
-            json!({ "Action": { "ToggleWindowFloating": { "id": id } } })
-        }
-        Action::MoveWindowToWorkspace {
-            window,
-            workspace,
-            focus,
-        } => json!({
-            "Action": {
-                "MoveWindowToWorkspace": {
-                    "window_id": window,
-                    "reference": { "Id": workspace },
-                    "focus": focus
-                }
-            }
-        }),
-        // the window_id from the niri fork; stock niri moves the focused column, so the
-        // window is focused first there
-        Action::MoveColumnToIndex { window, index } => {
-            if !client::features().has("move-column-to-index-window-id") {
-                act(Action::FocusWindow(window));
-
-                json!({ "Action": { "MoveColumnToIndex": { "index": index } } })
-            } else {
-                json!({
-                    "Action": { "MoveColumnToIndex": { "window_id": window, "index": index } }
-                })
-            }
-        }
-        Action::FocusColumnLeft => json!({ "Action": { "FocusColumnLeft": {} } }),
-        Action::FocusColumnRight => json!({ "Action": { "FocusColumnRight": {} } }),
-        Action::Spawn(command) => json!({ "Action": { "Spawn": { "command": command } } }),
-        Action::Screenshot => json!({ "Action": { "Screenshot": { "show_pointer": true } } }),
-        Action::ToggleOverview => json!({ "Action": { "ToggleOverview": {} } }),
-    };
-
-    let Some(stream) = send(&request.to_string()) else {
-        return;
-    };
-
-    let mut reply = String::new();
-
-    let _ = BufReader::new(stream).read_line(&mut reply);
 }
 
 fn parse(line: &str) -> Option<Event> {
@@ -540,61 +241,6 @@ fn parse(line: &str) -> Option<Event> {
     }
 }
 
-fn overview_changed(body: &Value) -> Option<Event> {
-    Some(Event::Overview {
-        open: body["is_open"].as_bool()?,
-    })
-}
-
-// the three gesture events from the niri fork (live, per-frame values)
-
-fn overview_progress(body: &Value) -> Option<Event> {
-    Some(Event::OverviewProgress {
-        progress: body["progress"].as_f64()?,
-    })
-}
-
-fn view_offset(body: &Value) -> Option<Event> {
-    Some(Event::ViewOffset {
-        output: body["output"].as_str()?.to_string(),
-        view_pos: body["view_pos"].as_f64()?,
-        active_column_idx: body["active_column_idx"].as_u64()? as usize,
-    })
-}
-
-fn workspace_switch(body: &Value) -> Option<Event> {
-    Some(Event::WorkspaceSwitch {
-        output: body["output"].as_str()?.to_string(),
-        workspace_idx: body["workspace_idx"].as_f64()?,
-        active_workspace_idx: body["active_workspace_idx"].as_u64()? as usize,
-    })
-}
-
-fn desktop_obscured(body: &Value) -> Option<Event> {
-    Some(Event::DesktopObscured {
-        output: body["output"].as_str()?.to_string(),
-        obscured: body["obscured"].as_bool()?,
-    })
-}
-
-fn keyboard_layouts(body: &Value) -> Option<Event> {
-    let layouts = &body["keyboard_layouts"];
-    let names = layouts["names"]
-        .as_array()?
-        .iter()
-        .filter_map(|name| name.as_str().map(String::from))
-        .collect();
-    let current = u8::try_from(layouts["current_idx"].as_u64()?).ok()?;
-
-    Some(Event::KeyboardLayouts { names, current })
-}
-
-fn keyboard_switched(body: &Value) -> Option<Event> {
-    let current = u8::try_from(body["idx"].as_u64()?).ok()?;
-
-    Some(Event::KeyboardLayoutSwitched { current })
-}
-
 fn windows_changed(body: &Value) -> Option<Event> {
     let mut windows = Vec::new();
 
@@ -613,51 +259,6 @@ fn window_closed(body: &Value) -> Option<Event> {
     let id = body["id"].as_u64()?;
 
     Some(Event::WindowClosed { id })
-}
-
-fn window_layouts(body: &Value) -> Option<Event> {
-    let mut changes = Vec::new();
-
-    // each change is an [id, layout] pair
-    for change in body["changes"].as_array()? {
-        changes.push((change[0].as_u64()?, column(&change[1])));
-    }
-
-    Some(Event::WindowLayouts(changes))
-}
-
-// a window layout's [column, tile] pair, null while floating
-fn column(layout: &Value) -> Option<(usize, usize)> {
-    let pos = &layout["pos_in_scrolling_layout"];
-
-    Some((pos[0].as_u64()? as usize, pos[1].as_u64()? as usize))
-}
-
-fn window_focus(body: &Value) -> Option<Event> {
-    // null when no window is focused
-    Some(Event::WindowFocus {
-        id: body["id"].as_u64(),
-    })
-}
-
-fn parse_window(window: &Value) -> Option<WindowInfo> {
-    Some(WindowInfo {
-        id: window["id"].as_u64()?,
-
-        // null while the app has set neither
-        app_id: window["app_id"].as_str().map(String::from),
-        title: window["title"].as_str().map(String::from),
-
-        focused: window["is_focused"].as_bool().unwrap_or(false),
-        floating: window["is_floating"].as_bool().unwrap_or(false),
-        fullscreen: window["is_fullscreen"].as_bool().unwrap_or(false),
-
-        // null while the window is on no workspace
-        workspace: window["workspace_id"].as_i64(),
-
-        // older niri sends no layout
-        column: column(&window["layout"]),
-    })
 }
 
 fn workspaces_changed(body: &Value) -> Option<Event> {
