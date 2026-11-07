@@ -89,7 +89,7 @@ pub use services::{
     BluetoothDevice, BluetoothError, BluetoothOperation, Brightness, Casts, ClipboardWatcher, Cpu,
     Desktop, DesktopAction, DesktopApp, DeviceKind, FieldOwner, FillError, FocusedField, Gestures,
     Hints as FieldHints, Idle, KdeConnect, KeyboardLayouts, Link, Lock, LockKeys, Logind, Media,
-    MediaPlayer, Memory, Network, NetworkProfile, Notification, Notifications, Overview,
+    MediaPlayer, Memory, Network, NetworkProfile, Notification, Notifications, Outputs, Overview,
     PairingAnswer, PairingKind, PairingRequest, Palette, Pam, PamConfig, PamError, PamMessage,
     PamMessageKind, PamResult, PhoneBattery, PhoneClick, PhoneDevice, PhoneKey, PhoneMessages,
     PhoneModifiers, PhoneNotification, PhonePairState, Polkit, PowerDevice, PowerProfile,
