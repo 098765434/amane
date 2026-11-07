@@ -159,7 +159,7 @@ so a slow socket never stalls drawing (like `Workspaces::focus`):
 | `Windows::fullscreen(id)` | `FullscreenWindow` |
 | `Windows::toggle_floating(id)` | `ToggleWindowFloating` |
 | `Windows::move_to_workspace(id, ws)` | `MoveWindowToWorkspace` (the focus follows) |
-| `Windows::move_to(id, ws, index)` | `MoveWindowToWorkspace` with `focus: false` when `ws` is `Some`, then `MoveColumnToIndex` with the window's id: its column to `index` (from 1), the focus staying put. **Needs the niri fork** ([actions](https://github.com/098765434/niri/blob/ocbk/docs/fork/ipc/actions.md)); stock niri ignores `window_id` and moves the focused column |
+| `Windows::move_to(id, ws, index)` | `MoveWindowToWorkspace` with `focus: false` when `ws` is `Some`, then `MoveColumnToIndex` with the window's id: its column to `index` (from 1), the focus staying put. That needs the niri fork ([actions](https://github.com/098765434/niri/blob/ocbk/docs/fork/ipc/actions.md)); on stock niri (no `move-column-to-index-window-id` in `Features`) the window is focused first, then its column moved |
 | `Windows::focus_column_left()` | `FocusColumnLeft` |
 | `Windows::focus_column_right()` | `FocusColumnRight` |
 | `Windows::spawn(cmd)` | `Spawn` |
@@ -176,9 +176,13 @@ redraw stops after the view, before drawing (`916aecd`).
 ## How it works
 
 Each `Service` owns its thread and a blocking `listen()` loop
-([src/services.rs](../../../src/services.rs)). `Workspaces` and `Windows` each
-open their **own** niri `EventStream` connection (niri allows multiple) and
-keep only the slice they need:
+([src/services.rs](../../../src/services.rs)). All of them follow **one** niri `EventStream`
+connection ([src/compositor/niri/stream.rs](../../../src/compositor/niri/stream.rs)): a reader
+thread parses each line once and hands the event to every listener through a channel of its
+own. A listener that starts late (services start on their first read) is first given the state
+so far, as niri gives a new connection: the workspaces, the windows, the overview, the gesture
+values, each output's `DesktopObscured` and the keyboard layouts, each once niri has sent it.
+Each listener keeps only the slice it needs:
 
 - `compositor::listen(|workspaces| …)` — the workspace list, re-emitted
   after every relevant event.
@@ -199,11 +203,32 @@ ignore the rest. An event that changes nothing a
 service reads (e.g. a workspace event seen by the window listener) leaves
 its list equal, and the service calls `quiet()` to redraw nothing.
 
-Two parallel listeners are a deliberate choice over one shared stream
-fanned out to both services: it keeps the one-thread-per-service model
-intact and each service self-contained. The cost is a second socket
-connection and a second parse of the stream — negligible for an event
-stream.
+One shared stream replaced a connection per service (six, each parsing every line) in
+`dd6ae32`; each service still has its own thread and its own slice. When niri closes the
+stream, every listener's channel closes and its `listen` returns, as before.
+
+### `KeyboardLayouts` (fork addition, niri only)
+
+The configured layouts and the one in use, from `KeyboardLayoutsChanged` and
+`KeyboardLayoutSwitched` on the same stream: `names()`, `current()`, `current_index()`,
+`switchable()`. Empty elsewhere.
+
+## Asking niri: `amane::niri` (fork addition)
+
+For a question the services don't keep the answer to, `amane::niri` sends one request and waits
+up to two seconds for its answer, so call it from a service thread, not a view. Each returns
+`Result<_, NiriError>` (`NotRunning` under another compositor); none panics.
+
+| Function | Answers |
+|---|---|
+| `niri::features()` | the fork's [`Features`](https://github.com/098765434/niri/blob/ocbk/docs/fork/ipc/features.md): `.has("hdr")`, `.version("blur-shapes")`, `.is_fork()`. Asked once and kept; empty on stock niri, which can't parse the request |
+| `niri::outputs()` | each output's name, make, model, logical place, and the fork's HDR fields |
+| `niri::windows()`, `niri::focused_window()` | windows with their `pid`, workspace, focus, floating, and the fork's `is_fullscreen` |
+| `niri::casts()` | screencasts: kind, target (an output or a window), whether active, the casting `pid` |
+
+The fork-only actions check `features()` first: `SdrBrightness` is sent only when niri has
+`hdr`, and `Windows::move_to` on stock niri focuses the window before `MoveColumnToIndex`,
+which has no `window_id` there. Nothing needs a cargo feature: one build runs on both.
 
 ## Backend support
 

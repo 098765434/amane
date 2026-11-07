@@ -112,6 +112,9 @@ and its submodules inherit it. Give a new fork module the same line. `clippy.tom
 | MimeApps: default apps the way xdg-open picks them | `1d0bd3e` | `src/services/apps/{defaults,mime}.rs` | yes |
 | `WindowInfo::fullscreen` and `::workspace` | `00b7103` | `src/services/window_info.rs`, `src/compositor/niri.rs` | no, needs the niri fork's `is_fullscreen` |
 | Brightness: SDR white in place of the backlight while the panel is in HDR | `5c57d28` | `src/services/brightness.rs`, `src/compositor/niri.rs` | no, needs the niri fork's HDR |
+| Timers, subscriptions, services that stop while unwatched | `e05ba14` | `src/timer.rs`, `src/services/{subscribe,store,write}.rs`, `src/services.rs`, `src/wayland/windows.rs`; [timer](system/timer.md), [subscriptions](system/subscriptions.md) | yes |
+| One niri event stream, `amane::niri`, `Features`, `KeyboardLayouts` | `dd6ae32` | `src/compositor/niri/{stream,client}.rs`, `src/compositor/niri.rs`, `src/services/keyboard_layouts.rs` | the stream and client yes; `features()` is the niri fork's |
+| `Launch`: no panics, each program in its own systemd scope | `b2f770a` | `src/launch.rs`, `src/process.rs`, `src/wayland/activation.rs` | yes |
 | CI, lints and formatting | `18ddea4`, `14eb0dd`, `db47c38`, `01180f7` | `.github/workflows/fork.yml`, `Cargo.toml` (`[lints]`), `clippy.toml`, the fork's files | no |
 | Fork docs and housekeeping | `be25bb3`, `fe941a9`, `fe45a04`, `6bfdba8`, `033b216`, `81aa6c4`, and the `docs(fork)` commits; `1d60d4e` and others edited `ARCHITECTURE.md`, reset to upstream's by `7d257a6` | `FORK.md`, `docs/fork/` | no |
 
