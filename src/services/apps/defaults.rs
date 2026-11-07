@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use super::fingerprint::Fingerprint;
 use super::{Apps, DesktopApp, data_dirs};
-use crate::Service;
+use crate::{ErrorKind, Service, ServiceError};
 
 const DEFAULTS: &str = "Default Applications";
 const ADDED: &str = "Added Associations";
@@ -157,7 +157,7 @@ impl MimeApps {
     }
 
     // makes `id` the default for each of `kinds`, said to open those it doesn't list
-    pub fn set_default(kinds: &[String], id: &str) -> Result<(), String> {
+    pub fn set_default(kinds: &[String], id: &str) -> Result<(), ServiceError> {
         let app = Apps::read().get(id).cloned();
 
         edit(|text| {
@@ -206,7 +206,7 @@ impl MimeApps {
     }
 
     // takes the user's own default for each of `kinds` away, back to the system's
-    pub fn reset(kinds: &[String]) -> Result<(), String> {
+    pub fn reset(kinds: &[String]) -> Result<(), ServiceError> {
         edit(|text| {
             kinds.iter().fold(text.to_string(), |text, kind| {
                 with_value(&text, DEFAULTS, kind, None)
@@ -447,15 +447,19 @@ fn finish(lines: Vec<String>) -> String {
 }
 
 // changes the user's own list, made if it's missing; a link (home-manager's) is left alone
-fn edit(change: impl FnOnce(&str) -> String) -> Result<(), String> {
+fn edit(change: impl FnOnce(&str) -> String) -> Result<(), ServiceError> {
     let path = config_home()
-        .ok_or_else(|| String::from("no home folder"))?
+        .ok_or_else(|| ServiceError::new(ErrorKind::Gone, "no home folder"))?
         .join("mimeapps.list");
 
+    // managed elsewhere, like by home-manager's xdg.mimeApps
     if path.is_symlink() {
-        return Err(format!(
-            "{} is a link, managed elsewhere (home-manager's xdg.mimeApps?)",
-            path.display()
+        return Err(ServiceError::new(
+            ErrorKind::Blocked,
+            format!(
+                "{} is a link, managed elsewhere (home-manager's xdg.mimeApps?)",
+                path.display()
+            ),
         ));
     }
 
@@ -471,12 +475,18 @@ fn edit(change: impl FnOnce(&str) -> String) -> Result<(), String> {
 }
 
 // into place by a rename, so nothing reads half a file
-fn write_atomic(path: &std::path::Path, text: &str) -> Result<(), String> {
+fn write_atomic(path: &std::path::Path, text: &str) -> Result<(), ServiceError> {
     let temp = path.with_extension("list.new");
 
-    fs::write(&temp, text).map_err(|error| format!("{}: {error}", temp.display()))?;
+    let failed = |path: &std::path::Path, error: std::io::Error| {
+        let mut failure = ServiceError::from(error);
+        failure.message = format!("{}: {}", path.display(), failure.message);
+        failure
+    };
 
-    fs::rename(&temp, path).map_err(|error| format!("{}: {error}", path.display()))
+    fs::write(&temp, text).map_err(|error| failed(&temp, error))?;
+
+    fs::rename(&temp, path).map_err(|error| failed(path, error))
 }
 
 #[cfg(test)]

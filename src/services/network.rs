@@ -6,6 +6,7 @@ mod profile;
 mod signals;
 mod wifi;
 
+use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{LazyLock, Mutex, PoisonError};
@@ -13,7 +14,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::services::{IDLE_STOP, store, worker};
-use crate::{Bus, Service, Value};
+use crate::{Bus, ErrorKind, Service, ServiceError, Value};
 
 pub use access_point::AccessPoint;
 pub use connections::{Profile as NetworkProfile, Wired};
@@ -60,6 +61,18 @@ pub struct Network {
 
     // the joined access point's object path, empty when none
     joined: String,
+
+    // the network last asked to join, while it may still be joining
+    joining: Option<String>,
+
+    // why the last try failed, by network name, profile UUID or interface, until the next try
+    failures: BTreeMap<String, ServiceError>,
+}
+
+/// What a network is in the middle of.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NetworkOperation {
+    Connecting,
 }
 
 /*
@@ -92,6 +105,11 @@ impl Service for Network {
                     connections::SETTINGS_PATH,
                     &joined,
                 );
+                if let Some(failure) =
+                    signals::device_failure(signal.interface(), signal.name(), signal.arguments())
+                {
+                    joining_failed(failure);
+                }
                 if change != Change::Nothing && sender.send(change).is_err() {
                     break;
                 }
@@ -145,7 +163,12 @@ impl Service for Network {
                 continue;
             }
 
-            *Self::write() = fresh;
+            let mut network = Self::write();
+            let failures = std::mem::take(&mut network.failures);
+            let joining = network.joining.take();
+            *network = fresh;
+            network.failures = failures;
+            network.joining = joining;
         }
     }
 }
@@ -245,6 +268,18 @@ impl Network {
         self.connecting
     }
 
+    /// What the network named `ssid` is in the middle of, if anything.
+    pub fn operation(&self, ssid: &str) -> Option<NetworkOperation> {
+        (self.connecting && self.joining.as_deref() == Some(ssid))
+            .then_some(NetworkOperation::Connecting)
+    }
+
+    /// Why the last try on a network (by name), profile (by UUID) or device (by interface)
+    /// failed, until the next try. The UI words it and decides how long it shows.
+    pub fn failure(&self, key: &str) -> Option<&ServiceError> {
+        self.failures.get(key)
+    }
+
     pub fn access_points(&self) -> &[AccessPoint] {
         // a window lists them: strength changes are worth reading while it does
         LISTED_AT.store(millis_since_start(), Ordering::Relaxed);
@@ -293,7 +328,11 @@ impl Network {
         let ssid = String::from(ssid);
         let password = password.map(String::from);
 
-        worker::run(move || join(&ssid, password.as_deref()));
+        worker::run(move || {
+            begin(&ssid, true);
+            let result = join(&ssid, password.as_deref());
+            finish(&ssid, result);
+        });
     }
 
     pub fn disconnect() {
@@ -313,20 +352,29 @@ impl Network {
     /// Brings a profile up by its UUID, like a VPN or a hotspot.
     pub fn activate(uuid: &str) {
         let uuid = uuid.to_owned();
-        worker::run(move || connections::activate(&uuid));
+        worker::run(move || {
+            begin(&uuid, false);
+            finish(&uuid, connections::activate(&uuid));
+        });
     }
 
     /// Takes a profile down by its UUID.
     pub fn deactivate(uuid: &str) {
         let uuid = uuid.to_owned();
-        worker::run(move || connections::deactivate(&uuid));
+        worker::run(move || {
+            begin(&uuid, false);
+            finish(&uuid, connections::deactivate(&uuid));
+        });
     }
 
     /// Connects a device, like the [`wired`](Self::wired) one, with its best profile, or
     /// disconnects it.
     pub fn set_device(interface: &str, connected: bool) {
         let interface = interface.to_owned();
-        worker::run(move || connections::set_device(&interface, connected));
+        worker::run(move || {
+            begin(&interface, false);
+            finish(&interface, connections::set_device(&interface, connected));
+        });
     }
 }
 
@@ -334,20 +382,48 @@ impl Network {
  * a saved profile already holds its password, so it is joined as it is;
  * otherwise networkmanager saves a new one, password included
  */
-fn join(ssid: &str, password: Option<&str>) {
+fn join(ssid: &str, password: Option<&str>) -> Result<(), ServiceError> {
     let Some(device) = wifi::device() else {
-        return;
+        return Err(ServiceError::new(ErrorKind::NotReady, "no Wi-Fi device"));
     };
 
     if let Some(profile) = profile::find(ssid) {
-        manager::activate(&profile, &device);
-
-        return;
+        return Ok(manager::activate(&profile, &device)?);
     }
 
     let settings = profile::settings(ssid, password);
 
-    manager::add_and_activate(settings, &device);
+    Ok(manager::add_and_activate(settings, &device)?)
+}
+
+// a new try on `key`: its last failure goes, and a network to join is remembered
+fn begin(key: &str, joining: bool) {
+    let mut network = Network::write();
+    network.failures.remove(key);
+    if joining {
+        network.joining = Some(key.to_owned());
+    }
+}
+
+fn finish(key: &str, result: Result<(), ServiceError>) {
+    let Err(error) = result else {
+        return;
+    };
+    let mut network = Network::write();
+    if network.joining.as_deref() == Some(key) {
+        network.joining = None;
+    }
+    network.failures.insert(key.to_owned(), error);
+}
+
+// the device gave up joining, like on a wrong password: the network being joined failed
+fn joining_failed(failure: ServiceError) {
+    let mut network = Network::write();
+    let Some(ssid) = network.joining.take() else {
+        network.quiet();
+        return;
+    };
+    network.failures.insert(ssid, failure);
 }
 
 // the ssid comes as raw bytes, and is almost always utf-8

@@ -6,14 +6,14 @@
 //! it can't be opened, `/sys/class/rfkill` is read every second while something watches.
 
 use std::fs::{self, File, OpenOptions};
-use std::io::{self, Read, Write as _};
+use std::io::{Read, Write as _};
 use std::path::Path;
 use std::thread;
 use std::time::Duration;
 
-use crate::Service;
 use crate::services::IDLE_STOP;
 use crate::services::store;
+use crate::{ErrorKind, Service, ServiceError};
 
 const DEVICE: &str = "/dev/rfkill";
 const SYSFS: &str = "/sys/class/rfkill";
@@ -130,10 +130,10 @@ impl Rfkill {
 
     /// Blocks or unblocks every radio of `kind` in software, or every radio for `None`, as
     /// `rfkill block|unblock <kind>` does. The change comes back through the service.
-    pub fn set_blocked(kind: Option<&str>, blocked: bool) -> io::Result<()> {
+    pub fn set_blocked(kind: Option<&str>, blocked: bool) -> Result<(), ServiceError> {
         let kind = match kind {
             Some(kind) => type_of(kind).ok_or_else(|| {
-                io::Error::new(io::ErrorKind::InvalidInput, format!("no radio kind {kind}"))
+                ServiceError::new(ErrorKind::NotSupported, format!("no radio kind {kind}"))
             })?,
             None => 0,
         };
@@ -141,7 +141,8 @@ impl Rfkill {
         OpenOptions::new()
             .write(true)
             .open(DEVICE)?
-            .write_all(&event)
+            .write_all(&event)?;
+        Ok(())
     }
 
     fn of<'a>(&'a self, kind: &'a str) -> impl Iterator<Item = &'a Radio> + 'a {

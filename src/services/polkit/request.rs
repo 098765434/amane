@@ -1,6 +1,8 @@
 //! What polkitd asks, as the shell shows it; always built, so a UI compiles without the
 //! agent itself (the `polkit-agent` feature).
 
+use crate::ServiceError;
+
 // what polkitd is asking the user to prove
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AuthRequest {
@@ -25,7 +27,7 @@ pub struct AuthRequest {
     pub(crate) info: Vec<String>,
 
     // why the last try failed
-    pub(crate) error: Option<String>,
+    pub(crate) error: Option<ServiceError>,
 
     // wrong answers so far
     pub(crate) tries: u8,
@@ -71,8 +73,10 @@ impl AuthRequest {
         &self.info
     }
 
-    pub fn error(&self) -> Option<&str> {
-        self.error.as_deref()
+    /// Why the last try failed: `AuthenticationFailed` for a wrong password, else `Failed` with
+    /// the helper's own words. The UI words it.
+    pub fn error(&self) -> Option<&ServiceError> {
+        self.error.as_ref()
     }
 
     pub fn tries(&self) -> u8 {

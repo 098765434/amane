@@ -12,6 +12,8 @@ beyond Wi-Fi.
 | `wired()` | the first Ethernet device with a cable in (`Wired`: `device`, `connected`, `name`) |
 | `Network::activate(uuid)`, `deactivate(uuid)` | a profile up or down |
 | `Network::set_device(interface, connected)` | connect a device with its best profile, as `nmcli device connect`, or disconnect it |
+| `Network::operation(ssid)` | `Some(NetworkOperation::Connecting)` while that network is being joined |
+| `Network::failure(key)` | why the last try on a network (by name), profile (by UUID) or device (by interface) failed, as a [`ServiceError`](errors.md), until the next try; a wrong password is `AuthenticationFailed` |
 
 ## How it works
 

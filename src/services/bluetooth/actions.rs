@@ -9,7 +9,8 @@ use std::time::{Duration, Instant};
 use crate::services::worker;
 use crate::{Argument, Bus, Service};
 
-use super::{ADAPTER, BLUEZ, Bluetooth, BluetoothError, DEVICE, PowerState};
+use super::{ADAPTER, BLUEZ, Bluetooth, DEVICE, PowerState, errors};
+use crate::{ErrorKind, ServiceError};
 
 // what a device is in the middle of
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -27,9 +28,6 @@ pub enum Operation {
  */
 const GIVE_UP_AFTER: Duration = Duration::from_secs(45);
 
-// how long a failure stays on its row
-const FAILURE_SHOWN_FOR: Duration = Duration::from_secs(10);
-
 // a search the radio dropped is started again at most this often
 const RESTART_SCAN_EVERY: Duration = Duration::from_secs(5);
 
@@ -43,9 +41,6 @@ static NEXT: AtomicU64 = AtomicU64::new(1);
  * watchdog already ended doesn't end the next one when it finally answers
  */
 static RUNNING: Mutex<BTreeMap<String, u64>> = Mutex::new(BTreeMap::new());
-
-// which failure is shown, so an old timer doesn't clear a newer one
-static FAILED: Mutex<BTreeMap<String, u64>> = Mutex::new(BTreeMap::new());
 
 // pairings stopped from here, whose "canceled" isn't worth showing
 static CANCELED: Mutex<BTreeSet<String>> = Mutex::new(BTreeSet::new());
@@ -146,7 +141,7 @@ impl Bluetooth {
 
             // a phone or keyboard with nothing to connect is still paired, that's done
             match device_call(device, "Connect") {
-                Err(BluetoothError::NotSupported) => Ok(()),
+                Err(error) if error.kind == ErrorKind::NotSupported => Ok(()),
                 result => result,
             }
         });
@@ -173,7 +168,7 @@ impl Bluetooth {
 
             match adapter_call("RemoveDevice", &[path]) {
                 // already gone is what was asked for
-                Err(BluetoothError::Gone) => Ok(()),
+                Err(error) if error.kind == ErrorKind::Gone => Ok(()),
                 result => result,
             }
         });
@@ -203,7 +198,7 @@ impl Bluetooth {
 fn run(
     device: &str,
     operation: Operation,
-    job: impl FnOnce(&str, u64) -> Result<(), BluetoothError> + Send + 'static,
+    job: impl FnOnce(&str, u64) -> Result<(), ServiceError> + Send + 'static,
 ) {
     let Some(token) = begin(device, operation) else {
         return;
@@ -233,7 +228,11 @@ fn run(
 
         let _ = device_call(&path, "Disconnect");
 
-        finish(&path, token, Err(BluetoothError::TimedOut));
+        finish(
+            &path,
+            token,
+            Err(ServiceError::new(ErrorKind::TimedOut, "no answer in time")),
+        );
     });
 }
 
@@ -249,7 +248,6 @@ fn begin(device: &str, operation: Operation) -> Option<u64> {
     let token = NEXT.fetch_add(1, Ordering::Relaxed);
 
     lock(&RUNNING).insert(device.to_string(), token);
-    lock(&FAILED).remove(device);
     lock(&CANCELED).remove(device);
 
     bluetooth.operations.insert(device.to_string(), operation);
@@ -273,7 +271,7 @@ fn moved_on(device: &str, token: u64, operation: Operation) {
         .insert(device.to_string(), operation);
 }
 
-fn finish(device: &str, token: u64, result: Result<(), BluetoothError>) {
+fn finish(device: &str, token: u64, result: Result<(), ServiceError>) {
     {
         let mut running = lock(&RUNNING);
 
@@ -288,7 +286,7 @@ fn finish(device: &str, token: u64, result: Result<(), BluetoothError>) {
     let canceled_here = lock(&CANCELED).remove(device);
 
     let result = match result {
-        Err(BluetoothError::Canceled) if canceled_here => Ok(()),
+        Err(error) if error.kind == ErrorKind::Canceled && canceled_here => Ok(()),
         result => result,
     };
 
@@ -312,42 +310,27 @@ fn finish(device: &str, token: u64, result: Result<(), BluetoothError>) {
     }
 }
 
-// shows `error` on `device` (or the adapter) for a while
-fn fail(device: &str, error: BluetoothError) {
-    let token = NEXT.fetch_add(1, Ordering::Relaxed);
-
-    lock(&FAILED).insert(device.to_string(), token);
-
+// keeps `error` on `device` (or the adapter) until its next try; how long it shows is the UI's
+fn fail(device: &str, error: ServiceError) {
     Bluetooth::write()
         .failures
         .insert(device.to_string(), error);
-
-    let device = device.to_string();
-
-    thread::spawn(move || {
-        thread::sleep(FAILURE_SHOWN_FOR);
-
-        let mut failed = lock(&FAILED);
-
-        if failed.get(&device) != Some(&token) {
-            return;
-        }
-
-        failed.remove(&device);
-
-        drop(failed);
-
-        Bluetooth::write().failures.remove(&device);
-    });
 }
 
-fn report(device: &str, result: Result<(), BluetoothError>) {
-    if let Err(error) = result {
-        fail(device, error);
+// a one-off call's result: a failure kept, or an old one gone now that a try worked
+fn report(device: &str, result: Result<(), ServiceError>) {
+    match result {
+        Err(error) => fail(device, error),
+        Ok(()) => {
+            let mut bluetooth = Bluetooth::write();
+            if bluetooth.failures.remove(device).is_none() {
+                bluetooth.quiet();
+            }
+        }
     }
 }
 
-fn power(adapter: &str, powered: bool) -> Result<(), BluetoothError> {
+fn power(adapter: &str, powered: bool) -> Result<(), ServiceError> {
     let bus = Bus::system();
 
     let set = || {
@@ -360,13 +343,14 @@ fn power(adapter: &str, powered: bool) -> Result<(), BluetoothError> {
     }
 
     // a hardware switch can't be lifted from here, and then this stays blocked
-    crate::Rfkill::set_blocked(Some("bluetooth"), false).map_err(|_| BluetoothError::Blocked)?;
+    crate::Rfkill::set_blocked(Some("bluetooth"), false)
+        .map_err(|error| ServiceError::new(ErrorKind::Blocked, error.to_string()))?;
 
     let since = Instant::now();
 
     loop {
         match set() {
-            Err(BluetoothError::Blocked) if since.elapsed() < UNBLOCK_WAIT => {
+            Err(error) if error.kind == ErrorKind::Blocked && since.elapsed() < UNBLOCK_WAIT => {
                 thread::sleep(Duration::from_millis(100));
             }
             result => return result,
@@ -413,9 +397,9 @@ fn adapter() -> Option<String> {
         .map(|adapter| adapter.path().to_string())
 }
 
-fn adapter_call(method: &str, arguments: &[Argument]) -> Result<(), BluetoothError> {
+fn adapter_call(method: &str, arguments: &[Argument]) -> Result<(), ServiceError> {
     let Some(adapter) = adapter() else {
-        return Err(BluetoothError::NotReady);
+        return Err(ServiceError::new(ErrorKind::NotReady, "no adapter"));
     };
 
     Bus::system()
@@ -424,14 +408,14 @@ fn adapter_call(method: &str, arguments: &[Argument]) -> Result<(), BluetoothErr
         .or_else(ok_if_done)
 }
 
-fn device_call(device: &str, method: &str) -> Result<(), BluetoothError> {
+fn device_call(device: &str, method: &str) -> Result<(), ServiceError> {
     Bus::system()
         .try_call(BLUEZ, device, DEVICE, method, &[])
         .map(|_| ())
         .or_else(ok_if_done)
 }
 
-fn set_device(device: &str, name: &str, value: impl Into<Argument>) -> Result<(), BluetoothError> {
+fn set_device(device: &str, name: &str, value: impl Into<Argument>) -> Result<(), ServiceError> {
     Bus::system()
         .try_set_property(BLUEZ, device, DEVICE, name, value.into())
         .or_else(ok_if_done)
@@ -448,8 +432,8 @@ fn set_later(device: &str, name: &'static str, value: Argument) {
 }
 
 // a call that failed only because it was already so counts as done
-fn ok_if_done(error: crate::BusError) -> Result<(), BluetoothError> {
-    match BluetoothError::from_bus(&error) {
+fn ok_if_done(error: crate::BusError) -> Result<(), ServiceError> {
+    match errors::from_bus(&error) {
         None => Ok(()),
         Some(error) => Err(error),
     }

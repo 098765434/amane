@@ -86,15 +86,16 @@ pub use services::PolkitAgent;
 pub use services::worker::run as run_in_order;
 pub use services::{
     AccessPoint, Action, Appearance, Apps, Audio, AudioDevice, AudioKind, AuthPrompt, AuthRequest,
-    Backdrop, Battery, BatteryState, Bluetooth, BluetoothAdapter, BluetoothDevice, BluetoothError,
+    Backdrop, Battery, BatteryState, Bluetooth, BluetoothAdapter, BluetoothDevice,
     BluetoothOperation, Brightness, Casts, ClipboardWatcher, Cpu, Desktop, DesktopAction,
     DesktopApp, DeviceKind, FieldOwner, FillError, FocusedField, Gestures, Hints as FieldHints,
     Idle, KeyboardLayouts, Link, Lock, LockKeys, Logind, Media, MediaPlayer, Memory, Network,
-    NetworkProfile, Notification, Notifications, Outputs, Overview, PairingAnswer, PairingKind,
-    PairingRequest, Palette, Pam, PamConfig, PamError, PamMessage, PamMessageKind, PamResult,
-    Polkit, PowerDevice, PowerProfile, PowerState, Purpose as FieldPurpose, Radio, Rfkill, Scheme,
-    Service, Subscription, Timeout, Tray, TrayItem, TrayMenuItem, TrayStatus, TrayToggle, Urgency,
-    WarningLevel, WindowInfo, Windows, Wired, Workspace, WorkspaceSwitch, Workspaces,
+    NetworkOperation, NetworkProfile, Notification, Notifications, Outputs, Overview,
+    PairingAnswer, PairingKind, PairingRequest, Palette, Pam, PamConfig, PamError, PamMessage,
+    PamMessageKind, PamResult, Polkit, PowerDevice, PowerProfile, PowerState,
+    Purpose as FieldPurpose, Radio, Rfkill, Scheme, Service, Subscription, Timeout, Tray, TrayItem,
+    TrayMenuItem, TrayStatus, TrayToggle, Urgency, WarningLevel, WindowInfo, Windows, Wired,
+    Workspace, WorkspaceSwitch, Workspaces,
 };
 pub use services::{ErrorKind, IDLE_STOP, ServiceError, kind_of_bus};
 pub use style::{Effect, Fill, Image, Input, Mask, Radius, Shadow};

@@ -53,8 +53,8 @@ pub use audio::{Audio, AudioDevice, AudioKind};
 pub use backdrop::Backdrop;
 pub use battery::{Battery, BatteryState, DeviceKind, PowerDevice, WarningLevel};
 pub use bluetooth::{
-    Bluetooth, BluetoothAdapter, BluetoothDevice, BluetoothError, Operation as BluetoothOperation,
-    PairingAnswer, PairingKind, PairingRequest, PowerState,
+    Bluetooth, BluetoothAdapter, BluetoothDevice, Operation as BluetoothOperation, PairingAnswer,
+    PairingKind, PairingRequest, PowerState,
 };
 pub use brightness::Brightness;
 pub use casts::Casts;
@@ -71,7 +71,7 @@ pub use lock_keys::LockKeys;
 pub use logind::Logind;
 pub use media::{Media, MediaPlayer};
 pub use memory::Memory;
-pub use network::{AccessPoint, Link, Network, NetworkProfile, Wired};
+pub use network::{AccessPoint, Link, Network, NetworkOperation, NetworkProfile, Wired};
 pub use notifications::{Action, Notification, Notifications, Timeout, Urgency};
 pub use outputs::Outputs;
 pub use overview::Overview;

@@ -5,7 +5,7 @@
 //! don't: access points' signal strength wavering, a scan's timestamp, a device's traffic
 //! counters. Those are answered without the 60-odd calls a full read takes.
 
-use crate::Value;
+use crate::{ErrorKind, ServiceError, Value};
 
 const PROPERTIES: &str = "org.freedesktop.DBus.Properties";
 const ACCESS_POINT: &str = "org.freedesktop.NetworkManager.AccessPoint";
@@ -79,6 +79,45 @@ pub(super) fn classify(
     Change::Full { settings: false }
 }
 
+const DEVICE: &str = "org.freedesktop.NetworkManager.Device";
+
+// NetworkManager's device state for a failed activation, and the reasons worth telling apart
+const FAILED: f64 = 120.0;
+const NO_SECRETS: f64 = 7.0;
+const SUPPLICANT_DISCONNECT: f64 = 8.0;
+const SUPPLICANT_TIMEOUT: f64 = 11.0;
+const SSID_NOT_FOUND: f64 = 53.0;
+
+/// A device's `StateChanged(new, old, reason)` into the failed state, as a failure: a wrong
+/// password reads as `AuthenticationFailed`.
+pub(super) fn device_failure(
+    interface: &str,
+    name: &str,
+    arguments: &[Value],
+) -> Option<ServiceError> {
+    if interface != DEVICE || name != "StateChanged" {
+        return None;
+    }
+    let number = |at: usize| match arguments.get(at) {
+        Some(Value::Number(number)) => Some(*number),
+        _ => None,
+    };
+    if number(0)? != FAILED {
+        return None;
+    }
+    let reason = number(2).unwrap_or(0.0);
+    let kind = match reason {
+        NO_SECRETS | SUPPLICANT_DISCONNECT => ErrorKind::AuthenticationFailed,
+        SUPPLICANT_TIMEOUT => ErrorKind::TimedOut,
+        SSID_NOT_FOUND => ErrorKind::Unreachable,
+        _ => ErrorKind::Failed,
+    };
+    Some(ServiceError::new(
+        kind,
+        format!("NetworkManager device state reason {reason}"),
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
@@ -141,6 +180,33 @@ mod tests {
             JOINED,
         );
         assert_eq!(legacy, Change::Strength(30));
+    }
+
+    #[test]
+    fn a_failed_join_says_why() {
+        let changed = |new: f64, reason: f64| {
+            device_failure(
+                DEVICE,
+                "StateChanged",
+                &[
+                    Value::Number(new),
+                    Value::Number(70.0),
+                    Value::Number(reason),
+                ],
+            )
+            .map(|failure| failure.kind)
+        };
+        assert_eq!(
+            changed(FAILED, NO_SECRETS),
+            Some(ErrorKind::AuthenticationFailed)
+        );
+        assert_eq!(
+            changed(FAILED, SSID_NOT_FOUND),
+            Some(ErrorKind::Unreachable)
+        );
+        assert_eq!(changed(FAILED, 1.0), Some(ErrorKind::Failed));
+        assert_eq!(changed(100.0, 0.0), None, "activated is no failure");
+        assert_eq!(device_failure(ACCESS_POINT, "StateChanged", &[]), None);
     }
 
     #[test]

@@ -24,12 +24,12 @@ Upstream's guide is [Bluetooth](../../src/bluetooth.md). Everything it describes
 | `discoverable()` | visible to devices searching |
 | `device(path)` | one device |
 | `operation(path)` | `Option<BluetoothOperation>`: `Connecting`, `Disconnecting`, `Pairing`, `Forgetting` |
-| `failure(path)` | `Option<&BluetoothError>`, shown for 10 s and until the device is tried again; the adapter's path for turning it on |
+| `failure(path)` | `Option<&ServiceError>`, kept until the device is tried again; the adapter's path for turning it on |
 | `pairing_request()` | the question BlueZ is asking, with `serve_agent()` |
 
 `BluetoothDevice` adds `trusted()`, `blocked()`, `signal()` and `named()`. `named()` is false when BlueZ only has the address. BlueZ then makes the alias from the address with dashes.
 
-`BluetoothError` has a `label()` of a few words for a row and a `description()` sentence. It is read from BlueZ's error name, or from the reason in a plain `org.bluez.Error.Failed`, such as `br-connection-page-timeout`, which reads as `Unreachable`. `AlreadyConnected` and `AlreadyExists` count as success.
+A failure is a [`ServiceError`](errors.md): its kind is read from BlueZ's error name, or from the reason in a plain `org.bluez.Error.Failed`, such as `br-connection-page-timeout`, which reads as `Unreachable`, and its message is BlueZ's own. `AlreadyConnected` and `AlreadyExists` count as success. amane keeps no words for a failure and doesn't clear it on a timer: amane-shell words it and shows it for 10 s.
 
 ## Actions
 

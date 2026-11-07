@@ -43,7 +43,7 @@ as upstream has them; everything the fork adds is here.
 | Input method | be the seat's input method: a popup by the focused field in any app, and checked fill through niri-secure-fill | `App::input_method`, `FocusedField`, `FieldOwner`, `FillError` | [input-method](input/input-method.md) | `examples/input_method.rs` | done, niri fork for fill |
 | Battery | UPower: state, warning, time left, peripherals | `Battery`, `PowerDevice` | [battery](system/battery.md) | `examples/system.rs` | done |
 | Power profile | power-profiles-daemon | `PowerProfile` | [power-profile](system/power-profile.md) | — | done |
-| Bluetooth | signals, operations and failures, pairing agent, rfkill, discoverable | `Bluetooth::serve_agent`, `PairingRequest`, `BluetoothError` | [bluetooth](system/bluetooth.md) | — | done |
+| Bluetooth | signals, operations and failures, pairing agent, rfkill, discoverable | `Bluetooth::serve_agent`, `PairingRequest`, `ServiceError` | [bluetooth](system/bluetooth.md) | — | done |
 | Tray | the system tray: StatusNotifierItem watcher and host, item icons (theme, own folder or pixels), dbusmenu menus, clicks and scrolling | `Tray`, `TrayItem`, `TrayMenuItem`, `TrayStatus`, `TrayToggle` | [tray](system/tray.md) | — | done |
 | Brightness | in HDR, the panel's SDR white in place of the backlight; uevents instead of polling | `Brightness::hdr`, `HdrPanel` | [brightness](system/brightness.md) | — | done |
 | Idle | ext-idle-notify levels and ScreenSaver inhibits | `Idle` | [idle](system/idle.md) | `examples/idle.rs` | done |
