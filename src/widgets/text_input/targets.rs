@@ -94,7 +94,7 @@ pub fn collect_targets(text_input: &TextInput, area: Area, targets: &mut Vec<Tar
         let selected = fields::get(id).selected();
 
         if !selected.is_empty() && !password {
-            PrimarySelection::copy(selected);
+            PrimarySelection::copy(selected.to_string());
         }
     };
 
@@ -137,15 +137,20 @@ fn key_handler(text_input: &TextInput) -> InputHandler {
 
         let outcome = field.apply(key, held, multiline);
 
-        let text = field.text.clone();
-        let selected = field.selected();
+        // a copy for the handlers, wiped once they ran
+        let text = zeroize::Zeroizing::new(field.text.clone());
+        let selected = zeroize::Zeroizing::new(field.selected());
 
         // stored before the handlers run, so they read the new text
         fields::set(id, field);
 
-        // a password never leaves the input
-        if let Some(copy) = outcome.copy.filter(|_| !password) {
-            Clipboard::copy(copy);
+        // a password never leaves the input: what a copy or cut took is wiped instead
+        if let Some(mut copy) = outcome.copy {
+            if password {
+                zeroize::Zeroize::zeroize(&mut copy);
+            } else {
+                Clipboard::copy(copy);
+            }
         }
 
         if outcome.paste {
@@ -161,13 +166,13 @@ fn key_handler(text_input: &TextInput) -> InputHandler {
 
             // a password is used once it's sent, like a login's: the input is left empty
             if password {
-                TextInput::set_text(id, "");
+                drop(fields::take(id));
             }
         }
 
         // text selected with the keyboard is what a middle click pastes elsewhere
         if held.shift && !selected.is_empty() && !password {
-            PrimarySelection::copy(selected);
+            PrimarySelection::copy(selected.to_string());
         }
 
         outcome.used
@@ -179,5 +184,38 @@ fn key_handler(text_input: &TextInput) -> InputHandler {
 fn run(handler: Option<&TextHandler>, text: &str) {
     if let Some(handler) = handler {
         handler(String::from(text));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::cell::RefCell;
+
+    use super::*;
+
+    #[test]
+    fn a_password_is_cleared_once_it_is_submitted() {
+        let sent = Rc::new(RefCell::new(String::new()));
+        let into = sent.clone();
+
+        let input = TextInput::new("password-submit-test")
+            .password()
+            .on_submit(move |text| *into.borrow_mut() = text);
+
+        TextInput::set_text("password-submit-test", "hunter2");
+
+        assert!(key_handler(&input)(Key::Enter));
+        assert_eq!(*sent.borrow(), "hunter2");
+        assert_eq!(TextInput::text("password-submit-test"), "");
+    }
+
+    #[test]
+    fn other_text_stays_after_a_submit() {
+        let input = TextInput::new("plain-submit-test").on_submit(|_| {});
+
+        TextInput::set_text("plain-submit-test", "hello");
+
+        assert!(key_handler(&input)(Key::Enter));
+        assert_eq!(TextInput::text("plain-submit-test"), "hello");
     }
 }

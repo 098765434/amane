@@ -1,3 +1,5 @@
+use zeroize::Zeroize;
+
 use crate::{Key, Modifiers};
 
 // how many edits undo remembers per input
@@ -25,6 +27,26 @@ pub struct Field {
 
     // typing letter after letter is undone as one step
     last_edit: Edit,
+
+    /*
+     * a password: no undo keeps old copies of it, its text grows without leaving the
+     * old bytes behind, and it is wiped when the field goes away
+     */
+    secret: bool,
+}
+
+impl Drop for Field {
+    fn drop(&mut self) {
+        self.text.zeroize();
+
+        if let Some(preedit) = &mut self.preedit {
+            preedit.text.zeroize();
+        }
+
+        for snapshot in self.undo.iter_mut().chain(self.redo.iter_mut()) {
+            snapshot.text.zeroize();
+        }
+    }
 }
 
 #[derive(Clone, Default, PartialEq)]
@@ -86,10 +108,45 @@ impl Outcome {
 
 impl Field {
     pub fn new(text: &str) -> Self {
-        Self {
-            text: String::from(text),
-            cursor: text.chars().count(),
-            ..Self::default()
+        let mut field = Self::default();
+
+        field.text.push_str(text);
+        field.cursor = text.chars().count();
+
+        field
+    }
+
+    pub fn is_secret(&self) -> bool {
+        self.secret
+    }
+
+    // makes the field a password or not; a password forgets its undo history at once
+    pub fn set_secret(&mut self, secret: bool) {
+        self.secret = secret;
+
+        if secret {
+            self.forget_history();
+
+            if let Some(mut preedit) = self.preedit.take() {
+                preedit.text.zeroize();
+            }
+        }
+    }
+
+    // empties the field, wiping what it held
+    pub fn clear(&mut self) {
+        self.text.zeroize();
+        self.forget_history();
+
+        self.cursor = 0;
+        self.anchor = None;
+        self.scroll = 0.0;
+        self.last_edit = Edit::None;
+    }
+
+    fn forget_history(&mut self) {
+        for mut snapshot in self.undo.drain(..).chain(self.redo.drain(..)) {
+            snapshot.text.zeroize();
         }
     }
 
@@ -335,6 +392,19 @@ impl Field {
 
         let range = self.byte_index(from)..self.byte_index(to);
 
+        // a password moves to a bigger buffer itself, so the old one is wiped, not just freed
+        let needed = self.text.len() - range.len() + text.len();
+
+        if self.secret && needed > self.text.capacity() {
+            let mut bigger = String::with_capacity((needed * 2).max(64));
+
+            bigger.push_str(&self.text);
+
+            let mut old = std::mem::replace(&mut self.text, bigger);
+
+            old.zeroize();
+        }
+
         self.text.replace_range(range, text);
 
         self.cursor = from + text.chars().count();
@@ -344,16 +414,23 @@ impl Field {
     }
 
     fn remember(&mut self) {
+        // a password keeps no old copies of itself
+        if self.secret {
+            return;
+        }
+
         self.undo.push(Snapshot {
             text: self.text.clone(),
             cursor: self.cursor,
         });
 
         if self.undo.len() > UNDO_LIMIT {
-            self.undo.remove(0);
+            self.undo.remove(0).text.zeroize();
         }
 
-        self.redo.clear();
+        for mut snapshot in self.redo.drain(..) {
+            snapshot.text.zeroize();
+        }
     }
 
     fn undo(&mut self) -> bool {
@@ -703,6 +780,58 @@ mod tests {
         field.paste("a\nb\tc", false);
 
         assert_eq!(field.text, "abc");
+    }
+
+    #[test]
+    fn a_password_keeps_no_undo_history() {
+        let mut field = Field::default();
+
+        field.set_secret(true);
+
+        for letter in "hunter2 x".chars() {
+            field.apply(Key::Character(letter), NONE, false);
+        }
+
+        field.apply(Key::Backspace, NONE, false);
+
+        assert_eq!(field.text, "hunter2 ");
+        assert!(field.undo.is_empty() && field.redo.is_empty());
+
+        // undo has nothing to go back to
+        assert!(!field.apply(Key::Character('z'), CTRL, false).changed);
+        assert_eq!(field.text, "hunter2 ");
+    }
+
+    #[test]
+    fn becoming_a_password_forgets_the_history() {
+        let mut field = typed("one two");
+
+        assert!(!field.undo.is_empty());
+
+        field.set_secret(true);
+
+        assert!(field.undo.is_empty() && field.redo.is_empty());
+        assert_eq!(field.text, "one two");
+    }
+
+    #[test]
+    fn a_password_grows_without_losing_its_text() {
+        let mut field = Field::default();
+
+        field.set_secret(true);
+
+        let long: String = std::iter::repeat_n('é', 300).collect();
+
+        field.paste(&long, false);
+        field.paste("!", false);
+
+        assert_eq!(field.length(), 301);
+        assert!(field.text.capacity() >= field.text.len());
+
+        field.clear();
+
+        assert!(field.text.is_empty());
+        assert_eq!(field.cursor, 0);
     }
 
     #[test]

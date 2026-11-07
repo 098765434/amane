@@ -242,7 +242,12 @@ impl DataSourceHandler for WaylandState {
         if let Some((copied, text)) = &self.copied.clipboard
             && copied.inner() == source
         {
-            write_bytes(pipe, text.clone().into_bytes());
+            // a password's hint says only that it is one
+            if kind == super::clipboard::PASSWORD_HINT {
+                write_bytes(pipe, b"secret".to_vec());
+            } else {
+                write_bytes(pipe, text.clone().into_bytes());
+            }
 
             return;
         }
@@ -265,7 +270,7 @@ impl DataSourceHandler for WaylandState {
         if let Some((copied, _)) = &self.copied.clipboard
             && copied.inner() == source
         {
-            self.copied.clipboard = None;
+            self.copied.drop_clipboard();
         }
 
         if let Some((dragged, _)) = &self.dragging_out
