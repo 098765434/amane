@@ -11,10 +11,12 @@
 use std::fmt;
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Mutex, PoisonError};
 use std::thread;
 
 use zbus::zvariant::Value;
 
+use crate::changes;
 use crate::dbus::Bus;
 use crate::services::worker;
 
@@ -103,6 +105,34 @@ impl Launch {
         Ok(pid)
     }
 
+    /// Starts it the way a launcher should: the compositor hands it a token that lets its
+    /// window take the focus, or brings it forward if it is already running. Call it from
+    /// input, like a click, since the token stands for that input. It starts once the token
+    /// comes, on the event loop; without a loop or a compositor that gives tokens, at once.
+    /// One that can't start is logged.
+    pub fn activated(self) {
+        // without an event loop there is no compositor to ask
+        if !changes::has_loop() {
+            self.spawn_logged();
+
+            return;
+        }
+
+        ACTIVATED
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(self);
+
+        changes::wake();
+    }
+
+    // starts it, saying so when it couldn't
+    pub(crate) fn spawn_logged(self) {
+        if let Err(err) = self.spawn() {
+            eprintln!("amane: {err}");
+        }
+    }
+
     fn command(&self) -> Command {
         let mut command = match &self.program {
             Program::Shell(line) => {
@@ -153,6 +183,9 @@ impl Launch {
 }
 
 /// `app-amane-<name>-<pid>.scope`, with what a unit name can't hold made `_`.
+// programs to start once the compositor has given each a token, in the order asked
+pub(crate) static ACTIVATED: Mutex<Vec<Launch>> = Mutex::new(Vec::new());
+
 fn unit_name(name: Option<&str>, pid: u32) -> String {
     let name: String = name
         .unwrap_or("program")

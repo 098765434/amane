@@ -5,7 +5,7 @@ use std::sync::PoisonError;
 
 use smithay_client_toolkit::activation::{ActivationHandler, RequestData};
 
-use crate::process::{ACTIVATED, Activated, spawn_with_token};
+use crate::launch::{ACTIVATED, Launch};
 
 use super::{WaylandState, surface::Role};
 
@@ -89,9 +89,9 @@ impl WaylandState {
 
         drop(queue);
 
-        for command in commands {
+        for launch in commands {
             let Some(activation) = &self.activation else {
-                spawn_with_token(&command.command, None, command.app_id.as_deref());
+                launch.spawn_logged();
 
                 continue;
             };
@@ -113,7 +113,7 @@ impl WaylandState {
                     app_id: Some(self.app_id.clone()),
                     seat_and_serial,
                     surface,
-                    udata: command,
+                    udata: launch,
                 },
             );
         }
@@ -121,11 +121,10 @@ impl WaylandState {
 }
 
 impl ActivationHandler for WaylandState {
-    // the command to start with the token
-    type RequestUdata = Activated;
+    // the program to start with the token
+    type RequestUdata = Launch;
 
-    fn new_token(&mut self, token: String, data: &RequestData<Activated>) {
-        let command = &data.udata;
-        spawn_with_token(&command.command, Some(&token), command.app_id.as_deref());
+    fn new_token(&mut self, token: String, data: &RequestData<Launch>) {
+        data.udata.clone().token(Some(&token)).spawn_logged();
     }
 }

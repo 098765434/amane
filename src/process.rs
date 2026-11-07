@@ -1,8 +1,6 @@
 use std::io::{BufRead, BufReader};
 use std::process::{Child, ChildStdout, Command, Stdio};
-use std::sync::{Mutex, PoisonError};
 
-use crate::changes;
 use crate::launch::Launch;
 
 pub struct Lines {
@@ -61,53 +59,16 @@ fn shell(command: &str) -> Command {
  * (crate::launch); one that can't start is logged
  */
 pub fn spawn(command: &str) {
-    spawn_with_token(command, None, None);
+    Launch::shell(command).spawn_logged();
 }
-
-pub(crate) fn spawn_with_token(command: &str, token: Option<&str>, app_id: Option<&str>) {
-    let launched = Launch::shell(command).token(token).app_id(app_id).spawn();
-
-    if let Err(err) = launched {
-        eprintln!("amane: {err}");
-    }
-}
-
-// a program to start once the compositor has given it a token, and the app it is
-pub(crate) struct Activated {
-    pub command: String,
-    pub app_id: Option<String>,
-}
-
-// programs to start once the compositor has given each a token, in the order asked
-pub(crate) static ACTIVATED: Mutex<Vec<Activated>> = Mutex::new(Vec::new());
 
 /*
  * starts a program the way a launcher should: the compositor hands it a token that lets
  * its window take the focus, or brings it forward if it is already running. Call it from
- * input, like a click, since the token stands for that input
+ * input, like a click, since the token stands for that input (`Launch::activated`)
  */
 pub fn spawn_activated(command: &str) {
-    spawn_activated_app(command, None);
-}
-
-// the same, with the app it is, which names its scope
-pub(crate) fn spawn_activated_app(command: &str, app_id: Option<&str>) {
-    // without an event loop there is no compositor to ask
-    if !changes::has_loop() {
-        spawn_with_token(command, None, app_id);
-
-        return;
-    }
-
-    ACTIVATED
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner)
-        .push(Activated {
-            command: String::from(command),
-            app_id: app_id.map(String::from),
-        });
-
-    changes::wake();
+    Launch::shell(command).activated();
 }
 
 /*
