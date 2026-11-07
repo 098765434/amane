@@ -6,7 +6,14 @@ use std::sync::OnceLock;
 
 use serde_json::Value;
 
-use crate::Workspace;
+use super::Action;
+use crate::{WindowInfo, Workspace};
+
+// A window model and typed actions are only implemented for niri so far; on
+// this backend the window list stays empty and actions are ignored.
+pub fn listen_windows(_on_change: impl FnMut(Vec<WindowInfo>, bool)) {}
+
+pub fn act(_action: Action) {}
 
 // Enum indicating the configuration syntax supported by Hyprland (since 0.56 Lua support)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

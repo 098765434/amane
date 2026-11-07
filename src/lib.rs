@@ -8,6 +8,11 @@
 //! - [`Popup`] — xdg-popup surface role with layer-shell and nested
 //!   parenting, `xdg_positioner` configuration, grab semantics, and
 //!   per-popup dismiss callbacks. See [`docs/popups.md`](../docs/popups.md).
+//! - [`Windows`] — a service exposing the compositor's open windows
+//!   ([`WindowInfo`]: focused window, title, app-id) plus typed control
+//!   actions (focus/close/fullscreen/move, column nav, spawn, screenshot,
+//!   toggle overview). niri-complete. See
+//!   [`docs/compositor.md`](../docs/compositor.md).
 
 #[cfg(target_env = "gnu")] // skip glibc tuning if there is no glibc
 mod allocator;
@@ -37,6 +42,7 @@ mod widgets;
 mod window;
 
 pub use animation::{Animation, Blend, Easing, request_frame};
+pub use changes::mark_all;
 pub use app::App;
 pub use dbus::{Argument, Bus, Method, Signal, Value};
 pub use files::watch_file;
@@ -58,9 +64,9 @@ pub use placement::{Align, Center, End, Justify, Padding, Size, Start};
 pub use process::{lines, output, spawn};
 pub use services::{
     AccessPoint, Action, Apps, Audio, Battery, Bluetooth, BluetoothDevice, Brightness, Cpu,
-    DesktopApp, Link, Lock, Media, MediaPlayer, Memory, Network, Notification, Notifications,
-    Palette, Pam, PamConfig, PamError, PamMessage, PamMessageKind, PamResult, Service, Urgency,
-    Workspace, Workspaces,
+    DesktopApp, Gestures, Link, Lock, Media, MediaPlayer, Memory, Network, Notification,
+    Notifications, Palette, Pam, PamConfig, PamError, PamMessage, PamMessageKind, PamResult,
+    Service, Urgency, WindowInfo, Windows, Workspace, Workspaces,
 };
 pub use style::{Fill, Image, Mask, Radius, Shadow};
 pub use widgets::{

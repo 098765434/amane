@@ -5,7 +5,14 @@ use std::os::unix::net::UnixStream;
 
 use serde_json::Value;
 
-use crate::Workspace;
+use super::Action;
+use crate::{WindowInfo, Workspace};
+
+// A window model and typed actions are only implemented for niri so far; on
+// this backend the window list stays empty and actions are ignored.
+pub fn listen_windows(_on_change: impl FnMut(Vec<WindowInfo>, bool)) {}
+
+pub fn act(_action: Action) {}
 
 // message types from sway's ipc, the i3 protocol
 const RUN_COMMAND: u32 = 0;
