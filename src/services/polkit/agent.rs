@@ -8,6 +8,7 @@ use crate::{Argument, Bus, Method, Service, Value};
 
 use super::Polkit;
 use super::helper::{self, Event, Session};
+use super::request::{AuthPrompt, AuthRequest};
 
 /*
  * amane's authentication agent: polkitd asks it to authenticate the user
@@ -85,96 +86,19 @@ struct Waiting {
     pending: Option<String>,
 }
 
-// what polkitd is asking the user to prove
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AuthRequest {
-    pub(crate) id: u64,
-
-    // like org.freedesktop.systemd1.manage-units
-    pub(crate) action_id: String,
-
-    // the action's own sentence, like "Authentication is required to start 'sshd.service'."
-    pub(crate) message: String,
-
-    // the action's icon name, often empty
-    pub(crate) icon: String,
-
-    // the user whose password proves it
-    pub(crate) user: String,
-
-    // what the helper asks for right now, once it does
-    pub(crate) prompt: Option<AuthPrompt>,
-
-    // lines the helper showed, like a fingerprint reader's
-    pub(crate) info: Vec<String>,
-
-    // why the last try failed
-    pub(crate) error: Option<String>,
-
-    // wrong answers so far
-    pub(crate) tries: u8,
-
-    // an answer is with the helper, so the window waits
-    pub(crate) busy: bool,
+/// How the agent runs, for [`Polkit::serve_agent_with`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PolkitAgent {
+    /// polkit's helper socket, where a password is checked (polkit 124 and later); by default
+    /// `/run/polkit/agent-helper.socket`.
+    pub helper_socket: std::path::PathBuf,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AuthPrompt {
-    pub(crate) text: String,
-
-    // whether what's typed may show, which a password may not
-    pub(crate) echo: bool,
-}
-
-impl AuthRequest {
-    pub fn id(&self) -> u64 {
-        self.id
-    }
-
-    pub fn action_id(&self) -> &str {
-        &self.action_id
-    }
-
-    pub fn message(&self) -> &str {
-        &self.message
-    }
-
-    pub fn icon(&self) -> &str {
-        &self.icon
-    }
-
-    pub fn user(&self) -> &str {
-        &self.user
-    }
-
-    pub fn prompt(&self) -> Option<&AuthPrompt> {
-        self.prompt.as_ref()
-    }
-
-    pub fn info(&self) -> &[String] {
-        &self.info
-    }
-
-    pub fn error(&self) -> Option<&str> {
-        self.error.as_deref()
-    }
-
-    pub fn tries(&self) -> u8 {
-        self.tries
-    }
-
-    pub fn busy(&self) -> bool {
-        self.busy
-    }
-}
-
-impl AuthPrompt {
-    pub fn text(&self) -> &str {
-        &self.text
-    }
-
-    pub fn echo(&self) -> bool {
-        self.echo
+impl Default for PolkitAgent {
+    fn default() -> Self {
+        Self {
+            helper_socket: std::path::PathBuf::from(helper::DEFAULT_SOCKET),
+        }
     }
 }
 
@@ -185,9 +109,16 @@ impl Polkit {
      * other amane programs leave it alone
      */
     pub fn serve_agent() {
+        Self::serve_agent_with(PolkitAgent::default());
+    }
+
+    /// [`serve_agent`](Self::serve_agent) with settings other than the defaults, like the
+    /// helper's socket on a system that puts it elsewhere. Only the first call counts.
+    pub fn serve_agent_with(agent: PolkitAgent) {
         static SERVE: Once = Once::new();
 
         SERVE.call_once(|| {
+            helper::set_socket(agent.helper_socket);
             thread::spawn(serve);
         });
     }
@@ -410,7 +341,10 @@ fn start_session(waiting: &mut Option<Waiting>) {
             let taken = waiting.take();
 
             if let Some(taken) = taken {
-                eprintln!("amane: polkit helper at {}: {error}", helper::SOCKET);
+                eprintln!(
+                    "amane: polkit helper at {}: {error}",
+                    helper::socket().display()
+                );
 
                 taken.method.reply_error(
                     FAILED,

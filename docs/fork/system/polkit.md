@@ -5,6 +5,13 @@
 user, and a shell that calls `Polkit::serve_agent()` once is that agent. It replaces a separate
 agent process (polkit-kde-agent, hyprpolkitagent) with a prompt in the shell's own look.
 
+The agent is behind the `polkit-agent` cargo feature, off by default, since only one program in
+a session should be the agent. Without it, `Polkit`, `AuthRequest` and `AuthPrompt` still build,
+so a UI compiles, but nothing serves or answers requests.
+
+`Polkit::serve_agent_with(PolkitAgent { helper_socket })` takes the helper's socket for a system
+that puts it elsewhere; `serve_agent()` uses `/run/polkit/agent-helper.socket`.
+
 ## How it works
 
 - **Registered** on the system bus at `/org/amane/PolicyKit1/AuthenticationAgent` for the

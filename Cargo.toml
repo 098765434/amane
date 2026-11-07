@@ -46,6 +46,10 @@ chrono = "0.4"
 # own log (its image atlas size) on stderr (see docs/fork/internals/memory.md);
 # slow, as every run waits for the gpu
 vello-stats = ["vello/debug_layers", "dep:log"]
+# be the session's polkit authentication agent (Polkit::serve_agent), checking
+# passwords through polkit's helper socket; off by default, as only one program
+# in a session should be (see docs/fork/system/polkit.md)
+polkit-agent = []
 
 [dependencies.log]
 # only to hear vello's atlas log under vello-stats; vello brings it anyway

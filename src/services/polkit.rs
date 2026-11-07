@@ -1,11 +1,16 @@
 #![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
 
+#[cfg(feature = "polkit-agent")]
 mod agent;
+#[cfg(feature = "polkit-agent")]
 mod helper;
+mod request;
 
 use crate::Service;
 
-pub use agent::{AuthPrompt, AuthRequest};
+#[cfg(feature = "polkit-agent")]
+pub use agent::PolkitAgent;
+pub use request::{AuthPrompt, AuthRequest};
 
 /*
  * polkit's authentication prompts, for a shell that answers them with

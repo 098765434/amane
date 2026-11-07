@@ -11,7 +11,18 @@ use std::thread;
  * PAM conversation one line at a time, ending with SUCCESS or FAILURE. the
  * helper tells polkitd the answer itself, so the agent only relays prompts
  */
-pub const SOCKET: &str = "/run/polkit/agent-helper.socket";
+pub const DEFAULT_SOCKET: &str = "/run/polkit/agent-helper.socket";
+
+static SOCKET: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+
+// the socket serve_agent_with() was given; the first setting stays
+pub fn set_socket(path: std::path::PathBuf) {
+    let _ = SOCKET.set(path);
+}
+
+pub fn socket() -> &'static std::path::Path {
+    SOCKET.get_or_init(|| std::path::PathBuf::from(DEFAULT_SOCKET))
+}
 
 // what the helper said
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -42,7 +53,7 @@ impl Session {
         cookie: &str,
         on_event: impl Fn(Event) + Send + 'static,
     ) -> io::Result<Self> {
-        let mut stream = UnixStream::connect(SOCKET)?;
+        let mut stream = UnixStream::connect(socket())?;
 
         stream.write_all(format!("{user}\n{cookie}\n").as_bytes())?;
 

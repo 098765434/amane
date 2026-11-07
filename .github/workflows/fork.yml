@@ -26,9 +26,12 @@ jobs:
       - name: clippy
         run: nix develop -c cargo clippy --all-targets --locked -- -D warnings
 
+      - name: clippy, with the polkit agent
+        run: nix develop -c cargo clippy --all-targets --locked --features polkit-agent -- -D warnings
+
       # only the library tests, they run without a compositor
       - name: test
-        run: nix develop -c cargo test --lib --locked
+        run: nix develop -c cargo test --lib --locked --features polkit-agent
 
       - name: doc
         run: nix develop -c cargo doc --no-deps --locked
