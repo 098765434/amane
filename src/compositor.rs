@@ -1,6 +1,6 @@
 mod hyprland;
 mod mango;
-mod niri;
+pub(crate) mod niri;
 mod sway;
 
 use std::collections::HashMap;
@@ -138,6 +138,14 @@ pub(crate) fn listen_windows(on_change: impl FnMut(Vec<WindowInfo>, bool)) {
  * reports these; on any other compositor this returns right away, so the
  * Gestures service simply stays at its default.
  */
+/// Hands over the keyboard layouts and the index in use whenever either changes; returns
+/// right away on a compositor other than niri.
+pub(crate) fn listen_keyboard_layouts(on_change: impl FnMut(Vec<String>, u8)) {
+    if let Some(Compositor::Niri) = running() {
+        niri::listen_keyboard_layouts(on_change);
+    }
+}
+
 pub(crate) fn listen_gestures(on_change: impl FnMut(Gesture)) {
     let Some(compositor) = running() else {
         return;

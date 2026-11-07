@@ -50,6 +50,7 @@ pub use timing::{FrameStats, frame_stats};
 pub use app::App;
 pub use blur::{BlurShape, blur_fades, material_available};
 pub use compositor::HdrPanel;
+pub use compositor::niri::client as niri;
 pub use dbus::{Argument, Bus, BusError, Method, Signal, Value};
 pub use files::watch_file;
 pub use full::Full;
@@ -82,11 +83,11 @@ pub use services::{
     AccessPoint, Action, Appearance, Apps, Audio, AudioDevice, AudioKind, AuthPrompt, AuthRequest,
     Backdrop, Battery, BatteryState, Bluetooth, BluetoothAdapter, BluetoothDevice, BluetoothError,
     BluetoothOperation, Brightness, Cpu, Desktop, DesktopAction, DesktopApp, DeviceKind, FieldOwner,
-    FillError, FocusedField, Gestures, Hints as FieldHints, Idle, Link, Lock, Media, MediaPlayer,
-    Memory, Network, Notification, Notifications, Overview, PairingAnswer, PairingKind,
-    PairingRequest, Palette, Pam, PamConfig, PamError, PamMessage, PamMessageKind, PamResult,
-    Polkit, PowerDevice, PowerProfile, PowerState, Purpose as FieldPurpose, Scheme, Service,
-    Subscription, Timeout, Tray, TrayItem, TrayMenuItem, TrayStatus, TrayToggle, Urgency,
+    FillError, FocusedField, Gestures, Hints as FieldHints, Idle, KeyboardLayouts, Link, Lock,
+    Media, MediaPlayer, Memory, Network, Notification, Notifications, Overview, PairingAnswer,
+    PairingKind, PairingRequest, Palette, Pam, PamConfig, PamError, PamMessage, PamMessageKind,
+    PamResult, Polkit, PowerDevice, PowerProfile, PowerState, Purpose as FieldPurpose, Scheme,
+    Service, Subscription, Timeout, Tray, TrayItem, TrayMenuItem, TrayStatus, TrayToggle, Urgency,
     WarningLevel, WindowInfo, Windows, Workspace, WorkspaceSwitch, Workspaces,
 };
 pub use style::{Effect, Fill, Image, Input, Mask, Radius, Shadow};

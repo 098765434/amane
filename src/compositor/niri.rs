@@ -9,7 +9,11 @@ use serde_json::{Value, json};
 use super::{Action, Gesture, HdrPanel};
 use crate::{WindowInfo, Workspace};
 
+pub mod client;
+mod stream;
+
 // the niri events amane uses, everything else niri sends is skipped
+#[derive(Clone)]
 pub enum Event {
     // the full list, sent first and again whenever one is added or removed
     Workspaces(Vec<Workspace>),
@@ -72,6 +76,17 @@ pub enum Event {
     DesktopObscured {
         output: String,
         obscured: bool,
+    },
+
+    // the keyboard layouts, sent first and whenever the config changes them
+    KeyboardLayouts {
+        names: Vec<String>,
+        current: u8,
+    },
+
+    // the layout in use changed
+    KeyboardLayoutSwitched {
+        current: u8,
     },
 }
 
@@ -149,6 +164,11 @@ pub(crate) fn hdr_panel() -> Option<HdrPanel> {
 
 // SDR white on `output`, in nits, until niri reads its config again
 pub(crate) fn set_sdr_white(output: &str, nits: f64) -> bool {
+    // stock niri has no HDR to set
+    if !client::features().has("hdr") {
+        return false;
+    }
+
     let request = json!({
         "Output": {
             "output": output,
@@ -180,21 +200,9 @@ pub fn focus_workspace(id: i64) {
 
 // follows niri's events until niri exits, handing over the full list after each one
 pub fn listen(mut on_change: impl FnMut(Vec<Workspace>)) {
-    let Some(stream) = send("\"EventStream\"") else {
-        return;
-    };
-
     let mut state = State::default();
 
-    for line in BufReader::new(stream).lines() {
-        let Ok(line) = line else {
-            return;
-        };
-
-        let Some(event) = parse(&line) else {
-            continue;
-        };
-
+    for event in stream::subscribe() {
         // windows move in the layout on every frame of a resize, and no
         // workspace changes for it
         if matches!(event, Event::WindowLayouts(_)) {
@@ -207,25 +215,13 @@ pub fn listen(mut on_change: impl FnMut(Vec<Workspace>)) {
     }
 }
 
-// follows the same event stream as `listen`, but hands over the full window
-// list (and whether niri's overview is open) after each window event
+// follows the same event stream as `listen` (one connection, shared: stream.rs),
+// but hands over the full window list (and whether niri's overview is open) after each window event
 pub fn listen_windows(mut on_change: impl FnMut(Vec<WindowInfo>, bool)) {
-    let Some(stream) = send("\"EventStream\"") else {
-        return;
-    };
-
     let mut windows: HashMap<u64, WindowInfo> = HashMap::new();
     let mut overview = false;
 
-    for line in BufReader::new(stream).lines() {
-        let Ok(line) = line else {
-            return;
-        };
-
-        let Some(event) = parse(&line) else {
-            continue;
-        };
-
+    for event in stream::subscribe() {
         // only emit on events the bar reads (windows or overview); plain
         // workspace events on the same stream change nothing here
         if apply_window(&mut windows, &mut overview, event) {
@@ -299,27 +295,34 @@ fn apply_window(windows: &mut HashMap<u64, WindowInfo>, overview: &mut bool, eve
 
 // follows the same event stream, but hands over the live gesture values
 // (overview progress, view offset, workspace-switch progress) after each
-// gesture event. Opens its own connection, like `listen`/`listen_windows`.
+// gesture event
 pub fn listen_gestures(mut on_change: impl FnMut(Gesture)) {
-    let Some(stream) = send("\"EventStream\"") else {
-        return;
-    };
-
     let mut gesture = Gesture::default();
 
-    for line in BufReader::new(stream).lines() {
-        let Ok(line) = line else {
-            return;
-        };
-
-        let Some(event) = parse(&line) else {
-            continue;
-        };
-
+    for event in stream::subscribe() {
         // only the gesture events (and DesktopObscured) move anything here; every
         // other event on the shared stream is ignored
         if apply_gesture(&mut gesture, event) {
             on_change(gesture.clone());
+        }
+    }
+}
+
+// follows the same event stream for the keyboard layouts and the one in use
+pub fn listen_keyboard_layouts(mut on_change: impl FnMut(Vec<String>, u8)) {
+    let mut names = Vec::new();
+
+    for event in stream::subscribe() {
+        match event {
+            Event::KeyboardLayouts {
+                names: list,
+                current,
+            } => {
+                names = list;
+                on_change(names.clone(), current);
+            }
+            Event::KeyboardLayoutSwitched { current } => on_change(names.clone(), current),
+            _ => {}
         }
     }
 }
@@ -388,10 +391,19 @@ pub fn act(action: Action) {
                 }
             }
         }),
-        // the window_id from the niri fork; upstream niri moves the focused column
-        Action::MoveColumnToIndex { window, index } => json!({
-            "Action": { "MoveColumnToIndex": { "window_id": window, "index": index } }
-        }),
+        // the window_id from the niri fork; stock niri moves the focused column, so the
+        // window is focused first there
+        Action::MoveColumnToIndex { window, index } => {
+            if !client::features().has("move-column-to-index-window-id") {
+                act(Action::FocusWindow(window));
+
+                json!({ "Action": { "MoveColumnToIndex": { "index": index } } })
+            } else {
+                json!({
+                    "Action": { "MoveColumnToIndex": { "window_id": window, "index": index } }
+                })
+            }
+        }
         Action::FocusColumnLeft => json!({ "Action": { "FocusColumnLeft": {} } }),
         Action::FocusColumnRight => json!({ "Action": { "FocusColumnRight": {} } }),
         Action::Spawn(command) => json!({ "Action": { "Spawn": { "command": command } } }),
@@ -428,6 +440,8 @@ fn parse(line: &str) -> Option<Event> {
         "ViewOffsetChanged" => view_offset(body),
         "WorkspaceSwitchProgress" => workspace_switch(body),
         "DesktopObscured" => desktop_obscured(body),
+        "KeyboardLayoutsChanged" => keyboard_layouts(body),
+        "KeyboardLayoutSwitched" => keyboard_switched(body),
         _ => None,
     }
 }
@@ -467,6 +481,24 @@ fn desktop_obscured(body: &Value) -> Option<Event> {
         output: body["output"].as_str()?.to_string(),
         obscured: body["obscured"].as_bool()?,
     })
+}
+
+fn keyboard_layouts(body: &Value) -> Option<Event> {
+    let layouts = &body["keyboard_layouts"];
+    let names = layouts["names"]
+        .as_array()?
+        .iter()
+        .filter_map(|name| name.as_str().map(String::from))
+        .collect();
+    let current = u8::try_from(layouts["current_idx"].as_u64()?).ok()?;
+
+    Some(Event::KeyboardLayouts { names, current })
+}
+
+fn keyboard_switched(body: &Value) -> Option<Event> {
+    let current = u8::try_from(body["idx"].as_u64()?).ok()?;
+
+    Some(Event::KeyboardLayoutSwitched { current })
 }
 
 fn windows_changed(body: &Value) -> Option<Event> {
@@ -610,6 +642,8 @@ impl State {
             | Event::ViewOffset { .. }
             | Event::WorkspaceSwitch { .. }
             | Event::DesktopObscured { .. }
+            | Event::KeyboardLayouts { .. }
+            | Event::KeyboardLayoutSwitched { .. }
             | Event::WindowLayouts(_) => {}
         }
 
@@ -718,12 +752,15 @@ mod tests {
             Some(Event::Overview { open: true })
         ));
 
-        // events amane doesn't use are skipped
-        assert!(
+        // the keyboard layouts, for the layout service
+        assert!(matches!(
             parse(
-                r#"{"KeyboardLayoutsChanged":{"keyboard_layouts":{"names":[],"current_idx":0}}}"#
-            )
-            .is_none()
-        );
+                r#"{"KeyboardLayoutsChanged":{"keyboard_layouts":{"names":["US"],"current_idx":0}}}"#
+            ),
+            Some(Event::KeyboardLayouts { current: 0, .. })
+        ));
+
+        // events amane doesn't use are skipped
+        assert!(parse(r#"{"ConfigLoaded":{"failed":false}}"#).is_none());
     }
 }
