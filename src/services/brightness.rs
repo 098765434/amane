@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::thread;
 use std::time::Duration;
 
 use crate::compositor::{self, HdrPanel};
@@ -33,9 +34,6 @@ pub struct Brightness {
     // the built-in panel while it's in HDR, whose brightness is then its
     // SDR white rather than the backlight
     hdr: Option<HdrPanel>,
-
-    // polls since the compositor was last asked about HDR
-    polls: u32,
 }
 
 /*
@@ -60,14 +58,34 @@ impl Service for Brightness {
         Duration::from_millis(500)
     }
 
-    fn update(&mut self) -> bool {
-        self.polls += 1;
+    /*
+     * the compositor is asked before the write is taken: its answer can take up
+     * to its two-second timeout, and readers shouldn't wait on it
+     */
+    fn listen() {
+        let mut polls = 0;
 
-        if self.polls >= HDR_EVERY {
-            self.polls = 0;
-            self.hdr = compositor::hdr_panel();
+        loop {
+            thread::sleep(Self::interval());
+
+            polls += 1;
+            let hdr = (polls >= HDR_EVERY).then(|| {
+                polls = 0;
+                compositor::hdr_panel()
+            });
+
+            let mut brightness = Self::write();
+            if let Some(hdr) = hdr {
+                brightness.hdr = hdr;
+            }
+
+            if !brightness.update() {
+                brightness.quiet();
+            }
         }
+    }
 
+    fn update(&mut self) -> bool {
         let before = self.percent;
 
         if let Some(panel) = &self.hdr {

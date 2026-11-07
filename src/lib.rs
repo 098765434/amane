@@ -31,6 +31,7 @@ mod process;
 mod scale;
 mod services;
 mod style;
+mod timer;
 mod timing;
 pub mod video;
 mod wayland;
@@ -43,6 +44,7 @@ pub use clipboard::{Clipboard, DragData, PrimarySelection};
 pub use config::{Config, Settings};
 pub use notify::Notify;
 pub use portal::FileDialog;
+pub use timer::{Timer, TimerHandle, redraw_after};
 pub use timing::{FrameStats, frame_stats};
 // for deriving Settings without depending on serde yourself: #[serde(crate = "amane::serde")]
 pub use app::App;
@@ -84,8 +86,8 @@ pub use services::{
     Memory, Network, Notification, Notifications, Overview, PairingAnswer, PairingKind,
     PairingRequest, Palette, Pam, PamConfig, PamError, PamMessage, PamMessageKind, PamResult,
     Polkit, PowerDevice, PowerProfile, PowerState, Purpose as FieldPurpose, Scheme, Service,
-    Timeout, Tray, TrayItem, TrayMenuItem, TrayStatus, TrayToggle, Urgency, WarningLevel,
-    WindowInfo, Windows, Workspace, WorkspaceSwitch, Workspaces,
+    Subscription, Timeout, Tray, TrayItem, TrayMenuItem, TrayStatus, TrayToggle, Urgency,
+    WarningLevel, WindowInfo, Windows, Workspace, WorkspaceSwitch, Workspaces,
 };
 pub use style::{Effect, Fill, Image, Input, Mask, Radius, Shadow};
 pub use video::{Colors as VideoColors, Frame as VideoFrame, VideoFeed};

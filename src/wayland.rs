@@ -418,6 +418,8 @@ impl WaylandApp {
 
         wake::insert(&event_loop.handle());
 
+        crate::timer::insert(&event_loop.handle());
+
         idle_gpu::insert(&event_loop.handle());
 
         state.loop_handle = Some(event_loop.handle());
@@ -441,6 +443,9 @@ impl WaylandApp {
             self.state.reconcile_input_popup();
 
             self.state.sync_input_method();
+
+            // what the windows drew from, so services nothing shows can stop polling
+            self.state.publish_watched();
         }
     }
 }
