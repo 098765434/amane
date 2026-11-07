@@ -236,7 +236,7 @@ Live-tested on niri: a notification reached the shell's notification server with
 
 ### Phases 8 and 9: in amane-shell (done)
 
-- **amane-kit:** the shell's controls, design tokens and theme moved into a `kit/` workspace crate. The shell re-exports them under their old paths. New pieces for apps: `Checkbox`, `Radio`, `Dropdown`, `app_window`, `standard_shortcut`, `text_field`/`field_box`, `sidebar`, `Dialog`, and `examples/gallery.rs`.
+- **amane-kit:** the shell's controls, design tokens and theme moved into a workspace crate (now `crates/kit/`). The shell re-exports them under their old paths. New pieces for apps: `Checkbox`, `Radio`, `Dropdown`, `app_window`, `standard_shortcut`, `text_field`/`field_box`, `sidebar`, `Dialog`, and `examples/gallery.rs`.
 - **Shell Settings (`amane-settings`):** an Appearance page (mode, accent, density, text size) that writes `~/.config/amane-shell/appearance.json` through `Config`. The kit's theme reads that file, so the shell follows it live.
 
 The shell pins an amane rev that has phases 1–7.
