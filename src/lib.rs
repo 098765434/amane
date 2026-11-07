@@ -1,3 +1,14 @@
+//! amane — a Rust Wayland shell library (private fork).
+//!
+//! This crate is a private fork of upstream Amane, extended for use in a
+//! niri shell. See `README.md` and `docs/` for the fork's scope and
+//! added features.
+//!
+//! Fork additions (so far):
+//! - [`Popup`] — xdg-popup surface role with layer-shell and nested
+//!   parenting, `xdg_positioner` configuration, grab semantics, and
+//!   per-popup dismiss callbacks. See [`docs/popups.md`](../docs/popups.md).
+
 #[cfg(target_env = "gnu")] // skip glibc tuning if there is no glibc
 mod allocator;
 mod animation;
@@ -15,6 +26,7 @@ mod layer_window;
 mod macros;
 mod monitor;
 mod placement;
+mod popup;
 mod process;
 mod scale;
 mod services;
@@ -41,6 +53,7 @@ pub use layer_window::{
     Horizontal, InputArea, Keyboard, Layer, LayerWindow, Margin, Vertical, WindowSize, Zone,
 };
 pub use monitor::Monitor;
+pub use popup::{Anchor as PopupAnchor, AnchorRect, ConstraintAdjustment, Gravity, Popup};
 pub use placement::{Align, Center, End, Justify, Padding, Size, Start};
 pub use process::{lines, output, spawn};
 pub use services::{

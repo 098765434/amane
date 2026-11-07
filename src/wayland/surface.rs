@@ -4,7 +4,10 @@ use std::time::Instant;
 
 use smithay_client_toolkit::{
     session_lock::SessionLockSurface,
-    shell::{WaylandSurface, wlr_layer::LayerSurface, xdg::window::Window as XdgWindow},
+    shell::{
+        WaylandSurface, wlr_layer::LayerSurface, xdg::popup::Popup as SctkPopup,
+        xdg::window::Window as XdgWindow,
+    },
 };
 use wayland_client::{
     QueueHandle,
@@ -14,7 +17,7 @@ use wayland_client::{
 use crate::graphics::Gpu;
 use crate::input::{KeyHandler, Pointer};
 use crate::scale::ScaleFactor;
-use crate::{InputArea, LayerWindow, Monitor, Widget, Window};
+use crate::{InputArea, LayerWindow, Monitor, Popup, Widget, Window};
 
 use super::{
     WaylandState,
@@ -82,6 +85,17 @@ pub enum Role {
         // the size it opened at, kept for as long as the compositor leaves the size to it
         size: (u32, u32),
     },
+
+    Popup {
+        popup: SctkPopup,
+
+        // the slot's namespace, matching the Popup builder's namespace
+        namespace: &'static str,
+
+        // the parent surface's namespace, so descendants can be torn down
+        // child-first (xdg-shell requires reverse-creation-order destroy)
+        parent: Option<&'static str>,
+    },
 }
 
 // what a window runs on every redraw to find out what it shows
@@ -93,6 +107,9 @@ pub enum View {
 
     // the name tells it apart from other normal windows
     Normal(&'static str, fn() -> Window),
+
+    // an xdg-popup; the view returns a Popup with .visible(bool) each frame
+    Popup(fn() -> Popup),
 }
 
 // what a view gave back
@@ -100,6 +117,8 @@ pub enum Content {
     Layer(LayerWindow),
 
     Normal(Window),
+
+    Popup(Popup),
 }
 
 impl OpenWindow {
@@ -133,6 +152,9 @@ impl OpenWindow {
 
             // the compositor always gives a lock screen its monitor's size
             Role::Lock(_) => (0, 0),
+
+            // popups are configured with explicit sizes by the compositor
+            Role::Popup { .. } => (0, 0),
         }
     }
 }
@@ -143,6 +165,7 @@ impl Role {
             Role::Layer { surface, .. } => surface.wl_surface(),
             Role::Lock(lock_surface) => lock_surface.wl_surface(),
             Role::Normal { window, .. } => window.wl_surface(),
+            Role::Popup { popup, .. } => popup.wl_surface(),
         }
     }
 
@@ -157,6 +180,7 @@ impl View {
             View::Plain(view) => Content::Layer(view()),
             View::Monitor(view, monitor) => Content::Layer(view(monitor)),
             View::Normal(_, view) => Content::Normal(view()),
+            View::Popup(view) => Content::Popup(view()),
         }
     }
 
@@ -175,6 +199,7 @@ impl Content {
         match self {
             Content::Layer(window) => window.namespace,
             Content::Normal(_) => "normal",
+            Content::Popup(popup) => popup.namespace,
         }
     }
 
@@ -183,6 +208,7 @@ impl Content {
         match self {
             Content::Layer(window) => (window.root, window.on_key),
             Content::Normal(window) => (window.root, window.on_key),
+            Content::Popup(popup) => (popup.root, popup.on_key),
         }
     }
 }

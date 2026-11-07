@@ -6,6 +6,7 @@ mod lock;
 mod normal;
 mod output;
 mod pointer;
+mod popup;
 mod redraw;
 mod scale;
 mod seat;
@@ -39,6 +40,7 @@ use wayland_client::{
 };
 
 use crate::ipc::IpcHandlers;
+use crate::popup::Popup;
 use crate::scale::ScaleFactor;
 use crate::window::NamedWindow;
 use crate::{Cursor, LayerWindow, Monitor};
@@ -48,6 +50,23 @@ use surface::{OpenWindow, View};
 struct WaylandState {
     // every window has its own layer surface and gpu, and is dropped before the connection
     windows: Vec<OpenWindow>,
+
+    // popup slots: their views are polled each tick to open/close surfaces
+    popup_views: Vec<fn() -> Popup>,
+
+    // on_dismiss callbacks keyed by popup namespace
+    popup_dismiss_handlers: Vec<(&'static str, std::rc::Rc<dyn Fn()>)>,
+
+    // popups the compositor dismissed; kept closed until the app hides+shows
+    // them, so we never reopen with a stale grab serial every tick
+    dismissed: Vec<&'static str>,
+
+    // the serial last used to grab each popup, so the same serial is not
+    // reused for a grab (which the compositor would reject)
+    last_grab_serial: std::collections::HashMap<&'static str, u32>,
+
+    // last pointer button serial, needed for xdg_popup.grab()
+    last_input_serial: Option<u32>,
 
     // each of these gets a window on every monitor, including ones plugged in later
     per_monitor: Vec<fn(&Monitor) -> LayerWindow>,
@@ -107,6 +126,7 @@ impl WaylandApp {
     pub fn new(
         views: Vec<fn() -> LayerWindow>,
         normal_views: Vec<NamedWindow>,
+        popup_views: Vec<fn() -> Popup>,
         per_monitor: Vec<fn(&Monitor) -> LayerWindow>,
         lock_view: Option<fn(&Monitor) -> LayerWindow>,
         handlers: Option<IpcHandlers>,
@@ -136,6 +156,12 @@ impl WaylandApp {
         // windows per monitor are opened once the compositor describes each monitor
         let mut state = WaylandState {
             windows: Vec::new(),
+
+            popup_views,
+            popup_dismiss_handlers: Vec::new(),
+            dismissed: Vec::new(),
+            last_grab_serial: std::collections::HashMap::new(),
+            last_input_serial: None,
 
             per_monitor,
 
@@ -207,6 +233,9 @@ impl WaylandApp {
             self.event_loop
                 .dispatch(None, &mut self.state)
                 .expect("failed to dispatch events");
+
+            // Reconcile popup slots (open/close) after each dispatch tick.
+            self.state.reconcile_popups();
         }
     }
 }
