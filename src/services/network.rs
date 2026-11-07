@@ -3,9 +3,12 @@ mod connections;
 mod link;
 mod manager;
 mod profile;
+mod signals;
 mod wifi;
 
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError};
+use std::sync::{LazyLock, Mutex, PoisonError};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -22,6 +25,15 @@ const SETTLE: Duration = Duration::from_millis(250);
 const BURST: Duration = Duration::from_secs(1);
 // a refetch without a signal, in case one went missing, only while something watches
 const RESYNC: Duration = Duration::from_secs(60);
+// strength and scan noise from networks not joined is read only while the list of networks was
+// read this recently, by a window that shows it
+const LISTED_FOR: Duration = Duration::from_secs(30);
+
+// the joined access point's object path, for sorting the signals
+static JOINED: Mutex<String> = Mutex::new(String::new());
+// when the list of networks was last read, in milliseconds since START
+static LISTED_AT: AtomicU64 = AtomicU64::new(u64::MAX);
+static START: LazyLock<Instant> = LazyLock::new(Instant::now);
 
 #[derive(Default)]
 pub struct Network {
@@ -45,6 +57,9 @@ pub struct Network {
     profiles: Vec<NetworkProfile>,
 
     wired: Option<Wired>,
+
+    // the joined access point's object path, empty when none
+    joined: String,
 }
 
 /*
@@ -62,12 +77,22 @@ impl Service for Network {
      * the windows aren't redrawn for no reason
      */
     fn listen() {
-        // true when the signal was about saved profiles
-        let (sender, signals) = mpsc::channel::<bool>();
+        let (sender, signals) = mpsc::channel::<Change>();
         thread::spawn(move || {
             for signal in Bus::system().signals_from(manager::NAME) {
-                let settings = signal.path().starts_with(connections::SETTINGS_PATH);
-                if sender.send(settings).is_err() {
+                let joined = JOINED
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .clone();
+                let change = signals::classify(
+                    signal.path(),
+                    signal.interface(),
+                    signal.name(),
+                    signal.arguments(),
+                    connections::SETTINGS_PATH,
+                    &joined,
+                );
+                if change != Change::Nothing && sender.send(change).is_err() {
                     break;
                 }
             }
@@ -75,37 +100,45 @@ impl Service for Network {
 
         let mut saved = connections::saved();
         loop {
-            let settings = match signals.recv_timeout(RESYNC) {
-                Ok(about_settings) => {
-                    let mut settings = about_settings;
-                    let first = Instant::now();
-                    while first.elapsed() < BURST {
-                        match signals.recv_timeout(SETTLE) {
-                            Ok(about_settings) => settings |= about_settings,
-                            Err(_) => break,
-                        }
-                    }
-                    settings
-                }
+            // Some(settings too) once a full read is due
+            let mut wanted = None;
+            match signals.recv_timeout(RESYNC) {
+                Ok(change) => take(change, &mut wanted),
                 Err(RecvTimeoutError::Timeout) => {
                     if store::unwatched::<Self>(IDLE_STOP) {
                         continue;
                     }
-                    true
+                    wanted = Some(true);
                 }
                 // no system bus: nothing to follow
                 Err(RecvTimeoutError::Disconnected) => return,
+            }
+            let Some(mut settings) = wanted else {
+                continue;
             };
+
+            let first = Instant::now();
+            while first.elapsed() < BURST {
+                match signals.recv_timeout(SETTLE) {
+                    Ok(change) => take(change, &mut wanted),
+                    Err(_) => break,
+                }
+            }
+            settings |= wanted.unwrap_or(false);
 
             if settings {
                 saved = connections::saved();
             }
             let fresh = fetch(&saved);
+            JOINED
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .clone_from(&fresh.joined);
 
             // read as the service's own, which doesn't count as watching it
             let same = store::find::<Self>()
                 .read()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .unwrap_or_else(PoisonError::into_inner)
                 .shows_same(&fresh);
 
             if same {
@@ -115,6 +148,41 @@ impl Service for Network {
             *Self::write() = fresh;
         }
     }
+}
+
+use signals::Change;
+
+// one sorted signal: a full read noted in `wanted`, or a strength applied straight away
+fn take(change: Change, wanted: &mut Option<bool>) {
+    match change {
+        Change::Full { settings } => *wanted = Some(wanted.unwrap_or(false) | settings),
+        Change::Strength(strength) => set_strength(strength),
+        Change::Listed => {
+            let listed = LISTED_AT.load(Ordering::Relaxed);
+            let now = millis_since_start();
+            if listed != u64::MAX && now.saturating_sub(listed) < LISTED_FOR.as_millis() as u64 {
+                wanted.get_or_insert(false);
+            }
+        }
+        Change::Nothing => {}
+    }
+}
+
+// the joined network's strength, redrawing only when its wedge changes
+fn set_strength(strength: u8) {
+    let mut network = Network::write();
+    let same = step(network.strength) == step(strength);
+    network.strength = strength;
+    if let Some(joined) = network.access_points.iter_mut().find(|point| point.active) {
+        joined.strength = strength;
+    }
+    if same {
+        network.quiet();
+    }
+}
+
+fn millis_since_start() -> u64 {
+    START.elapsed().as_millis() as u64
 }
 
 // a signal shows as the nearest of five wedges (kit's wifi_glyph), 20 apart
@@ -150,6 +218,7 @@ impl Network {
             && self.connecting == other.connecting
             && self.profiles == other.profiles
             && self.wired == other.wired
+            && self.joined == other.joined
     }
 
     pub fn connected(&self) -> bool {
@@ -177,6 +246,9 @@ impl Network {
     }
 
     pub fn access_points(&self) -> &[AccessPoint] {
+        // a window lists them: strength changes are worth reading while it does
+        LISTED_AT.store(millis_since_start(), Ordering::Relaxed);
+
         &self.access_points
     }
 
@@ -316,7 +388,9 @@ fn fetch(saved: &[connections::Saved]) -> Network {
         return network;
     }
 
-    let access_point = manager::access_point(connection.get("SpecificObject").text());
+    let joined = connection.get("SpecificObject").text();
+    network.joined = joined.to_owned();
+    let access_point = manager::access_point(joined);
 
     network.ssid = ssid(access_point.get("Ssid"));
     network.strength = access_point.get("Strength").number() as u8;

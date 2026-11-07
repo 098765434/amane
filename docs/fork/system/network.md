@@ -15,15 +15,20 @@ beyond Wi-Fi.
 
 ## How it works
 
-- **Signals.** Every signal NetworkManager sends (devices, access points, active connections,
-  settings) wakes the listener. A burst is read as one change: it refetches once the signals
-  pause for 250 ms, or after a second at most.
+- **Signals.** Each signal NetworkManager sends is sorted first (`network/signals.rs`):
+  - The joined network's signal strength is taken from the signal itself, with no read.
+  - Other networks' strength, `LastSeen` and a scan's `LastScan` cause a read only while a window
+    listed the networks (`access_points()`) in the last 30 s.
+  - Device traffic counters are ignored.
+  - Everything else (devices, active connections, settings) causes a full read. A burst counts
+    as one change: the read happens once the signals pause for 250 ms, or after a second at most.
 - **Profiles' settings** (`GetSettings` per profile) are read again only when a signal came from
   under `/org/freedesktop/NetworkManager/Settings`.
 - **A resync every 60 s** in case a signal went missing, only while something watches.
 - Nothing is written when nothing changed that a view shows; signal strength counts in five
   steps, as the Wi-Fi glyph shows it.
 
-Code: `src/services/network.rs`, `src/services/network/connections.rs`. Tests: profiles and
+Code: `src/services/network.rs`, `src/services/network/{connections,signals}.rs`. Tests: the
+sorting of recorded `PropertiesChanged` signals, and profiles and
 the wired device from recorded `GetSettings` answers, the same profiles as amane-shell's `nmcli`
 fixtures.
