@@ -199,6 +199,14 @@ fn open(instance: &Instance, surface: &Surface) -> Shared {
         ..RendererOptions::default()
     };
 
+    /*
+     * AMANE_VELLO_SCRATCH=upstream gives vello's scratch buffers upstream's sizes instead of the
+     * vello fork's shell-sized ones, for a scene that comes out blank because it overflowed
+     */
+    if env::var_os("AMANE_VELLO_SCRATCH").is_some_and(|value| value == "upstream") {
+        vello::low_level::vello_encoding::use_upstream_scratch(true);
+    }
+
     let vello = vello::Renderer::new(&device, vello_options).expect("failed to start vello");
 
     Shared {

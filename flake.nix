@@ -39,8 +39,8 @@
         cargoLock = {
           lockFile = ./Cargo.lock;
           outputHashes = {
-            "vello-0.11.0" = "sha256-4bzBYT9BUIb0oMjB1rKJpxXhdT20lVQ4HTCTWsar/cc=";
-            "vello_encoding-0.11.0" = "sha256-4bzBYT9BUIb0oMjB1rKJpxXhdT20lVQ4HTCTWsar/cc=";
+            "vello-0.11.0" = "sha256-00gu8gcFge4/oupzjJ15BTndlE7mw3N5jinWMSpXKEE=";
+            "vello_encoding-0.11.0" = "sha256-00gu8gcFge4/oupzjJ15BTndlE7mw3N5jinWMSpXKEE=";
           };
         };
 
