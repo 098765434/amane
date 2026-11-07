@@ -22,6 +22,9 @@ static JOBS: LazyLock<Sender<Job>> = LazyLock::new(|| {
     sender
 });
 
+/// Runs `job` on amane's one thread for control calls, after the ones handed over before it,
+/// so an input handler never waits on a slow bus or sound server and the calls keep their order.
+/// A job that panics loses only itself. For services of your own: `amane::run_in_order`.
 pub fn run(job: impl FnOnce() + Send + 'static) {
     JOBS.send(Box::new(job))
         .expect("failed to hand a control call to the worker");
