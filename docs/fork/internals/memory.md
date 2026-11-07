@@ -145,7 +145,7 @@ vello runs.
 2.5 deviations (where vello cuts its blur off too), with vello's own closed form for a
 gaussian-blurred rounded rectangle in the fragment shader (`shadow()`, after Raph Levien's
 derivation, the same `erf7`), so it draws the same pixels. `Quads::shadow` takes the
-rectangle, the largest corner (as vello rounds them), the deviation and the colour;
+rectangle, the largest corner (as vello rounds them), the deviation and the color;
 `route()` sends a `Shadow` whose transform is an even scale there. Inner shadows and turned
 shadows stay with vello. The quads take the blur at each pixel's middle, where vello took it
 at the corner, so a shadow sits half a pixel further down and right than before; at the blurs
@@ -189,7 +189,7 @@ with the quads' usual one-pixel soft edge:
 **Checked** by `draws_arcs_lines_and_areas_as_vello_does` (`quads/draw.rs`, `--ignored`):
 each shape drawn both ways, with the two edges smoothed differently (vello by exact area, the
 quads by distance), so single edge pixels differ by up to 96/255 but the shapes hold the same
-amount of colour within 5% and a mean difference under 4/255; and a see-through line whose
+amount of color within 5% and a mean difference under 4/255; and a see-through line whose
 darkest pixel is its own alpha. Under `AMANE_FRAMES=1` the `vello-stats` build prints a
 `to vello: …` line for each command the quads could not take.
 
@@ -213,7 +213,7 @@ vello for every bubble on screen.
   - The shader walks every edge for each pixel. The nonzero winding number says inside or out,
     and the distance to the nearest edge gives the usual one-pixel soft edge. That's why only
     small outlines take this path.
-- **Gradients:** every quad has two more rows, a second colour and a gradient line (direction,
+- **Gradients:** every quad has two more rows, a second color and a gradient line (direction,
   start, length), and paints `mix(color, color2, along)` where the line is set.
   - `Command::Gradient` with a linear gradient of exactly two stops, over an outline the quads
     take, is drawn that way, its line laid as vello lays it (`two_stops`).
@@ -223,7 +223,7 @@ vello for every bubble on screen.
 **Switching it off.** `AMANE_VELLO_SHAPES=1` sends both back to vello, with the other shapes.
 
 **Checked** by `draws_arcs_lines_and_areas_as_vello_does` (`--ignored`). A curved outline with a
-tail holds the same colour as vello's within its bounds, and a two-stop gradient's rows are
+tail holds the same color as vello's within its bounds, and a two-stop gradient's rows are
 within 3/255 of vello's. The routing tests in `paint.rs` cover which outlines and gradients
 go to the quads.
 

@@ -136,7 +136,7 @@ and its submodules inherit it. Give a new fork module the same line. `clippy.tom
 | Quads: small filled outlines, two-stop gradients | `e71d32c` | `src/graphics/gpu/quads.wgsl`, `src/graphics/gpu/quads/{batch,draw,pipeline,shapes}.rs`, `src/graphics/gpu/paint/` |
 | Fork code out of hot upstream files (no behaviour change) | `03135a2`, `f0d0d29`, `12d3296`, `c91f77b`, `5557957`, `6792811`, `1d61b83` | the child modules in the table above |
 | Shadow spread, a pausable shader clock, frame stats; shader reloads follow links | `1fca43d` | `src/style/shadow.rs`, `src/graphics/shader_files.rs`, `src/graphics/gpu/{shade,present}.rs` |
-| Colour emoji: colour fonts' letters drawn as pictures | `1e0a9f1` | `src/graphics/{image,letter}.rs`, `src/graphics/renderer/text.rs` |
+| Color emoji: color fonts' letters drawn as pictures | `1e0a9f1` | `src/graphics/{image,letter}.rs`, `src/graphics/renderer/text.rs` |
 | ScrollArea coasting after a flick, eased wheel steps; scrolled to the end, kept at the bottom | `028ae40`, `96bdb3d`, `4965401` | `src/widgets/scroll_area.rs`, `src/widgets/scroll_area/{offsets,targets}.rs` |
 | Layer windows: `Zone::Thickness`; settings go with the frame's commit and clicks survive a redraw; an app's window comes back after its monitor goes; windows put on a monitor, popups under the pointer's monitor | `aac4eca`, `c85d3ba`, `bc6eb7f`, `dee8bff` | `src/layer_window.rs`, `src/monitor.rs`, `src/wayland/{layer,output,windows,redraw,update,compositor}.rs` |
 | Drops read off the event loop | `05b3cef`, `6792811` | `src/wayland/{dropped,wake}.rs`, `src/wayland/dropped/` |

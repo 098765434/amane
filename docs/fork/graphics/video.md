@@ -36,7 +36,7 @@ Video::frame_point(width, height, feed.size()?, point)
 ## How it works
 
 - Frames are **NV12**: a plane of brightness and a half-size plane of
-  interleaved colour. That's what hardware decoders hand out, and it's half the
+  interleaved color. That's what hardware decoders hand out, and it's half the
   size of RGBA.
 - Each feed keeps two textures on the GPU (`R8` and `Rg8`, no mipmaps). Each new
   frame is written over them in place with `write_texture`, and they're made

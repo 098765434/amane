@@ -35,7 +35,7 @@ New methods on `Text`, next to upstream's `size`, `color`, `font`, `weight`, `wr
 | `.line_height(multiple)` | the distance between lines as a multiple of the size, like CSS's unitless `line-height` | the font's own spacing |
 | `.letter_spacing(pixels)` | extra room after every letter; negative draws letters closer | `0.0` |
 | `.case(Case)` | `AsWritten`, `Upper`, `Lower`, or `Capitalize` (the first letter of every word, the rest left alone) | `AsWritten` |
-| `.decoration(Decoration)` | `None`, `Underline` or `StrikeThrough`, drawn in the text's colour, measured from the font | `None` |
+| `.decoration(Decoration)` | `None`, `Underline` or `StrikeThrough`, drawn in the text's color, measured from the font | `None` |
 | `.align(TextAlign)` | `Start`, `Center`, `End`, or `Justify` (every line but a paragraph's last stretched to the full width); start and end follow the direction | `Start` |
 | `.direction(TextDirection)` | `Auto` (from the first strong letter), `LeftToRight` or `RightToLeft` | `Auto` |
 | `.variation(tag, value)` | a variable font's axis by its four-letter tag, like `b"wdth"` or `b"opsz"`; call it again for more axes | none |

@@ -74,6 +74,6 @@ every other item now (its unique bus name and object path).
 
 ## Limits
 
-- No `OverlayIconName` and no symbolic tinting: icons draw in their own colours.
+- No `OverlayIconName` and no symbolic tinting: icons draw in their own colors.
 - `ContextMenu` for an item without a dbusmenu leaves the menu to the program,
   which on Wayland usually opens it as a window of its own.

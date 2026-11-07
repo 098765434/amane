@@ -516,7 +516,7 @@ once Amane's `Bus` wrapper can encode an `a{sv}` argument (confirm in `src/dbus/
 | Coalesces when idle | ✓ diffed like `input_region`; idle bar sends nothing | ✓ nothing happens unless a launch is requested |
 | Degrades | ✓ no global or capability → no-op, `blur_supported()` false | ✓ no global → plain spawn |
 | One module + one doc, additive | ✓ new methods + backend; `docs/blur.md` | ✓ `docs/launching.md` |
-| Presentation left to shell | ✓ shell chooses colours, radius, fallback, and what goes in the niri rules file | ✓ shell decides what to launch |
+| Presentation left to shell | ✓ shell chooses colors, radius, fallback, and what goes in the niri rules file | ✓ shell decides what to launch |
 | No new layout vocabulary | ✓ window property, not a widget | ✓ n/a |
 | Plays to immediate mode | ✓ region described per frame, diffed | ✓ fire-and-forget from input handlers |
  

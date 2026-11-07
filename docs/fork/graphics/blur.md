@@ -57,7 +57,7 @@ it is vendored at `protocols/niri-blur-shapes-v1.xml`.
 |---|---|
 | `BlurShape::new(x, y, w, h, radius)` | a rounded rectangle, logical px |
 | `.alpha(a)` | how much of the effect shows, 0–1 |
-| `.material(name)` / `.tint(color)` | a compositor material and the colour it lays on |
+| `.material(name)` / `.tint(color)` | a compositor material and the color it lays on |
 | `.scale_about(s, origin)`, `.offset(dx, dy)`, `.fade(opacity)` | follow a layer that is scaled, moved or faded |
 | `.id(n)` | the program's own name for the shape, the same every frame, for `Backdrop` |
 | `Backdrop::read().luminance(n)` | how bright niri says the backdrop behind shape `n` is, 0–1, if it said |
@@ -99,19 +99,19 @@ A vibrant window's draw commands are split three ways (`src/graphics/vibrancy.rs
 - glyphs, rectangles, borders, fills and strokes in translucent white go on a **lighter**
   layer;
 - ones in translucent black go on a **darker** layer;
-- everything else stays on the window: colour, opaque or off-white greys (a material's tint,
+- everything else stays on the window: color, opaque or off-white greys (a material's tint,
   the window's background, a switch's knob), images, gradients, shadows, blurs, cuts and
   shaders.
 
 Groups and clips are kept around whatever of theirs goes on each layer. Each layer is a synced
 `wl_subsurface` over the window (`src/wayland/vibrancy.rs`), with an empty input region and its
 own `Gpu`. niri draws the lighter layer plus-lighter and the darker one plus-darker, which it
-subtracts: the darker layer is drawn with its colours inverted, so it holds how far each pixel
+subtracts: the darker layer is drawn with its colors inverted, so it holds how far each pixel
 darkens (a black label at 50% is drawn white at 50%, and takes 0.5 away). The layers
 are drawn before the window, so they show in the window's own commit. A layer with nothing on
 it is drawn empty once, then left alone.
 
-The split goes by colour rather than by what the content is, so white text on an accent disc
+The split goes by color rather than by what the content is, so white text on an accent disc
 lands on the lighter layer, where adding it to the blue keeps it white. On the darker layer it
 would darken the disc instead.
 

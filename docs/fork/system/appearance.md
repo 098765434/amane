@@ -1,7 +1,7 @@
 # Appearance (fork addition)
 
 `Appearance` reads the desktop's **light/dark preference** and **accent
-colour** from the XDG Settings portal (`xdg-desktop-portal`). Most programs
+color** from the XDG Settings portal (`xdg-desktop-portal`). Most programs
 already follow this setting, so a bar that reads it matches them.
 
 ## Usage
@@ -55,4 +55,4 @@ filled by backends that know one, such as GNOME 47+ and KDE.
 Read-only. The portal has no way to *set* the scheme, so changing the
 system theme stays desktop-specific. `Palette` has no hook to start from
 the accent, so the shell picks between `Appearance::accent()` and its
-`Palette` colours itself.
+`Palette` colors itself.

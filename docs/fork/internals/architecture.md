@@ -69,8 +69,8 @@ draws nor commits, so the last frame stays on screen until a view says otherwise
 A faded group, or a clip with an effect inside it, is drawn on its own canvas as big as the
 whole surface, so a lasting faded group costs a full extra pass every frame. `Renderer::blend`
 avoids the group where the result would be the same. At opacity 0, or with nothing in it, it
-draws nothing. A group of exactly one shape takes the opacity in that shape's colour, unless the
-faded colour would land on another vibrancy layer (`3f57058`).
+draws nothing. A group of exactly one shape takes the opacity in that shape's color, unless the
+faded color would land on another vibrancy layer (`3f57058`).
 
 ## GPU bounds
 

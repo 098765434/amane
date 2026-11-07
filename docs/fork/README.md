@@ -48,7 +48,7 @@ as upstream has them; everything the fork adds is here.
 | Brightness | in HDR, the panel's SDR white in place of the backlight; uevents instead of polling | `Brightness::hdr`, `HdrPanel` | [brightness](system/brightness.md) | — | done |
 | Idle | ext-idle-notify levels and ScreenSaver inhibits | `Idle` | [idle](system/idle.md) | `examples/idle.rs` | done |
 | Polkit agent | the session's authentication agent: polkit's prompts as the shell's own; `polkit-agent` feature | `Polkit::serve_agent`, `serve_agent_with`, `AuthRequest` | [polkit](system/polkit.md) | — | done |
-| Appearance | colour scheme, accent, contrast, reduced motion | `Appearance`, `Scheme` | [appearance](system/appearance.md) | `examples/appearance.rs` | done |
+| Appearance | color scheme, accent, contrast, reduced motion | `Appearance`, `Scheme` | [appearance](system/appearance.md) | `examples/appearance.rs` | done |
 | Audio | device lists, kinds, default switching | `AudioDevice`, `AudioKind` | [audio](system/audio.md) | `examples/audio.rs` | done |
 | Notifications | timeout, hints, icon path, expire | `Timeout`, `Notifications::expire` | [notifications](system/notifications.md) | `examples/notifications.rs` | done |
 | Apps and processes | desktop entry id, categories, actions, MIME, opening files | `DesktopApp`, `DesktopAction` | [apps-and-processes](system/apps-and-processes.md) | `examples/apps.rs` | done |
