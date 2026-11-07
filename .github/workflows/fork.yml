@@ -33,8 +33,12 @@ jobs:
       - name: test
         run: nix develop -c cargo test --lib --locked --features polkit-agent
 
+      # rustdoc's warnings (broken links, docs naming private items) fail the build; the
+      # fork's modules also warn on a public item without docs (their #![warn] line)
       - name: doc
         run: nix develop -c cargo doc --no-deps --locked
+        env:
+          RUSTDOCFLAGS: -D warnings
 
   # no other vendor's platform terms on the lines the fork added (amane-shell's
   # scripts/lint-terms, against the fork point)
