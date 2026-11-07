@@ -61,7 +61,7 @@ pub enum Argument {
     // fields of any kinds in order, like polkit's subject (sa{sv})
     Struct(Vec<Argument>),
 
-    // a list of values that each carry their own kind (av), like kdeconnect's attachments
+    // a list of values that each carry their own kind (av), like a phone message's attachments
     Variants(Vec<Argument>),
 }
 

@@ -35,7 +35,6 @@ libc = "0.2"
 # wipes password text when it goes away
 zeroize = "1.9"
 parley = "0.12"
-mdns-sd = { version = "0.21.7", default-features = false }
 
 [dev-dependencies]
 chrono = "0.4"

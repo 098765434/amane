@@ -1,4 +1,3 @@
-pub mod adb;
 mod appearance;
 mod apps;
 mod audio;
@@ -14,7 +13,6 @@ mod error;
 pub(crate) mod focused_field;
 mod gestures;
 mod idle;
-mod kdeconnect;
 mod keyboard_layouts;
 mod lock;
 mod lock_keys;
@@ -49,7 +47,6 @@ use std::time::Duration;
 
 use crate::changes;
 
-pub use adb::{Adb, AdbDevice, AdbState, WirelessKind, WirelessService};
 pub use appearance::{Appearance, Scheme};
 pub use apps::{Apps, DesktopAction, DesktopApp, MimeApps};
 pub use audio::{Audio, AudioDevice, AudioKind};
@@ -68,11 +65,6 @@ pub use error::{ErrorKind, ServiceError, kind_of_bus};
 pub use focused_field::{FieldOwner, FillError, FocusedField, Hints, Purpose};
 pub use gestures::Gestures;
 pub use idle::Idle;
-pub use kdeconnect::{
-    KdeConnect, PairState as PhonePairState, PhoneBattery, PhoneClick, PhoneDevice, PhoneKey,
-    PhoneMessages, PhoneModifiers, PhoneNotification, SMS_PAGE, SmsAttachment, SmsKind, SmsMessage,
-    SmsState, SmsThread,
-};
 pub use keyboard_layouts::KeyboardLayouts;
 pub use lock::Lock;
 pub use lock_keys::LockKeys;
