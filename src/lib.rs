@@ -82,7 +82,10 @@ pub use popup::{
 pub use process::{lines, output, spawn, spawn_activated};
 pub use serde;
 pub use services::MimeApps;
+#[cfg(feature = "polkit-agent")]
+pub use services::PolkitAgent;
 pub use services::adb::run as adb;
+pub use services::worker::run as run_in_order;
 pub use services::{
     AccessPoint, Action, Adb, AdbDevice, AdbState, Appearance, Apps, Audio, AudioDevice, AudioKind,
     AuthPrompt, AuthRequest, Backdrop, Battery, BatteryState, Bluetooth, BluetoothAdapter,
@@ -98,6 +101,7 @@ pub use services::{
     TrayStatus, TrayToggle, Urgency, WarningLevel, WindowInfo, Windows, Wired, WirelessKind,
     WirelessService, Workspace, WorkspaceSwitch, Workspaces,
 };
+pub use services::{ErrorKind, IDLE_STOP, ServiceError, kind_of_bus};
 pub use status_item::{LiveActivity, StatusItem};
 pub use style::{Effect, Fill, Image, Input, Mask, Radius, Shadow};
 pub use video::{Colors as VideoColors, Frame as VideoFrame, VideoFeed};

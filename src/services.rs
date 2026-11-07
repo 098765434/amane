@@ -10,6 +10,7 @@ mod casts;
 mod clipboard_watcher;
 mod cpu;
 mod desktop;
+mod error;
 pub(crate) mod focused_field;
 mod gestures;
 mod idle;
@@ -63,6 +64,7 @@ pub use casts::Casts;
 pub use clipboard_watcher::ClipboardWatcher;
 pub use cpu::Cpu;
 pub use desktop::Desktop;
+pub use error::{ErrorKind, ServiceError, kind_of_bus};
 pub use focused_field::{FieldOwner, FillError, FocusedField, Hints, Purpose};
 pub use gestures::Gestures;
 pub use idle::Idle;
@@ -83,6 +85,8 @@ pub use outputs::Outputs;
 pub use overview::Overview;
 pub use palette::Palette;
 pub use pam::{Pam, PamConfig, PamError, PamMessage, PamMessageKind, PamResult};
+#[cfg(feature = "polkit-agent")]
+pub use polkit::PolkitAgent;
 pub use polkit::{AuthPrompt, AuthRequest, Polkit};
 pub use power_profile::PowerProfile;
 pub use rfkill::{Radio, Rfkill};
@@ -95,8 +99,9 @@ pub use workspace_switch::WorkspaceSwitch;
 pub use workspaces::Workspaces;
 pub use write::Write;
 
-/// How long a polling service amane ships keeps polling once nothing watches it.
-pub(crate) const IDLE_STOP: Duration = Duration::from_secs(30);
+/// How long a polling service amane ships keeps polling once nothing watches it; a good
+/// default for [`Service::idle_stop`] and [`Service::watched_within`] in services of your own.
+pub const IDLE_STOP: Duration = Duration::from_secs(30);
 
 pub trait Service: Send + Sync + Sized + 'static {
     fn new() -> Self;
@@ -138,6 +143,22 @@ pub trait Service: Send + Sync + Sized + 'static {
                 service.quiet();
             }
         }
+    }
+
+    /// Whether something watched the service within `idle`: an open window's last frame read
+    /// it, or something read it that recently. For a listener of its own that resyncs only
+    /// while watched.
+    fn watched_within(idle: Duration) -> bool {
+        !store::unwatched::<Self>(idle)
+    }
+
+    /// Reads the service without counting as watching it, and without redrawing anything
+    /// when it changes: for the service's own listener, comparing a fresh reading with what it
+    /// has. Views use [`read`](Self::read).
+    fn peek() -> RwLockReadGuard<'static, Self> {
+        store::find::<Self>()
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
     }
 
     fn read() -> RwLockReadGuard<'static, Self> {
