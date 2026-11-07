@@ -20,6 +20,7 @@ mod full;
 mod graphics;
 mod input;
 mod ipc;
+mod launch;
 mod layer_window;
 mod macros;
 mod monitor;
@@ -68,6 +69,7 @@ pub use input::{
     Button, Cursor, Key, Modifiers, Point, Scroll, ScrollSource, click_count, pointer_position,
 };
 pub use ipc::{IpcCall, call as ipc_call, ipc_socket, ipc_socket_for};
+pub use launch::{Launch, LaunchError};
 pub use layer_window::{
     Horizontal, InputArea, Keyboard, Layer, LayerWindow, Margin, Vertical, WindowSize, Zone,
 };

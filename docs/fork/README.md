@@ -17,6 +17,8 @@ as upstream has them; everything the fork adds is here.
 |---|---|---|---|---|---|
 | Workspaces | the workspace list (upstream) | `Workspaces`, `Workspace` | [services](compositor/services.md#workspaces) | `examples/workspaces.rs` | upstream |
 | Windows | open windows, the focused one, and compositor actions | `Windows`, `WindowInfo` | [services](compositor/services.md#windows-fork-addition) | — | done |
+| niri client | one shared event stream; asking niri for outputs, windows, casts and the fork's features | `amane::niri`, `niri::features()` | [services](compositor/services.md#asking-niri-amaneniri-fork-addition) | — | done |
+| Keyboard layouts | the layouts and the one in use | `KeyboardLayouts` | [services](compositor/services.md#keyboardlayouts-fork-addition-niri-only) | — | done, niri |
 | Overview | niri's overview progress alone | `Overview` | [services](compositor/services.md#overview-fork-addition-niri-only) | — | done, niri fork |
 | Gestures | per-frame overview, view scroll and workspace switch | `Gestures` | [services](compositor/services.md#gestures-fork-addition-niri-only) | — | done, niri fork |
 | WorkspaceSwitch | the workspace switch alone | `WorkspaceSwitch` | [services](compositor/services.md#workspaceswitch-fork-addition-niri-only) | — | done, niri fork |
@@ -53,6 +55,9 @@ as upstream has them; everything the fork adds is here.
 | Audio | device lists, kinds, default switching | `AudioDevice`, `AudioKind` | [audio](system/audio.md) | `examples/audio.rs` | done |
 | Notifications | timeout, hints, icon path, expire | `Timeout`, `Notifications::expire` | [notifications](system/notifications.md) | `examples/notifications.rs` | done |
 | Apps and processes | desktop entry id, categories, actions, MIME, opening files | `DesktopApp`, `DesktopAction` | [apps-and-processes](system/apps-and-processes.md) | `examples/apps.rs` | done |
+| Timers | jobs and redraws on the event loop at a time | `Timer`, `TimerHandle`, `redraw_after` | [timer](system/timer.md) | — | done |
+| Subscriptions | one service following another; polling only while watched | `Service::subscribe`, `Subscription`, `Service::idle_stop` | [subscriptions](system/subscriptions.md) | — | done |
+| Launching | starting programs without panics, each in its own systemd scope | `Launch`, `LaunchError` | [apps-and-processes](system/apps-and-processes.md#each-program-in-its-own-scope) | — | done |
 | IPC | a socket per app-id, one copy per app, calling another app | `ipc_call`, `App::on_activate` | [ipc](system/ipc.md) | `examples/app_window.rs` | done |
 
 ## Groups

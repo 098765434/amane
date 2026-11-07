@@ -70,6 +70,32 @@ and call it from input:
 `DesktopApp::launch` and `launch_with` launch this way. How the token works, and how an amane app
 uses one, is in [Activation](../windows/activation.md).
 
+### Each program in its own scope
+
+Every program amane starts goes into a transient systemd scope of its own,
+`app-amane-<app>-<pid>.scope` under `app.slice`, the way niri and GNOME start apps. Restarting the
+program that started it (a shell's own `systemd --user` service) then no longer stops it: before,
+an app opened from the dock lived in the shell's cgroup and went down with every restart. The
+scope is asked for over the session bus (`StartTransientUnit`) right after the program starts,
+on the worker thread, so nothing waits on systemd; without a systemd session it stays where it
+started, said once on stderr. A program that forks within the first milliseconds can leave that
+child behind, the trade GNOME and niri make too. `<app>` is the desktop id for a `DesktopApp`,
+otherwise the program's file name.
+
+### `Launch`: starting without panicking
+
+| API | Does |
+|---|---|
+| `Launch::shell(line)` | a command line through `sh -c` |
+| `Launch::argv(&[program, args…])` | a program and its arguments as they are |
+| `.token(Some(token))` | the activation token, as `XDG_ACTIVATION_TOKEN` and `DESKTOP_STARTUP_ID` |
+| `.app_id(Some(id))` | the app its scope is named for |
+| `.spawn() -> Result<u32, LaunchError>` | starts it in its scope; the process id, or why it didn't start |
+
+`spawn`, `spawn_activated` and the desktop launches go through it and log a program that won't
+start instead of panicking. `output` gives an empty string, and `lines` no lines, for a command
+that can't run. Code: `src/launch.rs`; commit `b2f770a`.
+
 ### Watching files
 
 `watch_file` gives an item each time the file is written, created, replaced, deleted or moved away (upstream missed the last two, `7c36e11`).
@@ -77,7 +103,7 @@ uses one, is in [Activation](../windows/activation.md).
 ## Design / internals
 
 - The MIME lookup is `src/services/apps/mime.rs`, read from the shared-mime-info files.
-- Commits: `0ebcfd2` (categories, keywords), `d9d3d46` (actions), `7f48e10` (`Apps::find_icon`), `c029184` (MIME, `opens`, `launch_with`), `3c3d56b` (`id`), `82337f2` (`spawn_activated`).
+- Commits: `0ebcfd2` (categories, keywords), `d9d3d46` (actions), `7f48e10` (`Apps::find_icon`), `c029184` (MIME, `opens`, `launch_with`), `3c3d56b` (`id`), `82337f2` (`spawn_activated`), `b2f770a` (`Launch`, scopes).
 
 ## Default apps: `MimeApps` (fork addition)
 
