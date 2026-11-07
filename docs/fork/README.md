@@ -50,7 +50,7 @@ as upstream has them; everything the fork adds is here.
 | adb | Android phones over USB and Wireless debugging: devices, mDNS discovery, pairing, connecting | `Adb`, `AdbDevice`, `WirelessService`, `amane::adb` | [adb](system/adb.md) | — | done |
 | Brightness | in HDR, the panel's SDR white in place of the backlight; uevents instead of polling | `Brightness::hdr`, `HdrPanel` | [brightness](system/brightness.md) | — | done |
 | Idle | ext-idle-notify levels and ScreenSaver inhibits | `Idle` | [idle](system/idle.md) | `examples/idle.rs` | done |
-| Polkit agent | the session's authentication agent: polkit's prompts as the shell's own | `Polkit::serve_agent`, `AuthRequest` | [polkit](system/polkit.md) | — | done |
+| Polkit agent | the session's authentication agent: polkit's prompts as the shell's own; `polkit-agent` feature | `Polkit::serve_agent`, `serve_agent_with`, `AuthRequest` | [polkit](system/polkit.md) | — | done |
 | Appearance | colour scheme, accent, contrast, reduced motion | `Appearance`, `Scheme` | [appearance](system/appearance.md) | `examples/appearance.rs` | done |
 | Audio | device lists, kinds, default switching | `AudioDevice`, `AudioKind` | [audio](system/audio.md) | `examples/audio.rs` | done |
 | Notifications | timeout, hints, icon path, expire | `Timeout`, `Notifications::expire` | [notifications](system/notifications.md) | `examples/notifications.rs` | done |
@@ -58,6 +58,7 @@ as upstream has them; everything the fork adds is here.
 | Radios | rfkill switches from `/dev/rfkill`, airplane mode, blocking | `Rfkill`, `Radio` | [rfkill](system/rfkill.md) | — | done |
 | Session | logind: active, locked and idle hints, lock requests, sleep, inhibitors | `Logind` | [logind](system/logind.md) | — | done |
 | Clipboard watcher | the selection as it changes, from any program, for a history | `ClipboardWatcher` | [clipboard-watcher](system/clipboard-watcher.md) | — | done |
+| Service errors | one failure type for the fork's services, and the helpers a program's own services share | `ServiceError`, `ErrorKind`, `run_in_order`, `Service::watched_within`, `Service::peek` | [errors](system/errors.md) | — | done |
 | Media | players followed by their MPRIS signals instead of a poll; the position worked out from the last reading | `Media`, `MediaPlayer::position` | [media](system/media.md) | — | done |
 | Network | NetworkManager's signals; VPN, WireGuard, hotspot and wired profiles | `Network::profiles`, `NetworkProfile`, `Wired` | [network](system/network.md) | — | done |
 | Lock keys | Caps Lock and Num Lock | `LockKeys` | [lock-keys](system/lock-keys.md) | — | done |
@@ -88,7 +89,7 @@ as upstream has them; everything the fork adds is here.
   [notifications](system/notifications.md), [apps-and-processes](system/apps-and-processes.md),
   [ipc](system/ipc.md), [rfkill](system/rfkill.md), [logind](system/logind.md),
   [clipboard-watcher](system/clipboard-watcher.md), [network](system/network.md),
-  [lock-keys](system/lock-keys.md), [media](system/media.md).
+  [lock-keys](system/lock-keys.md), [media](system/media.md), [errors](system/errors.md).
 - **Internals:** how the fork changes amane inside, and the resource plan.
   [architecture](internals/architecture.md) (sources, `on_track`, frame skip, GPU bounds, frozen
   windows), [memory](internals/memory.md) (what a process holds in GPU memory and RAM, the vello
