@@ -23,6 +23,7 @@ mod pam;
 mod polkit;
 mod power_profile;
 pub mod store;
+mod subscribe;
 mod tray;
 mod window_info;
 mod windows;
@@ -70,6 +71,7 @@ pub use palette::Palette;
 pub use pam::{Pam, PamConfig, PamError, PamMessage, PamMessageKind, PamResult};
 pub use polkit::{AuthPrompt, AuthRequest, Polkit};
 pub use power_profile::PowerProfile;
+pub use subscribe::Subscription;
 pub use tray::{Tray, TrayItem, TrayMenuItem, TrayStatus, TrayToggle};
 pub use window_info::WindowInfo;
 pub use windows::Windows;
@@ -78,11 +80,21 @@ pub use workspace_switch::WorkspaceSwitch;
 pub use workspaces::Workspaces;
 pub use write::Write;
 
+/// How long a polling service amane ships keeps polling once nothing watches it.
+pub(crate) const IDLE_STOP: Duration = Duration::from_secs(30);
+
 pub trait Service: Send + Sync + Sized + 'static {
     fn new() -> Self;
 
     fn interval() -> Duration {
         Duration::from_secs(1)
+    }
+
+    /// How long the default polling [`listen`](Self::listen) keeps polling after the last
+    /// [`read`](Self::read). Then it stops until the next read, which polls at once. `None`
+    /// polls for as long as the program runs.
+    fn idle_stop() -> Option<Duration> {
+        None
     }
 
     // reads the source again and says whether anything a window shows changed
@@ -100,6 +112,10 @@ pub trait Service: Send + Sync + Sized + 'static {
         loop {
             thread::sleep(Self::interval());
 
+            if let Some(idle) = Self::idle_stop() {
+                store::wait_while_unread::<Self>(idle);
+            }
+
             let mut service = Self::write();
 
             // a poll that found nothing new redraws nothing
@@ -113,9 +129,21 @@ pub trait Service: Send + Sync + Sized + 'static {
         // remembered, so a later change redraws only the windows that read it
         changes::note_read(TypeId::of::<Self>());
 
-        store::find::<Self>()
-            .read()
-            .unwrap_or_else(PoisonError::into_inner)
+        let slot = store::slot::<Self>();
+        slot.use_.touch();
+        slot.lock.read().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Calls `callback` after each write that changed the service (one not made
+    /// `quiet`), so another service can follow this one without polling it.
+    ///
+    /// Callbacks run one at a time on amane's subscription thread, with the service read for
+    /// them; writes in quick succession may share one call. Keep them short, and don't write
+    /// this same service from its own callback: the read it is given would wait forever. The
+    /// callback stays until the returned [`Subscription`] is dropped, or forever after
+    /// [`Subscription::forever`].
+    fn subscribe(callback: impl Fn(&Self) + Send + Sync + 'static) -> Subscription {
+        subscribe::add::<Self>(callback)
     }
 
     /*
@@ -123,12 +151,14 @@ pub trait Service: Send + Sync + Sized + 'static {
      * service is still held, so this would wait forever
      */
     fn write() -> Write<Self> {
+        subscribe::check_not_in_callback::<Self>();
+
         let guard = store::find::<Self>()
             .write()
             .unwrap_or_else(PoisonError::into_inner);
 
         Write {
-            guard,
+            guard: Some(guard),
             quiet: false,
         }
     }

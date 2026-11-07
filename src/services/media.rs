@@ -29,6 +29,11 @@ impl Service for Media {
         media
     }
 
+    // no window shows a player: no reason to ask them each second
+    fn idle_stop() -> Option<std::time::Duration> {
+        Some(super::IDLE_STOP)
+    }
+
     // a paused player reads the same every poll; a playing one moves its position
     fn update(&mut self) -> bool {
         let before = self.active().map(|player| player.name.clone());

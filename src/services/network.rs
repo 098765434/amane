@@ -49,9 +49,17 @@ impl Service for Network {
         loop {
             thread::sleep(Self::interval());
 
+            super::store::wait_while_unread::<Self>(super::IDLE_STOP);
+
             let fresh = fetch();
 
-            if Self::read().shows_same(&fresh) {
+            // read as the service's own, which doesn't count as watching it
+            let same = super::store::find::<Self>()
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .shows_same(&fresh);
+
+            if same {
                 continue;
             }
 

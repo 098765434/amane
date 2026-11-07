@@ -29,6 +29,11 @@ impl Service for Cpu {
         Duration::from_secs(2)
     }
 
+    // nothing shows it: no reason to read /proc
+    fn idle_stop() -> Option<Duration> {
+        Some(super::IDLE_STOP)
+    }
+
     fn update(&mut self) -> bool {
         let before = self.percent;
 

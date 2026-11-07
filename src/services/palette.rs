@@ -45,8 +45,13 @@ impl Service for Palette {
         loop {
             thread::sleep(Self::interval());
 
+            super::store::wait_while_unread::<Self>(super::IDLE_STOP);
+
             let (path, count, modified) = {
-                let palette = Self::read();
+                // read as the service's own, which doesn't count as watching it
+                let palette = super::store::find::<Self>()
+                    .read()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
 
                 let Some(path) = palette.path.clone() else {
                     continue;

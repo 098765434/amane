@@ -133,6 +133,24 @@ impl WaylandState {
         }
     }
 
+    /*
+     * the services some open window's last frame read: a polling service keeps
+     * polling while one is open, and stops when none is (services::store)
+     */
+    pub fn publish_watched(&self) {
+        let watched = self
+            .windows
+            .iter()
+            .flat_map(|window| &window.reads)
+            .filter_map(|source| match source {
+                changes::Source::Service(id) => Some(*id),
+                _ => None,
+            })
+            .collect();
+
+        crate::services::store::set_watched(watched);
+    }
+
     // only windows that read a service that changed draw again
     pub fn request_changed_frames(&mut self) {
         let Some(changed) = changes::take() else {

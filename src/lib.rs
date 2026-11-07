@@ -32,6 +32,7 @@ mod scale;
 mod services;
 pub mod status_item;
 mod style;
+mod timer;
 mod timing;
 pub mod video;
 mod wayland;
@@ -44,6 +45,7 @@ pub use clipboard::{Clipboard, DragData, PrimarySelection};
 pub use config::{Config, Settings};
 pub use notify::Notify;
 pub use portal::FileDialog;
+pub use timer::{Timer, TimerHandle, redraw_after};
 pub use timing::{FrameStats, frame_stats};
 // for deriving Settings without depending on serde yourself: #[serde(crate = "amane::serde")]
 pub use app::App;
@@ -88,9 +90,9 @@ pub use services::{
     PamMessage, PamMessageKind, PamResult, PhoneBattery, PhoneClick, PhoneDevice, PhoneKey,
     PhoneMessages, PhoneModifiers, PhoneNotification, PhonePairState, Polkit, PowerDevice,
     PowerProfile, PowerState, Purpose as FieldPurpose, SMS_PAGE, Scheme, Service, SmsAttachment,
-    SmsKind, SmsMessage, SmsState, SmsThread, Timeout, Tray, TrayItem, TrayMenuItem, TrayStatus,
-    TrayToggle, Urgency, WarningLevel, WindowInfo, Windows, WirelessKind, WirelessService,
-    Workspace, WorkspaceSwitch, Workspaces,
+    SmsKind, SmsMessage, SmsState, SmsThread, Subscription, Timeout, Tray, TrayItem, TrayMenuItem,
+    TrayStatus, TrayToggle, Urgency, WarningLevel, WindowInfo, Windows, WirelessKind,
+    WirelessService, Workspace, WorkspaceSwitch, Workspaces,
 };
 pub use status_item::{LiveActivity, StatusItem};
 pub use style::{Effect, Fill, Image, Input, Mask, Radius, Shadow};
