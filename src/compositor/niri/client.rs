@@ -137,6 +137,10 @@ pub struct Output {
     pub name: String,
     pub make: String,
     pub model: String,
+    /// The serial number its EDID gives, when it gives one.
+    pub serial: Option<String>,
+    /// Width and height in millimetres, when known.
+    pub physical_size: Option<(u32, u32)>,
     /// Where it is in the layout, when it's turned on.
     pub logical: Option<Logical>,
     /// Whether it could show HDR (the fork; false on stock niri).
@@ -151,6 +155,12 @@ pub struct Output {
     pub modes: Vec<Mode>,
     /// The index in [`modes`](Self::modes) of the one it shows, when it's on.
     pub current_mode: Option<usize>,
+    /// Whether it shows a mode it doesn't list (a custom one).
+    pub is_custom_mode: bool,
+    /// Whether it can vary its refresh rate.
+    pub vrr_supported: bool,
+    /// Whether it varies its refresh rate now.
+    pub vrr_enabled: bool,
 }
 
 /// A mode an output offers.
@@ -168,6 +178,72 @@ impl Output {
     pub fn mode(&self) -> Option<&Mode> {
         self.modes.get(self.current_mode?)
     }
+
+    /// Whether it's on: an output that's off shows no mode.
+    pub fn on(&self) -> bool {
+        self.current_mode.is_some()
+    }
+}
+
+impl Mode {
+    /// The refresh rate in hertz.
+    pub fn hz(self) -> f64 {
+        f64::from(self.refresh_rate) / 1000.0
+    }
+}
+
+/// How an output is turned, counter-clockwise, as niri turns them.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Transform {
+    #[default]
+    Normal,
+    _90,
+    _180,
+    _270,
+    Flipped,
+    Flipped90,
+    Flipped180,
+    Flipped270,
+}
+
+impl Transform {
+    /// All eight, in niri's order.
+    pub const ALL: [Transform; 8] = [
+        Transform::Normal,
+        Transform::_90,
+        Transform::_180,
+        Transform::_270,
+        Transform::Flipped,
+        Transform::Flipped90,
+        Transform::Flipped180,
+        Transform::Flipped270,
+    ];
+
+    /// Its name in niri's IPC.
+    pub fn ipc_name(self) -> &'static str {
+        match self {
+            Transform::Normal => "Normal",
+            Transform::_90 => "90",
+            Transform::_180 => "180",
+            Transform::_270 => "270",
+            Transform::Flipped => "Flipped",
+            Transform::Flipped90 => "Flipped90",
+            Transform::Flipped180 => "Flipped180",
+            Transform::Flipped270 => "Flipped270",
+        }
+    }
+
+    fn from_ipc(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|t| t.ipc_name() == name)
+    }
+
+    /// Turned a quarter, so its width and height swap.
+    pub fn sideways(self) -> bool {
+        matches!(
+            self,
+            Transform::_90 | Transform::_270 | Transform::Flipped90 | Transform::Flipped270
+        )
+    }
 }
 
 /// An output's place in the layout, in logical pixels.
@@ -178,6 +254,7 @@ pub struct Logical {
     pub width: u32,
     pub height: u32,
     pub scale: f64,
+    pub transform: Transform,
 }
 
 /// The connected outputs, by name.
@@ -204,12 +281,25 @@ fn parse_output(output: &Value) -> Option<Output> {
                 width: u32::try_from(l.get("width")?.as_u64()?).ok()?,
                 height: u32::try_from(l.get("height")?.as_u64()?).ok()?,
                 scale: l.get("scale")?.as_f64()?,
+                transform: l
+                    .get("transform")
+                    .and_then(Value::as_str)
+                    .and_then(Transform::from_ipc)
+                    .unwrap_or_default(),
             })
         });
     Some(Output {
         name: text("name")?,
         make: text("make").unwrap_or_default(),
         model: text("model").unwrap_or_default(),
+        serial: text("serial"),
+        physical_size: output
+            .get("physical_size")
+            .and_then(Value::as_array)
+            .and_then(|size| {
+                let side = |at: usize| u32::try_from(size.get(at)?.as_u64()?).ok();
+                Some((side(0)?, side(1)?))
+            }),
         logical,
         hdr_supported: output.get("hdr_supported").and_then(Value::as_bool) == Some(true),
         hdr_enabled: output.get("hdr_enabled").and_then(Value::as_bool) == Some(true),
@@ -224,6 +314,9 @@ fn parse_output(output: &Value) -> Option<Output> {
             .get("current_mode")
             .and_then(Value::as_u64)
             .and_then(|index| usize::try_from(index).ok()),
+        is_custom_mode: output.get("is_custom_mode").and_then(Value::as_bool) == Some(true),
+        vrr_supported: output.get("vrr_supported").and_then(Value::as_bool) == Some(true),
+        vrr_enabled: output.get("vrr_enabled").and_then(Value::as_bool) == Some(true),
     })
 }
 
@@ -282,19 +375,86 @@ pub fn quit() -> Result<(), NiriError> {
     act(json!({ "Quit": { "skip_confirmation": true } }))
 }
 
-/// Shows `mode` on `output` until niri reads its config again.
-pub fn set_output_mode(output: &str, mode: Mode) -> Result<(), NiriError> {
-    let refresh = f64::from(mode.refresh_rate) / 1000.0;
-    ask_handled(&json!({
-        "Output": {
-            "output": output,
-            "action": { "Mode": { "mode": { "Specific": {
+/// A change niri makes to an output at once, and keeps until it reads its config again.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum OutputChange {
+    On,
+    Off,
+    Mode(Mode),
+    /// A mode the output doesn't list: width, height and refresh rate in hertz.
+    CustomMode {
+        width: u16,
+        height: u16,
+        hz: f64,
+    },
+    Scale(f64),
+    Transform(Transform),
+    /// Its top-left corner in the layout, in logical pixels.
+    Position {
+        x: i32,
+        y: i32,
+    },
+    /// A varying refresh rate: on, and if so whether only while a window asks for it.
+    Vrr {
+        on: bool,
+        on_demand: bool,
+    },
+    /// HDR on or off (the fork).
+    Hdr(bool),
+    /// SDR white in nits while it shows HDR (the fork).
+    SdrBrightness(f64),
+}
+
+impl OutputChange {
+    fn action(self) -> Value {
+        match self {
+            OutputChange::On => json!("On"),
+            OutputChange::Off => json!("Off"),
+            OutputChange::Mode(mode) => json!({ "Mode": { "mode": { "Specific": {
                 "width": mode.width,
                 "height": mode.height,
-                "refresh": refresh,
-            } } } }
+                "refresh": mode.hz(),
+            } } } }),
+            OutputChange::CustomMode { width, height, hz } => json!({ "CustomMode": { "mode": {
+                "width": width,
+                "height": height,
+                "refresh": hz,
+            } } }),
+            OutputChange::Scale(scale) => json!({ "Scale": { "scale": { "Specific": scale } } }),
+            OutputChange::Transform(transform) => {
+                json!({ "Transform": { "transform": transform.ipc_name() } })
+            }
+            OutputChange::Position { x, y } => {
+                json!({ "Position": { "position": { "Specific": { "x": x, "y": y } } } })
+            }
+            OutputChange::Vrr { on, on_demand } => {
+                json!({ "Vrr": { "vrr": { "vrr": on, "on_demand": on_demand } } })
+            }
+            OutputChange::Hdr(hdr) => json!({ "Hdr": { "hdr": hdr } }),
+            OutputChange::SdrBrightness(nits) => json!({ "SdrBrightness": { "nits": nits } }),
         }
-    }))
+    }
+}
+
+/// Makes `change` to `output` until niri reads its config again.
+pub fn set_output(output: &str, change: OutputChange) -> Result<(), NiriError> {
+    ask_handled(&json!({ "Output": { "output": output, "action": change.action() } }))
+}
+
+/// Shows `mode` on `output` until niri reads its config again.
+pub fn set_output_mode(output: &str, mode: Mode) -> Result<(), NiriError> {
+    set_output(output, OutputChange::Mode(mode))
+}
+
+/// Calls `on_load` each time niri reads its config, with whether the read failed (and so
+/// changed nothing), until niri exits. It blocks, so run it on a thread of its own. Changes made
+/// with [`set_output`] are lost at each read, so this is where to make them again.
+pub fn follow_config_loads(mut on_load: impl FnMut(bool)) {
+    for event in super::stream::subscribe() {
+        if let super::Event::ConfigLoaded { failed } = event {
+            on_load(failed);
+        }
+    }
 }
 
 /// Stops a screencast.
@@ -407,6 +567,30 @@ mod tests {
     use super::*;
 
     #[test]
+    fn output_changes_are_niri_actions() {
+        assert_eq!(
+            OutputChange::Scale(1.5).action(),
+            json!({ "Scale": { "scale": { "Specific": 1.5 } } })
+        );
+        assert_eq!(
+            OutputChange::Transform(Transform::Flipped90).action(),
+            json!({ "Transform": { "transform": "Flipped90" } })
+        );
+        assert_eq!(
+            OutputChange::Vrr {
+                on: true,
+                on_demand: true
+            }
+            .action(),
+            json!({ "Vrr": { "vrr": { "vrr": true, "on_demand": true } } })
+        );
+        assert_eq!(
+            OutputChange::SdrBrightness(203.0).action(),
+            json!({ "SdrBrightness": { "nits": 203.0 } })
+        );
+    }
+
+    #[test]
     fn reads_the_features_list() {
         let list = serde_json::from_str(
             r#"[{"name":"blur-shapes","version":2},{"name":"desktop-obscured","version":1}]"#,
@@ -447,6 +631,19 @@ mod tests {
                 .expect("json");
         let stock = parse_output(&stock).expect("an output");
         assert!(stock.logical.is_none() && !stock.hdr_supported);
+
+        let full: Value = serde_json::from_str(
+            r#"{"name":"eDP-1","make":"Lenovo","model":"ATNA40","serial":null,"physical_size":[300,190],"modes":[{"width":2880,"height":1800,"refresh_rate":120000,"is_preferred":true}],"current_mode":0,"is_custom_mode":false,"vrr_supported":true,"vrr_enabled":false,"logical":{"x":0,"y":0,"width":1645,"height":1028,"scale":1.75,"transform":"Flipped90"}}"#,
+        )
+        .expect("json");
+        let full = parse_output(&full).expect("an output");
+        assert_eq!(full.physical_size, Some((300, 190)));
+        assert!(full.serial.is_none() && full.vrr_supported && !full.vrr_enabled);
+        assert!(full.on());
+        assert_eq!(full.mode().map(|m| m.hz()), Some(120.0));
+        let transform = full.logical.map(|l| l.transform);
+        assert_eq!(transform, Some(Transform::Flipped90));
+        assert!(transform.is_some_and(Transform::sideways));
 
         let window: Value = serde_json::from_str(
             r#"{"id":7,"title":"foot","app_id":"foot","pid":4242,"workspace_id":3,"is_focused":true,"is_floating":false,"is_urgent":false}"#,
