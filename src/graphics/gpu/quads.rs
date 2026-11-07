@@ -2,6 +2,8 @@ mod batch;
 mod clip;
 mod draw;
 mod pipeline;
+// the fork's shapes and shadows
+mod shapes;
 mod video;
 
 use std::collections::HashMap;
@@ -10,8 +12,8 @@ use vello::wgpu::{BindGroup, BindGroupLayout, RenderPipeline, Sampler, Texture};
 
 use super::atlas::Atlas;
 
-pub use batch::Paint;
 pub use clip::{Clip, Clips};
+pub use shapes::Paint;
 
 // how many numbers one quad takes: Quad in quads.wgsl has eleven rows of four
 const QUAD_SIZE: usize = 11 * 4;
