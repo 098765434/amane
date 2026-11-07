@@ -4,7 +4,7 @@ use std::sync::{Mutex, Once, PoisonError};
 use std::thread;
 
 use crate::services::worker;
-use crate::{Argument, Bus, Method, Service, Value};
+use crate::{Argument, Bus, ErrorKind, Method, Service, ServiceError, Value};
 
 use super::Polkit;
 use super::helper::{self, Event, Session};
@@ -385,7 +385,9 @@ fn on_event(id: u64, event: Event) {
             });
         }
         Event::Info(text) => with_request(id, |request| request.info.push(text)),
-        Event::Error(text) => with_request(id, |request| request.error = Some(text)),
+        Event::Error(text) => with_request(id, |request| {
+            request.error = Some(ServiceError::new(ErrorKind::Failed, text));
+        }),
         Event::Done(true) => {
             if let Some(done) = waiting.take() {
                 done.method.reply(&[]);
@@ -415,7 +417,7 @@ fn on_event(id: u64, event: Event) {
                 request.prompt = None;
                 request.info.clear();
                 request.busy = false;
-                request.error = Some(String::from("Sorry, that didn't work. Try again."));
+                request.error = Some(ServiceError::new(ErrorKind::AuthenticationFailed, ""));
             });
 
             // the same cookie stands for another try

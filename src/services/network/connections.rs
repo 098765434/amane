@@ -4,7 +4,7 @@
 //! [`Network`](super::Network) covers: VPN and WireGuard profiles, a hotspot (a Wi-Fi profile
 //! in access-point mode), and the first Ethernet device with a cable in.
 
-use crate::{Argument, Bus, Value};
+use crate::{Argument, Bus, ErrorKind, ServiceError, Value};
 
 use super::manager::{self, NAME, PATH};
 
@@ -177,56 +177,58 @@ pub(super) fn wired(devices: &[Device]) -> Option<Wired> {
 }
 
 /// Brings the profile with `uuid` up, on whatever device NetworkManager picks.
-pub(super) fn activate(uuid: &str) {
+pub(super) fn activate(uuid: &str) -> Result<(), ServiceError> {
     let bus = Bus::system();
-    let path = bus.call(
+    let path = bus.try_call(
         NAME,
         SETTINGS_PATH,
         SETTINGS,
         "GetConnectionByUuid",
         &[Argument::from(uuid)],
-    );
+    )?;
     let path = path.text();
     if path.is_empty() {
-        return;
+        return Err(ServiceError::new(ErrorKind::Gone, "no such profile"));
     }
     let arguments = [
         Argument::Path(path.to_owned()),
         Argument::Path(String::from("/")),
         Argument::Path(String::from("/")),
     ];
-    bus.call(NAME, PATH, NAME, "ActivateConnection", &arguments);
+    bus.try_call(NAME, PATH, NAME, "ActivateConnection", &arguments)?;
+    Ok(())
 }
 
 /// Takes the profile with `uuid` down.
-pub(super) fn deactivate(uuid: &str) {
+pub(super) fn deactivate(uuid: &str) -> Result<(), ServiceError> {
     for (active_uuid, path) in active() {
         if active_uuid == uuid {
-            Bus::system().call(
+            Bus::system().try_call(
                 NAME,
                 PATH,
                 NAME,
                 "DeactivateConnection",
                 &[Argument::Path(path)],
-            );
+            )?;
         }
     }
+    Ok(())
 }
 
 /// Connects the device with `interface` with the best profile for it, as `nmcli device
 /// connect` does, or disconnects it.
-pub(super) fn set_device(interface: &str, connected: bool) {
+pub(super) fn set_device(interface: &str, connected: bool) -> Result<(), ServiceError> {
     let bus = Bus::system();
-    let path = bus.call(
+    let path = bus.try_call(
         NAME,
         PATH,
         NAME,
         "GetDeviceByIpIface",
         &[Argument::from(interface)],
-    );
+    )?;
     let path = path.text();
     if path.is_empty() {
-        return;
+        return Err(ServiceError::new(ErrorKind::Gone, "no such device"));
     }
     if connected {
         let arguments = [
@@ -234,10 +236,11 @@ pub(super) fn set_device(interface: &str, connected: bool) {
             Argument::Path(path.to_owned()),
             Argument::Path(String::from("/")),
         ];
-        bus.call(NAME, PATH, NAME, "ActivateConnection", &arguments);
+        bus.try_call(NAME, PATH, NAME, "ActivateConnection", &arguments)?;
     } else {
-        bus.call(NAME, path, DEVICE, "Disconnect", &[]);
+        bus.try_call(NAME, path, DEVICE, "Disconnect", &[])?;
     }
+    Ok(())
 }
 
 #[cfg(test)]

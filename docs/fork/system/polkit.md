@@ -33,7 +33,8 @@ that puts it elsewhere; `serve_agent()` uses `/run/polkit/agent-helper.socket`.
   only replies to the parked call: empty on success, `…Error.Failed` after three failures.
   Closing the socket is how a cancel reaches the helper.
 - A wrong password starts the helper again with the same cookie, up to three tries, with
-  `error()` saying "Sorry, that didn't work. Try again." in between.
+  `error()` an `AuthenticationFailed` [`ServiceError`](errors.md) in between, which the shell
+  words; the helper's own error lines come as `Failed` with its text.
 
 ## The request
 
@@ -43,7 +44,7 @@ that puts it elsewhere; `serve_agent()` uses `/run/polkit/agent-helper.socket`.
 | `action_id()`, `message()`, `icon()` | polkit's action (`org.freedesktop.systemd1.manage-units`) and its own sentence |
 | `user()` | who the password proves |
 | `prompt()` | `AuthPrompt { text(), echo() }` once the helper asks; `None` before, and while an answer is checked |
-| `info()`, `error()` | lines the helper showed; what went wrong with the last try |
+| `info()`, `error()` | lines the helper showed; what went wrong with the last try, as a `ServiceError` |
 | `tries()`, `busy()` | wrong answers so far; an answer is with the helper |
 
 `Polkit::answer(id, text)` sends what was typed (kept until the helper asks, if it hasn't

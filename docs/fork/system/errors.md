@@ -22,6 +22,15 @@ its own names (BlueZ, NetworkManager) first. `Display` is the message, or the ki
   (Bluetooth's `Connecting`, `Pairing` and so on).
 - **Blocking calls** return `Result<_, ServiceError>`.
 
+Where it's used:
+
+| Service | Failures | In progress |
+|---|---|---|
+| `Bluetooth` | `failure(path)`, a device's or the adapter's | `operation(path)` |
+| `Network` | `failure(key)`, by network name, profile UUID or interface; a wrong Wi-Fi password is `AuthenticationFailed`, from the device's failed state | `operation(ssid)` |
+| `Polkit` | `AuthRequest::error()`: `AuthenticationFailed` for a wrong password | `AuthRequest::busy()` |
+| `Rfkill::set_blocked`, `ClipboardWatcher::contents`, `Logind::inhibit`, `MimeApps::set_default` / `reset` | returned | — |
+
 Upstream services (`Lock`, `Pam`) keep their own error types, so a rebase doesn't conflict there.
 
 ## For services outside amane

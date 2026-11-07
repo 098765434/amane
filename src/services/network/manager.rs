@@ -1,4 +1,4 @@
-use crate::{Argument, Bus, Value};
+use crate::{Argument, Bus, BusError, Value};
 
 pub const NAME: &str = "org.freedesktop.NetworkManager";
 
@@ -40,25 +40,29 @@ pub fn set_wifi(enabled: bool) {
 }
 
 // "/" lets networkmanager pick the access point itself
-pub fn activate(profile: &str, device: &str) {
+pub fn activate(profile: &str, device: &str) -> Result<(), BusError> {
     let arguments = [
         Argument::Path(String::from(profile)),
         Argument::Path(String::from(device)),
         Argument::Path(String::from("/")),
     ];
 
-    Bus::system().call(NAME, PATH, NAME, "ActivateConnection", &arguments);
+    Bus::system()
+        .try_call(NAME, PATH, NAME, "ActivateConnection", &arguments)
+        .map(|_| ())
 }
 
 // saves a new profile from these settings and joins it straight away
-pub fn add_and_activate(settings: Argument, device: &str) {
+pub fn add_and_activate(settings: Argument, device: &str) -> Result<(), BusError> {
     let arguments = [
         settings,
         Argument::Path(String::from(device)),
         Argument::Path(String::from("/")),
     ];
 
-    Bus::system().call(NAME, PATH, NAME, "AddAndActivateConnection", &arguments);
+    Bus::system()
+        .try_call(NAME, PATH, NAME, "AddAndActivateConnection", &arguments)
+        .map(|_| ())
 }
 
 pub fn properties(path: &str, interface: &str) -> Value {

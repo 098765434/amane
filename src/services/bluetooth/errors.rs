@@ -1,118 +1,54 @@
 #![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
 
-use crate::BusError;
+//! BlueZ's errors as [`ServiceError`]s: its own names first, then the reason it puts in the
+//! text of a plain `org.bluez.Error.Failed`. How a failure reads is the UI's choice.
 
-// why a connect, pair or other bluetooth action didn't happen
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BluetoothError {
-    // off, out of range, or connected to something else
-    Unreachable,
+use crate::{BusError, ErrorKind, ServiceError};
 
-    // the codes didn't match, or the device dropped the pairing
-    AuthenticationFailed,
+/*
+ * none when the call failed only because what was asked for is already
+ * so, like connecting a device that is connected; that counts as done
+ */
+pub(crate) fn from_bus(error: &BusError) -> Option<ServiceError> {
+    let name = error.name().trim_start_matches("org.bluez.Error.");
+    let message = error.message();
 
-    // refused on the other device, or here
-    Rejected,
+    let error = match name {
+        "AlreadyConnected" | "AlreadyExists" => return None,
 
-    Canceled,
+        "AuthenticationFailed" => ErrorKind::AuthenticationFailed,
+        "AuthenticationRejected" | "Rejected" => ErrorKind::Rejected,
+        "AuthenticationCanceled" | "Canceled" => ErrorKind::Canceled,
+        "AuthenticationTimeout" => ErrorKind::TimedOut,
+        "ConnectionAttemptFailed" | "PageTimeout" | "HostDown" => ErrorKind::Unreachable,
+        "NotReady" => ErrorKind::NotReady,
+        "Blocked" => ErrorKind::Blocked,
+        "NotSupported" | "NotAvailable" => ErrorKind::NotSupported,
+        "DoesNotExist" => ErrorKind::Gone,
 
-    // nobody answered in time
-    TimedOut,
-
-    // the radio is off
-    NotReady,
-
-    // rfkill or a hardware switch holds the radio off
-    Blocked,
-
-    // nothing on the device amane can connect to, like a phone without audio
-    NotSupported,
-
-    // the device went away while being asked
-    Gone,
-
-    // anything else, with what bluez said
-    Failed(String),
-}
-
-impl BluetoothError {
-    /*
-     * none when the call failed only because what was asked for is already
-     * so, like connecting a device that is connected; that counts as done
-     */
-    pub(crate) fn from_bus(error: &BusError) -> Option<Self> {
-        let name = error.name().trim_start_matches("org.bluez.Error.");
-        let message = error.message();
-
-        let error = match name {
-            "AlreadyConnected" | "AlreadyExists" => return None,
-
-            "AuthenticationFailed" => Self::AuthenticationFailed,
-            "AuthenticationRejected" | "Rejected" => Self::Rejected,
-            "AuthenticationCanceled" | "Canceled" => Self::Canceled,
-            "AuthenticationTimeout" => Self::TimedOut,
-            "ConnectionAttemptFailed" | "PageTimeout" | "HostDown" => Self::Unreachable,
-            "NotReady" => Self::NotReady,
-            "Blocked" => Self::Blocked,
-            "NotSupported" | "NotAvailable" => Self::NotSupported,
-            "DoesNotExist" => Self::Gone,
-
-            "org.freedesktop.DBus.Error.NoReply" | "org.freedesktop.DBus.Error.Timeout" => {
-                Self::TimedOut
-            }
-            "org.freedesktop.DBus.Error.UnknownObject"
-            | "org.freedesktop.DBus.Error.UnknownMethod" => Self::Gone,
-
-            // bluez puts the reason for most failed connects in the message of a plain Failed
-            _ => from_message(message),
-        };
-
-        Some(error)
-    }
-
-    // a few words for a row in a device list
-    pub fn label(&self) -> &str {
-        match self {
-            Self::Unreachable => "Not reachable",
-            Self::AuthenticationFailed => "Pairing failed",
-            Self::Rejected => "Declined",
-            Self::Canceled => "Canceled",
-            Self::TimedOut => "Timed out",
-            Self::NotReady => "Bluetooth is off",
-            Self::Blocked => "Blocked",
-            Self::NotSupported => "Not supported",
-            Self::Gone => "Not found",
-            Self::Failed(_) => "Couldn't connect",
+        "org.freedesktop.DBus.Error.NoReply" | "org.freedesktop.DBus.Error.Timeout" => {
+            ErrorKind::TimedOut
         }
-    }
-
-    // a sentence for where there's room
-    pub fn description(&self) -> &str {
-        match self {
-            Self::Unreachable => "Couldn't connect. Make sure it's on and nearby.",
-            Self::AuthenticationFailed => "Pairing failed. The codes may not have matched.",
-            Self::Rejected => "The pairing was declined.",
-            Self::Canceled => "The pairing was canceled.",
-            Self::TimedOut => "The device didn't answer in time.",
-            Self::NotReady => "Bluetooth is off.",
-            Self::Blocked => "Bluetooth is blocked by airplane mode or a hardware switch.",
-            Self::NotSupported => "This device has nothing this computer can connect to.",
-            Self::Gone => "The device is no longer nearby.",
-            Self::Failed(message) if !message.is_empty() => message,
-            Self::Failed(_) => "Something went wrong.",
+        "org.freedesktop.DBus.Error.UnknownObject" | "org.freedesktop.DBus.Error.UnknownMethod" => {
+            ErrorKind::Gone
         }
-    }
+
+        // bluez puts the reason for most failed connects in the message of a plain Failed
+        _ => from_message(message),
+    };
+
+    Some(ServiceError::new(error, message))
 }
 
 // the reasons bluez gives in the text of org.bluez.Error.Failed
-fn from_message(message: &str) -> BluetoothError {
+fn from_message(message: &str) -> ErrorKind {
     let lower = message.to_lowercase();
     let has = |part: &str| lower.contains(part);
 
     if has("rfkill") || has("blocked") {
-        BluetoothError::Blocked
+        ErrorKind::Blocked
     } else if has("profile-unavailable") || has("not supported") {
-        BluetoothError::NotSupported
+        ErrorKind::NotSupported
     } else if has("page-timeout")
         || has("connection-refused")
         || has("connection-aborted")
@@ -122,15 +58,15 @@ fn from_message(message: &str) -> BluetoothError {
         || has("connection-unknown")
         || has("software caused connection abort")
     {
-        BluetoothError::Unreachable
+        ErrorKind::Unreachable
     } else if has("timeout") || has("timed out") {
-        BluetoothError::TimedOut
+        ErrorKind::TimedOut
     } else if has("authentication") {
-        BluetoothError::AuthenticationFailed
+        ErrorKind::AuthenticationFailed
     } else if has("not ready") || has("not powered") {
-        BluetoothError::NotReady
+        ErrorKind::NotReady
     } else {
-        BluetoothError::Failed(message.to_string())
+        ErrorKind::Failed
     }
 }
 
@@ -138,8 +74,8 @@ fn from_message(message: &str) -> BluetoothError {
 mod tests {
     use super::*;
 
-    fn error(name: &str, message: &str) -> Option<BluetoothError> {
-        BluetoothError::from_bus(&BusError::new(name, message))
+    fn error(name: &str, message: &str) -> Option<ErrorKind> {
+        from_bus(&BusError::new(name, message)).map(|error| error.kind)
     }
 
     #[test]
@@ -155,18 +91,27 @@ mod tests {
     fn named_errors_map_directly() {
         assert_eq!(
             error("org.bluez.Error.AuthenticationFailed", ""),
-            Some(BluetoothError::AuthenticationFailed)
+            Some(ErrorKind::AuthenticationFailed)
         );
         assert_eq!(
             error("org.bluez.Error.NotReady", "Resource Not Ready"),
-            Some(BluetoothError::NotReady)
+            Some(ErrorKind::NotReady)
         );
         assert_eq!(
             error(
                 "org.freedesktop.DBus.Error.NoReply",
                 "Did not receive a reply"
             ),
-            Some(BluetoothError::TimedOut)
+            Some(ErrorKind::TimedOut)
+        );
+    }
+
+    #[test]
+    fn keeps_what_bluez_said() {
+        let failed = from_bus(&BusError::new("org.bluez.Error.Failed", "something new"));
+        assert_eq!(
+            failed.map(|error| error.message),
+            Some(String::from("something new"))
         );
     }
 
@@ -174,46 +119,26 @@ mod tests {
     fn a_plain_failed_is_read_from_its_message() {
         assert_eq!(
             error("org.bluez.Error.Failed", "br-connection-page-timeout"),
-            Some(BluetoothError::Unreachable)
+            Some(ErrorKind::Unreachable)
         );
         assert_eq!(
             error("org.bluez.Error.Failed", "le-connection-abort-by-local"),
-            Some(BluetoothError::Unreachable)
+            Some(ErrorKind::Unreachable)
         );
         assert_eq!(
             error(
                 "org.bluez.Error.Failed",
                 "br-connection-profile-unavailable"
             ),
-            Some(BluetoothError::NotSupported)
+            Some(ErrorKind::NotSupported)
         );
         assert_eq!(
             error("org.bluez.Error.Failed", "Blocked through rfkill"),
-            Some(BluetoothError::Blocked)
+            Some(ErrorKind::Blocked)
         );
         assert_eq!(
             error("org.bluez.Error.Failed", "something new"),
-            Some(BluetoothError::Failed("something new".into()))
+            Some(ErrorKind::Failed)
         );
-    }
-
-    #[test]
-    fn every_label_fits_a_row() {
-        let all = [
-            BluetoothError::Unreachable,
-            BluetoothError::AuthenticationFailed,
-            BluetoothError::Rejected,
-            BluetoothError::Canceled,
-            BluetoothError::TimedOut,
-            BluetoothError::NotReady,
-            BluetoothError::Blocked,
-            BluetoothError::NotSupported,
-            BluetoothError::Gone,
-            BluetoothError::Failed(String::new()),
-        ];
-
-        for error in all {
-            assert!(error.label().chars().count() <= 16, "{}", error.label());
-        }
     }
 }

@@ -10,13 +10,12 @@ use std::sync::{Mutex, Once, PoisonError};
 use std::thread;
 use std::time::Duration;
 
-use crate::{Argument, Bus, Service};
+use crate::{Argument, Bus, Service, ServiceError};
 
 pub use actions::Operation;
 pub use adapter::{BluetoothAdapter, PowerState};
 pub use agent::{PairingAnswer, PairingKind, PairingRequest};
 pub use device::BluetoothDevice;
-pub use errors::BluetoothError;
 
 use model::Objects;
 
@@ -50,7 +49,7 @@ pub struct Bluetooth {
     operations: BTreeMap<String, Operation>,
 
     // why each device's last action failed, by its path, until it's tried again
-    failures: BTreeMap<String, BluetoothError>,
+    failures: BTreeMap<String, ServiceError>,
 
     // a device asking to pair, waiting for an answer; only with serve_agent()
     request: Option<PairingRequest>,
@@ -175,11 +174,9 @@ impl Bluetooth {
         self.operations.get(device).copied()
     }
 
-    /*
-     * why the last action on `device` failed, kept a little while and
-     * until it's tried again; the adapter's path for turning it on
-     */
-    pub fn failure(&self, device: &str) -> Option<&BluetoothError> {
+    /// Why the last action on `device` failed, until it's tried again; the adapter's path for
+    /// turning it on. How long it shows, and in what words, is the UI's choice.
+    pub fn failure(&self, device: &str) -> Option<&ServiceError> {
         self.failures.get(device)
     }
 

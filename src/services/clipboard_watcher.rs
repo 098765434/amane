@@ -29,8 +29,8 @@ use smithay_client_toolkit::reexports::protocols::ext::data_control::v1::client:
     ext_data_control_offer_v1::{self, ExtDataControlOfferV1},
 };
 
-use crate::Service;
 use crate::wayland::clipboard::PASSWORD_HINT;
+use crate::{Service, ServiceError};
 
 // how long a read waits for the program that copied to hand the data over
 const READ_TIMEOUT: Duration = Duration::from_secs(2);
@@ -102,7 +102,7 @@ impl ClipboardWatcher {
     /// over, for up to two seconds, so call it from a service thread, never from a view or
     /// input handler: when this program owns the selection, its UI thread is the one that
     /// answers.
-    pub fn contents(mime: &str) -> io::Result<Vec<u8>> {
+    pub fn contents(mime: &str) -> Result<Vec<u8>, ServiceError> {
         let (read, write) = pipe()?;
         {
             let current = CURRENT.lock().unwrap_or_else(PoisonError::into_inner);
@@ -121,7 +121,7 @@ impl ClipboardWatcher {
         }
         // the other end has it now; without closing ours the read never ends
         drop(write);
-        read_all(read, READ_TIMEOUT)
+        Ok(read_all(read, READ_TIMEOUT)?)
     }
 }
 

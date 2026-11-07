@@ -10,7 +10,7 @@ use std::os::fd::OwnedFd;
 use zbus::zvariant;
 
 use crate::dbus::Bus;
-use crate::{Argument, Service, Value};
+use crate::{Argument, ErrorKind, Service, ServiceError, Value};
 
 const LOGIND: &str = "org.freedesktop.login1";
 const MANAGER_PATH: &str = "/org/freedesktop/login1";
@@ -129,9 +129,9 @@ impl Logind {
     /// `what` is a colon-separated list of `sleep`, `shutdown`, `idle`,
     /// `handle-power-key`, `handle-lid-switch` and the like; `mode` is `block` or `delay`. `who`
     /// and `why` show in `systemd-inhibit --list`.
-    pub fn inhibit(what: &str, who: &str, why: &str, mode: &str) -> zbus::Result<OwnedFd> {
+    pub fn inhibit(what: &str, who: &str, why: &str, mode: &str) -> Result<OwnedFd, ServiceError> {
         let Some(connection) = Bus::system().connection else {
-            return Err(zbus::Error::Failure(String::from("no system bus")));
+            return Err(ServiceError::new(ErrorKind::Unavailable, "no system bus"));
         };
         let reply = connection.call_method(
             Some(LOGIND),
