@@ -1,5 +1,6 @@
 mod mpris;
 mod player;
+mod signals;
 
 use std::time::Duration;
 
@@ -8,7 +9,7 @@ use crate::services::worker;
 
 pub use player::MediaPlayer;
 
-#[derive(Default)]
+#[derive(Default, PartialEq, Eq)]
 pub struct Media {
     players: Vec<MediaPlayer>,
 
@@ -16,52 +17,35 @@ pub struct Media {
     active: Option<usize>,
 }
 
-/*
- * polled, because players don't announce
- * the position while a track plays
- */
+// follows the players' signals; see signals.rs
 impl Service for Media {
     fn new() -> Self {
-        let mut media = Self::default();
-
-        media.update();
-
-        media
+        Self::fresh(None)
     }
 
-    // no window shows a player: no reason to ask them each second
-    fn idle_stop() -> Option<std::time::Duration> {
-        Some(super::IDLE_STOP)
+    fn listen() {
+        signals::follow();
     }
+}
 
-    // a paused player reads the same every poll; a playing one moves its position
-    fn update(&mut self) -> bool {
-        let before = self.active().map(|player| player.name.clone());
-
-        let mut players = Vec::new();
-
-        for name in mpris::names() {
-            players.push(MediaPlayer::read(&name));
-        }
+impl Media {
+    // every player read again, keeping `before` active unless another plays
+    fn fresh(before: Option<&str>) -> Self {
+        let players = mpris::names()
+            .iter()
+            .map(|name| MediaPlayer::read(name))
+            .collect();
 
         let mut fresh = Self {
             players,
             active: None,
         };
 
-        fresh.active = fresh.choose_active(before.as_deref());
+        fresh.active = fresh.choose_active(before);
 
-        if fresh.players == self.players && fresh.active == self.active {
-            return false;
-        }
-
-        *self = fresh;
-
-        true
+        fresh
     }
-}
 
-impl Media {
     // every open player, in the same order on every poll
     pub fn players(&self) -> &[MediaPlayer] {
         &self.players

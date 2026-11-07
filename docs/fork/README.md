@@ -58,6 +58,7 @@ as upstream has them; everything the fork adds is here.
 | Radios | rfkill switches from `/dev/rfkill`, airplane mode, blocking | `Rfkill`, `Radio` | [rfkill](system/rfkill.md) | — | done |
 | Session | logind: active, locked and idle hints, lock requests, sleep, inhibitors | `Logind` | [logind](system/logind.md) | — | done |
 | Clipboard watcher | the selection as it changes, from any program, for a history | `ClipboardWatcher` | [clipboard-watcher](system/clipboard-watcher.md) | — | done |
+| Media | players followed by their MPRIS signals instead of a poll; the position worked out from the last reading | `Media`, `MediaPlayer::position` | [media](system/media.md) | — | done |
 | Network | NetworkManager's signals; VPN, WireGuard, hotspot and wired profiles | `Network::profiles`, `NetworkProfile`, `Wired` | [network](system/network.md) | — | done |
 | Lock keys | Caps Lock and Num Lock | `LockKeys` | [lock-keys](system/lock-keys.md) | — | done |
 | Timers | jobs and redraws on the event loop at a time | `Timer`, `TimerHandle`, `redraw_after` | [timer](system/timer.md) | — | done |
@@ -87,7 +88,7 @@ as upstream has them; everything the fork adds is here.
   [notifications](system/notifications.md), [apps-and-processes](system/apps-and-processes.md),
   [ipc](system/ipc.md), [rfkill](system/rfkill.md), [logind](system/logind.md),
   [clipboard-watcher](system/clipboard-watcher.md), [network](system/network.md),
-  [lock-keys](system/lock-keys.md).
+  [lock-keys](system/lock-keys.md), [media](system/media.md).
 - **Internals:** how the fork changes amane inside, and the resource plan.
   [architecture](internals/architecture.md) (sources, `on_track`, frame skip, GPU bounds, frozen
   windows), [memory](internals/memory.md) (what a process holds in GPU memory and RAM, the vello

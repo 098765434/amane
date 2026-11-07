@@ -99,7 +99,7 @@ impl Bus {
         self.watch_signals(rule)
     }
 
-    fn watch_signals(&self, rule: MatchRule<'_>) -> Signals {
+    pub(crate) fn watch_signals(&self, rule: MatchRule<'_>) -> Signals {
         let messages = self
             .connection
             .and_then(|connection| MessageIterator::for_match_rule(rule, connection, None).ok());
