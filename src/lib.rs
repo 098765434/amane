@@ -87,7 +87,7 @@ pub use services::{
     BluetoothOperation, Brightness, Casts, ClipboardWatcher, Cpu, Desktop, DesktopAction,
     DesktopApp, DeviceKind, FieldOwner, FillError, FocusedField, Gestures, Hints as FieldHints,
     Idle, KeyboardLayouts, Link, Lock, LockKeys, Logind, Media, MediaPlayer, Memory, Network,
-    NetworkProfile, Notification, Notifications, Overview, PairingAnswer, PairingKind,
+    NetworkProfile, Notification, Notifications, Outputs, Overview, PairingAnswer, PairingKind,
     PairingRequest, Palette, Pam, PamConfig, PamError, PamMessage, PamMessageKind, PamResult,
     Polkit, PowerDevice, PowerProfile, PowerState, Purpose as FieldPurpose, Radio, Rfkill, Scheme,
     Service, Subscription, Timeout, Tray, TrayItem, TrayMenuItem, TrayStatus, TrayToggle, Urgency,

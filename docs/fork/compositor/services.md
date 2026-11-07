@@ -223,10 +223,12 @@ same stream: `all()`, `active()`, `any_active()`, for a privacy indicator withou
 Caps Lock and Num Lock, from the fork's `KeyboardLockKeysChanged` on the same stream. See
 [lock-keys](../system/lock-keys.md).
 
-### Outputs changed (the niri fork)
+### `Outputs` (fork addition, niri only)
 
-The fork's `OutputsChanged` (feature `outputs-changed`) carries nothing; amane's `Brightness`
-asks `Outputs` again when it comes, instead of every two seconds.
+The connected outputs as `niri::outputs()` answers them (`all()`, `get(name)`), read again when
+the niri fork sends `OutputsChanged` (feature `outputs-changed`), which carries nothing. On
+stock niri they're asked every 5 s, only while watched. `Brightness` follows the same event for
+HDR instead of asking every two seconds.
 
 ## Asking niri: `amane::niri` (fork addition)
 
