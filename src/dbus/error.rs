@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 // why a call failed: the error's d-bus name and the text the service sent with it
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BusError {

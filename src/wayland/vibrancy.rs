@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use std::ffi::c_void;
 use std::rc::Rc;
 

@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::ffi::OsString;
 use std::fs;

@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use crate::changes::{self, Source};
 use crate::compositor::{self, Action};
 use crate::services::worker;

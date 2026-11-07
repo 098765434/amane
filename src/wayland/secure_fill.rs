@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use std::sync::{Mutex, PoisonError};
 
 use wayland_client::{Connection, Dispatch, Proxy, QueueHandle};

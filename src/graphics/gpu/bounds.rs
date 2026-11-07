@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use vello::kurbo::{Rect, Shape};
 
 use crate::graphics::renderer::Command;

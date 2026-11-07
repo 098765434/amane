@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 /*
  * status bar apps: a program's own item in the bar (macOS's NSStatusItem)
  * and Live Activities (macOS 27.3's), over the bar's session bus service

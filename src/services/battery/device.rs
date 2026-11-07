@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use crate::Value;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

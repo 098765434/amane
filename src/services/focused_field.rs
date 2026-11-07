@@ -10,6 +10,8 @@
 //! keyboard, and says whose field it is from the app's socket and process, not from what
 //! the app calls itself.
 
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use std::path::PathBuf;
 use std::sync::{Mutex, PoisonError};
 

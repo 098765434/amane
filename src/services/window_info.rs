@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use crate::changes::{self, Source};
 
 // A single open window (toplevel) as reported by the compositor. Named

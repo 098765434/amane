@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use super::pulse::Endpoint;
 
 // what a sound goes to or comes from, so a shell can show the right icon

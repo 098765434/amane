@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use vello::wgpu::{
     AddressMode, Device, Extent3d, FilterMode, Queue, Sampler, SamplerDescriptor,
     TexelCopyBufferLayout, Texture, TextureDescriptor, TextureDimension, TextureFormat,

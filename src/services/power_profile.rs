@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use crate::services::worker;
 use crate::{Argument, Bus, Service, Value};
 

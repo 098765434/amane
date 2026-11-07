@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 /*
  * a vibrant window's drawing split three ways for niri-vibrancy: its
  * translucent white content goes on a layer the compositor adds to what's

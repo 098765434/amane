@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 /*
  * Android phones through adb: the ones it has (over USB or the network),
  * the phones on the network offering Wireless debugging, and pairing and

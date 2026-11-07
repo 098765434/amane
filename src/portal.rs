@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use std::collections::HashMap;
 use std::os::unix::ffi::OsStrExt;
 use std::path::PathBuf;

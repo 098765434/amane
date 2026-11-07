@@ -8,6 +8,8 @@
 //! `.visible(false)` tells the backend to dismiss any live popup; returning
 //! `.visible(true)` tells it to (re)create one on the next frame.
 
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use std::rc::Rc;
 use std::sync::{Arc, Mutex, PoisonError};
 

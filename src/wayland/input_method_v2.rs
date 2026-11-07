@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use wayland_client::protocol::{wl_seat::WlSeat, wl_surface::WlSurface};
 use wayland_client::{Connection, Dispatch, Proxy, QueueHandle};
 use wayland_protocols_misc::zwp_input_method_v2::client::{

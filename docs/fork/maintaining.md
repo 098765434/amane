@@ -32,6 +32,22 @@ git diff --stat fork-base HEAD -- docs/src ARCHITECTURE.md   # prints nothing
 So a rebase only ever conflicts on `FORK.md` and the README banner line, plus the fork's code.
 The crate doc at the top of `src/lib.rs` is a few fork lines linking here.
 
+## Lints
+
+The lints in `Cargo.toml` (`[lints.rust]`, `[lints.clippy]`) are ones the whole crate already
+passes, upstream's code included. A lint upstream's code fails is allowed there for the crate,
+with the reason beside it (`needless_range_loop`, for upstream's image filters), rather than with
+an attribute in an upstream file, which a rebase would have to carry.
+
+The fork's own files hold themselves to more: each module file the fork added starts with
+
+```rust
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+```
+
+and its submodules inherit it. Give a new fork module the same line. `clippy.toml` allows
+`unwrap` and `dbg!` in tests. CI (`.github/workflows/fork.yml`) runs clippy with `-D warnings`.
+
 ## Commit map
 
 | Feature | Commits | Files | Upstreamable? |

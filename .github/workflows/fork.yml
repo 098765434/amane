@@ -24,7 +24,7 @@ jobs:
       # (graphics/image/shrink.rs, soften.rs), which the fork leaves as they
       # are so a rebase doesn't conflict there
       - name: clippy
-        run: nix develop -c cargo clippy --all-targets --locked -- -D warnings -A clippy::needless_range_loop
+        run: nix develop -c cargo clippy --all-targets --locked -- -D warnings
 
       # only the library tests, they run without a compositor
       - name: test

@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use std::time::Duration;
 
 use smithay_client_toolkit::reexports::protocols::ext::idle_notify::v1::client::{

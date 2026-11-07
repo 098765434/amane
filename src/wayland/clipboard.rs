@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use std::fs::File;
 use std::io::{Read, Write};
 use std::mem;

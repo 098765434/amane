@@ -50,9 +50,19 @@ vello-stats = ["vello/debug_layers", "dep:log"]
 version = "0.4"
 optional = true
 
+# The fork's lints. They hold over the whole crate, upstream's code
+# included, so no attribute has to go into an upstream file. Stricter
+# lints are turned on at the top of the fork's own files instead
+# (#![warn(clippy::unwrap_used, …)]); see docs/fork/maintaining.md.
+[lints.rust]
+unsafe_op_in_unsafe_fn = "warn"
+unused_must_use = "deny"
+
 [lints.clippy]
 # keep the zero-denominator guard explicit
 manual_checked_ops = "allow"
+# upstream's image filters index several buffers in step
+needless_range_loop = "allow"
 
 [workspace]
 members = ["cli", "cli/template/example"]

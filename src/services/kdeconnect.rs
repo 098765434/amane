@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 /*
  * phones through kdeconnect: kdeconnectd runs on its own and amane draws
  * everything over its session-bus api, so no kde window ever shows

@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use crate::graphics::{Area, Corners, Renderer};
 use crate::style::Fit;
 use crate::{Point, Size, VideoFeed, Widget};

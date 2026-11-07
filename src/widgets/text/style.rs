@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use std::hash::{Hash, Hasher};
 
 use crate::Weight;

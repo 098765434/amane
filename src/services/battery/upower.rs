@@ -1,3 +1,5 @@
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+
 use std::time::Duration;
 
 use crate::{Argument, Bus, Value};
