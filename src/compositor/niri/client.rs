@@ -147,6 +147,27 @@ pub struct Output {
     pub sdr_brightness: Option<f64>,
     /// The panel's peak brightness in nits, from its EDID (the fork).
     pub peak_luminance: Option<f64>,
+    /// Every mode it offers.
+    pub modes: Vec<Mode>,
+    /// The index in [`modes`](Self::modes) of the one it shows, when it's on.
+    pub current_mode: Option<usize>,
+}
+
+/// A mode an output offers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Mode {
+    pub width: u16,
+    pub height: u16,
+    /// In millihertz, like 120000 for 120 Hz.
+    pub refresh_rate: u32,
+    pub is_preferred: bool,
+}
+
+impl Output {
+    /// The mode it shows, when it's on.
+    pub fn mode(&self) -> Option<&Mode> {
+        self.modes.get(self.current_mode?)
+    }
 }
 
 /// An output's place in the layout, in logical pixels.
@@ -194,7 +215,91 @@ fn parse_output(output: &Value) -> Option<Output> {
         hdr_enabled: output.get("hdr_enabled").and_then(Value::as_bool) == Some(true),
         sdr_brightness: output.get("sdr_brightness").and_then(Value::as_f64),
         peak_luminance: output.get("peak_luminance").and_then(Value::as_f64),
+        modes: output
+            .get("modes")
+            .and_then(Value::as_array)
+            .map(|modes| modes.iter().filter_map(parse_mode).collect())
+            .unwrap_or_default(),
+        current_mode: output
+            .get("current_mode")
+            .and_then(Value::as_u64)
+            .and_then(|index| usize::try_from(index).ok()),
     })
+}
+
+fn parse_mode(mode: &Value) -> Option<Mode> {
+    Some(Mode {
+        width: u16::try_from(mode.get("width")?.as_u64()?).ok()?,
+        height: u16::try_from(mode.get("height")?.as_u64()?).ok()?,
+        refresh_rate: u32::try_from(mode.get("refresh_rate")?.as_u64()?).ok()?,
+        is_preferred: mode.get("is_preferred").and_then(Value::as_bool) == Some(true),
+    })
+}
+
+/// Sends one action and waits for niri to take it.
+fn act(action: Value) -> Result<(), NiriError> {
+    ask_handled(&json!({ "Action": action }))
+}
+
+/// Sends a request whose answer is `"Handled"`.
+fn ask_handled(request: &Value) -> Result<(), NiriError> {
+    let stream = send(&request.to_string()).ok_or(NiriError::NotRunning)?;
+    stream
+        .set_read_timeout(Some(Duration::from_secs(2)))
+        .map_err(|err| NiriError::Io(err.to_string()))?;
+
+    let mut line = String::new();
+    BufReader::new(stream)
+        .read_line(&mut line)
+        .map_err(|err| NiriError::Io(err.to_string()))?;
+    let reply: Value =
+        serde_json::from_str(&line).map_err(|err| NiriError::Unexpected(err.to_string()))?;
+    match reply.get("Err") {
+        Some(err) => Err(NiriError::Refused(
+            err.as_str().unwrap_or("an error").to_owned(),
+        )),
+        None => Ok(()),
+    }
+}
+
+/// Switches to the keyboard layout at `index`, in the order [`KeyboardLayouts`](crate::KeyboardLayouts) lists them.
+pub fn switch_keyboard_layout(index: u8) -> Result<(), NiriError> {
+    act(json!({ "SwitchLayout": { "layout": { "Index": index } } }))
+}
+
+/// Focuses a window, switching to its workspace.
+pub fn focus_window(id: u64) -> Result<(), NiriError> {
+    act(json!({ "FocusWindow": { "id": id } }))
+}
+
+/// Turns every monitor off until the next input.
+pub fn power_off_monitors() -> Result<(), NiriError> {
+    act(json!({ "PowerOffMonitors": {} }))
+}
+
+/// Ends the session, without asking.
+pub fn quit() -> Result<(), NiriError> {
+    act(json!({ "Quit": { "skip_confirmation": true } }))
+}
+
+/// Shows `mode` on `output` until niri reads its config again.
+pub fn set_output_mode(output: &str, mode: Mode) -> Result<(), NiriError> {
+    let refresh = f64::from(mode.refresh_rate) / 1000.0;
+    ask_handled(&json!({
+        "Output": {
+            "output": output,
+            "action": { "Mode": { "mode": { "Specific": {
+                "width": mode.width,
+                "height": mode.height,
+                "refresh": refresh,
+            } } } }
+        }
+    }))
+}
+
+/// Stops a screencast.
+pub fn stop_cast(session_id: u64) -> Result<(), NiriError> {
+    act(json!({ "StopCast": { "session_id": session_id } }))
 }
 
 /// An open window.
@@ -275,7 +380,7 @@ pub fn casts() -> Result<Vec<Cast>, NiriError> {
         .unwrap_or_default())
 }
 
-fn parse_cast(cast: &Value) -> Option<Cast> {
+pub(super) fn parse_cast(cast: &Value) -> Option<Cast> {
     let target = cast.get("target")?;
     let target = if let Some(output) = target.get("Output") {
         CastTarget::Output(output.get("name")?.as_str()?.to_owned())
@@ -326,6 +431,15 @@ mod tests {
         assert_eq!(output.logical.map(|l| l.width), Some(1600));
         assert!(output.hdr_supported && !output.hdr_enabled);
         assert_eq!(output.peak_luminance, Some(600.0));
+        assert!(output.mode().is_none(), "no modes in this answer");
+
+        let modes: Value = serde_json::from_str(
+            r#"{"name":"eDP-1","make":"","model":"","logical":null,"modes":[{"width":2880,"height":1800,"refresh_rate":120000,"is_preferred":true},{"width":2880,"height":1800,"refresh_rate":60001,"is_preferred":false}],"current_mode":1}"#,
+        )
+        .expect("json");
+        let modes = parse_output(&modes).expect("an output");
+        assert_eq!(modes.modes.len(), 2);
+        assert_eq!(modes.mode().map(|m| m.refresh_rate), Some(60001));
 
         // stock niri: no fork fields, and an output that's off has no logical place
         let stock: Value =

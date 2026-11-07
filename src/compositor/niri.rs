@@ -88,6 +88,25 @@ pub enum Event {
     KeyboardLayoutSwitched {
         current: u8,
     },
+
+    // Caps Lock or Num Lock turned on or off (the niri fork)
+    LockKeys {
+        caps_lock: bool,
+        num_lock: bool,
+    },
+
+    // the answer to Outputs changed; it carries nothing (the niri fork)
+    OutputsChanged,
+
+    // every screencast, sent first and whenever the set is replaced
+    Casts(Vec<client::Cast>),
+
+    // a screencast started, or one changed
+    CastChanged(client::Cast),
+
+    CastStopped {
+        stream_id: u64,
+    },
 }
 
 // niri's events only say what changed, so the rest is remembered here
@@ -204,8 +223,16 @@ pub fn listen(mut on_change: impl FnMut(Vec<Workspace>)) {
 
     for event in stream::subscribe() {
         // windows move in the layout on every frame of a resize, and no
-        // workspace changes for it
-        if matches!(event, Event::WindowLayouts(_)) {
+        // workspace changes for it; nor for the lock keys, outputs or casts
+        if matches!(
+            event,
+            Event::WindowLayouts(_)
+                | Event::LockKeys { .. }
+                | Event::OutputsChanged
+                | Event::Casts(_)
+                | Event::CastChanged(_)
+                | Event::CastStopped { .. }
+        ) {
             continue;
         }
 
@@ -327,6 +354,55 @@ pub fn listen_keyboard_layouts(mut on_change: impl FnMut(Vec<String>, u8)) {
     }
 }
 
+// follows the same event stream for Caps Lock and Num Lock (the niri fork)
+pub fn listen_lock_keys(mut on_change: impl FnMut(bool, bool)) {
+    for event in stream::subscribe() {
+        if let Event::LockKeys {
+            caps_lock,
+            num_lock,
+        } = event
+        {
+            on_change(caps_lock, num_lock);
+        }
+    }
+}
+
+// calls back after each OutputsChanged (the niri fork)
+pub fn listen_outputs_changed(mut on_change: impl FnMut()) {
+    for event in stream::subscribe() {
+        if matches!(event, Event::OutputsChanged) {
+            on_change();
+        }
+    }
+}
+
+// hands over every running screencast after each cast event
+pub fn listen_casts(mut on_change: impl FnMut(Vec<client::Cast>)) {
+    let mut casts: Vec<client::Cast> = Vec::new();
+
+    for event in stream::subscribe() {
+        if apply_cast(&mut casts, event) {
+            on_change(casts.clone());
+        }
+    }
+}
+
+fn apply_cast(casts: &mut Vec<client::Cast>, event: Event) -> bool {
+    match event {
+        Event::Casts(list) => *casts = list,
+        Event::CastChanged(cast) => {
+            match casts.iter_mut().find(|c| c.stream_id == cast.stream_id) {
+                Some(known) => *known = cast,
+                None => casts.push(cast),
+            }
+            casts.sort_by_key(|cast| cast.stream_id);
+        }
+        Event::CastStopped { stream_id } => casts.retain(|cast| cast.stream_id != stream_id),
+        _ => return false,
+    }
+    true
+}
+
 // true when a gesture event updated the snapshot, so the caller should emit
 fn apply_gesture(gesture: &mut Gesture, event: Event) -> bool {
     match event {
@@ -442,6 +518,22 @@ fn parse(line: &str) -> Option<Event> {
         "DesktopObscured" => desktop_obscured(body),
         "KeyboardLayoutsChanged" => keyboard_layouts(body),
         "KeyboardLayoutSwitched" => keyboard_switched(body),
+        "KeyboardLockKeysChanged" => Some(Event::LockKeys {
+            caps_lock: body["caps_lock"].as_bool()?,
+            num_lock: body["num_lock"].as_bool()?,
+        }),
+        "OutputsChanged" => Some(Event::OutputsChanged),
+        "CastsChanged" => Some(Event::Casts(
+            body["casts"]
+                .as_array()?
+                .iter()
+                .filter_map(client::parse_cast)
+                .collect(),
+        )),
+        "CastStartedOrChanged" => Some(Event::CastChanged(client::parse_cast(&body["cast"])?)),
+        "CastStopped" => Some(Event::CastStopped {
+            stream_id: body["stream_id"].as_u64()?,
+        }),
         _ => None,
     }
 }
@@ -644,6 +736,11 @@ impl State {
             | Event::DesktopObscured { .. }
             | Event::KeyboardLayouts { .. }
             | Event::KeyboardLayoutSwitched { .. }
+            | Event::LockKeys { .. }
+            | Event::OutputsChanged
+            | Event::Casts(_)
+            | Event::CastChanged(_)
+            | Event::CastStopped { .. }
             | Event::WindowLayouts(_) => {}
         }
 

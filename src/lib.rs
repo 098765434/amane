@@ -86,16 +86,17 @@ pub use services::adb::run as adb;
 pub use services::{
     AccessPoint, Action, Adb, AdbDevice, AdbState, Appearance, Apps, Audio, AudioDevice, AudioKind,
     AuthPrompt, AuthRequest, Backdrop, Battery, BatteryState, Bluetooth, BluetoothAdapter,
-    BluetoothDevice, BluetoothError, BluetoothOperation, Brightness, Cpu, Desktop, DesktopAction,
-    DesktopApp, DeviceKind, FieldOwner, FillError, FocusedField, Gestures, Hints as FieldHints,
-    Idle, KdeConnect, KeyboardLayouts, Link, Lock, Media, MediaPlayer, Memory, Network,
-    Notification, Notifications, Overview, PairingAnswer, PairingKind, PairingRequest, Palette,
-    Pam, PamConfig, PamError, PamMessage, PamMessageKind, PamResult, PhoneBattery, PhoneClick,
-    PhoneDevice, PhoneKey, PhoneMessages, PhoneModifiers, PhoneNotification, PhonePairState,
-    Polkit, PowerDevice, PowerProfile, PowerState, Purpose as FieldPurpose, SMS_PAGE, Scheme,
-    Service, SmsAttachment, SmsKind, SmsMessage, SmsState, SmsThread, Subscription, Timeout, Tray,
-    TrayItem, TrayMenuItem, TrayStatus, TrayToggle, Urgency, WarningLevel, WindowInfo, Windows,
-    WirelessKind, WirelessService, Workspace, WorkspaceSwitch, Workspaces,
+    BluetoothDevice, BluetoothError, BluetoothOperation, Brightness, Casts, ClipboardWatcher, Cpu,
+    Desktop, DesktopAction, DesktopApp, DeviceKind, FieldOwner, FillError, FocusedField, Gestures,
+    Hints as FieldHints, Idle, KdeConnect, KeyboardLayouts, Link, Lock, LockKeys, Logind, Media,
+    MediaPlayer, Memory, Network, NetworkProfile, Notification, Notifications, Overview,
+    PairingAnswer, PairingKind, PairingRequest, Palette, Pam, PamConfig, PamError, PamMessage,
+    PamMessageKind, PamResult, PhoneBattery, PhoneClick, PhoneDevice, PhoneKey, PhoneMessages,
+    PhoneModifiers, PhoneNotification, PhonePairState, Polkit, PowerDevice, PowerProfile,
+    PowerState, Purpose as FieldPurpose, Radio, Rfkill, SMS_PAGE, Scheme, Service, SmsAttachment,
+    SmsKind, SmsMessage, SmsState, SmsThread, Subscription, Timeout, Tray, TrayItem, TrayMenuItem,
+    TrayStatus, TrayToggle, Urgency, WarningLevel, WindowInfo, Windows, Wired, WirelessKind,
+    WirelessService, Workspace, WorkspaceSwitch, Workspaces,
 };
 pub use status_item::{LiveActivity, StatusItem};
 pub use style::{Effect, Fill, Image, Input, Mask, Radius, Shadow};

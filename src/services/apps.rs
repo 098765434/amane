@@ -2,6 +2,7 @@ mod data_dirs;
 mod defaults;
 mod desktop_app;
 mod exec;
+pub(crate) mod fingerprint;
 mod icons;
 mod mime;
 mod parse;
@@ -27,7 +28,11 @@ pub struct Apps {
     all: Vec<DesktopApp>,
 }
 
-// polled, so programs installed while the shell runs show up
+/*
+ * the applications folders are looked at every half minute, and scanned again only when one
+ * of them changed, so programs installed while the shell runs show up without the scan (which
+ * reads every icon theme) running each time
+ */
 impl Service for Apps {
     // empty at first: the scan walks every icon theme, which takes seconds
     fn new() -> Self {
@@ -40,7 +45,19 @@ impl Service for Apps {
 
     // scanned outside the lock, so a view reading the list never waits on the disk
     fn listen() {
+        let mut seen = None;
         loop {
+            let now = fingerprint::Fingerprint::of(
+                data_dirs::find()
+                    .into_iter()
+                    .map(|dir| dir.join("applications")),
+            );
+            if seen.as_ref() == Some(&now) {
+                thread::sleep(Self::interval());
+                continue;
+            }
+            seen = Some(now);
+
             let all = scan();
 
             let mut apps = Self::write();

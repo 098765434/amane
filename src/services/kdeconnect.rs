@@ -39,8 +39,9 @@ pub(crate) const REMOTE_KEYBOARD: &str = "org.kde.kdeconnect.device.remotekeyboa
 pub(crate) const NOTIFICATIONS: &str = "org.kde.kdeconnect.device.notifications";
 pub(crate) const PROPERTIES: &str = "org.freedesktop.DBus.Properties";
 
-// the daemon is asked for everything again this often, in case a signal was missed
-const RESYNC_EVERY: Duration = Duration::from_secs(30);
+// the daemon is asked for everything again this often while something watches, in case a
+// signal was missed
+const RESYNC_EVERY: Duration = Duration::from_secs(300);
 
 // the daemon's unique name like :1.7, so only its signals cause a read
 static OWNER: Mutex<String> = Mutex::new(String::new());
@@ -89,7 +90,13 @@ impl Service for KdeConnect {
                     thread::sleep(RESYNC_EVERY);
 
                     // nothing to ask while it isn't running, and asking would start it
-                    if KdeConnect::read().running {
+                    let watched = !crate::services::store::unwatched::<KdeConnect>(RESYNC_EVERY);
+                    if watched
+                        && crate::services::store::find::<KdeConnect>()
+                            .read()
+                            .unwrap_or_else(PoisonError::into_inner)
+                            .running
+                    {
                         resync();
                     }
                 }

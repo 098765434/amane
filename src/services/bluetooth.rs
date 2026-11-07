@@ -26,8 +26,9 @@ const DEVICE: &str = "org.bluez.Device1";
 const OBJECT_MANAGER: &str = "org.freedesktop.DBus.ObjectManager";
 const PROPERTIES: &str = "org.freedesktop.DBus.Properties";
 
-// bluez is asked for everything again this often, in case a signal was missed
-const RESYNC_EVERY: Duration = Duration::from_secs(30);
+// bluez is asked for everything again this often while something watches, in case a signal
+// was missed
+const RESYNC_EVERY: Duration = Duration::from_secs(300);
 
 /*
  * what bluez has, kept up to date from its signals; the service shows what
@@ -91,7 +92,9 @@ impl Service for Bluetooth {
                 loop {
                     thread::sleep(RESYNC_EVERY);
 
-                    resync();
+                    if !crate::services::store::unwatched::<Bluetooth>(RESYNC_EVERY) {
+                        resync();
+                    }
                 }
             });
         });

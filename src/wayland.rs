@@ -1,7 +1,7 @@
 mod activation;
 mod background_effect;
 mod blur_shapes;
-mod clipboard;
+pub(crate) mod clipboard;
 mod compositor;
 pub(crate) mod dropped;
 mod idle;
