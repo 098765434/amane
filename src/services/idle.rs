@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 mod screensaver;
 
@@ -19,6 +19,9 @@ static WANTED: AtomicBool = AtomicBool::new(false);
 // dim after two minutes, lock after five, until the shell picks its own
 const DEFAULT_LEVELS: [Duration; 2] = [Duration::from_secs(120), Duration::from_secs(300)];
 
+/// How long the user has been away, against levels of time a shell picks (dim after two
+/// minutes and lock after five until it sets its own), and the programs holding idle off
+/// through org.freedesktop.ScreenSaver.
 pub struct Idle {
     levels: Vec<Duration>,
 
@@ -71,37 +74,39 @@ impl Service for Idle {
 }
 
 impl Idle {
-    // away longer than at least one level
+    /// Away longer than at least one level.
     pub fn is_idle(&self) -> bool {
         !self.crossed.is_empty()
     }
 
+    /// Whether the user has been away longer than `level`, one of levels(); any input clears it.
     pub fn crossed(&self, level: Duration) -> bool {
         self.crossed.contains(&level)
     }
 
+    /// The times without input the compositor reports on.
     pub fn levels(&self) -> &[Duration] {
         &self.levels
     }
 
-    // a program like a video player asked not to idle, so check this before dimming or locking
+    /// A program like a video player asked not to idle, so check this before dimming or locking.
     pub fn inhibited(&self) -> bool {
         !self.inhibitors.is_empty()
     }
 
-    // the application name and reason of each inhibit
+    /// The application name and reason of each inhibit.
     pub fn inhibitors(&self) -> impl Iterator<Item = (&str, &str)> {
         self.inhibitors
             .iter()
             .map(|inhibitor| (inhibitor.application.as_str(), inhibitor.reason.as_str()))
     }
 
-    // false when a desktop's own screensaver service already owns the name
+    /// False when a desktop's own screensaver service already owns the name.
     pub fn running(&self) -> bool {
         self.running
     }
 
-    // the times without input to be told about, replacing the defaults
+    /// The times without input to be told about, replacing the defaults.
     pub fn set_levels(levels: &[Duration]) {
         {
             let mut idle = Self::write();

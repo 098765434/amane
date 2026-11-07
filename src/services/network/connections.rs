@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 //! NetworkManager's connection profiles and the wired device, beyond the Wi-Fi the rest of
 //! [`Network`](super::Network) covers: VPN and WireGuard profiles, a hotspot (a Wi-Fi profile
@@ -23,6 +23,7 @@ const ACTIVATED: f64 = 100.0;
 /// A saved connection profile.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Profile {
+    /// NetworkManager's id for it, the same across renames.
     pub uuid: String,
     /// Its name, like "Home" or "Wired connection 1".
     pub name: String,
@@ -53,6 +54,7 @@ impl Profile {
 pub struct Wired {
     /// Its interface, like `enp2s0`.
     pub device: String,
+    /// Whether the connection on it is up.
     pub connected: bool,
     /// The connection on it, or the interface when there's none.
     pub name: String,

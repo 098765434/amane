@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 /*
  * the system tray: the icons programs like Steam, Discord, Nextcloud or
@@ -36,20 +36,21 @@ const PROPERTIES: &str = "org.freedesktop.DBus.Properties";
 // the size icons are asked for at, in pixels: a bar's icon on a scaled screen
 const ICON_SIZE: u32 = 48;
 
-// what an item says it's doing
+/// What an item says it's doing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TrayStatus {
-    // nothing worth showing; a bar may leave it out
+    /// Nothing worth showing; a bar may leave it out.
     Passive,
 
+    /// Running as usual.
     #[default]
     Active,
 
-    // wants attention, like a new message
+    /// Wants attention, like a new message.
     NeedsAttention,
 }
 
-// one program's icon in the tray
+/// One program's icon in the tray.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TrayItem {
     // its unique bus name, like :1.42, which its signals come from
@@ -72,25 +73,27 @@ pub struct TrayItem {
 }
 
 impl TrayItem {
-    // what tells it apart from every other item now, like ":1.42/StatusNotifierItem"
+    /// What tells it apart from every other item now, like ":1.42/StatusNotifierItem".
     pub fn key(&self) -> String {
         format!("{}{}", self.sender, self.path)
     }
 
-    // the name the program gives it, like "steam" or "nm-applet", the same each run
+    /// The name the program gives it, like "steam" or "nm-applet", the same each run.
     pub fn id(&self) -> &str {
         &self.id
     }
 
+    /// The program's title for the item.
     pub fn title(&self) -> &str {
         &self.title
     }
 
+    /// Whether it's quiet, active or wants attention.
     pub fn status(&self) -> TrayStatus {
         self.status
     }
 
-    // the tooltip's text, or the title when it has none
+    /// The tooltip's text, or the title when it has none.
     pub fn tooltip(&self) -> &str {
         if self.tooltip.is_empty() {
             &self.title
@@ -99,7 +102,7 @@ impl TrayItem {
         }
     }
 
-    // the icon to show now: the attention one while it wants attention
+    /// The icon to show now: the attention one while it wants attention.
     pub fn icon(&self) -> Option<&Path> {
         let attention = (self.status == TrayStatus::NeedsAttention)
             .then_some(self.attention_icon.as_deref())
@@ -108,15 +111,19 @@ impl TrayItem {
         attention.or(self.icon.as_deref())
     }
 
+    /// Whether it has a dbusmenu, which Tray::open_menu reads.
     pub fn has_menu(&self) -> bool {
         self.menu.is_some()
     }
 
+    /// It has only a menu: a click shows the menu rather than activating it.
     pub fn item_is_menu(&self) -> bool {
         self.item_is_menu
     }
 }
 
+/// The tray's items (status notifier items), with amane as the watcher programs register
+/// with, and the menu read last for one of them.
 #[derive(Default)]
 pub struct Tray {
     // in the order they registered
@@ -140,11 +147,12 @@ impl Service for Tray {
 }
 
 impl Tray {
+    /// The items, in the order they registered.
     pub fn items(&self) -> &[TrayItem] {
         &self.items
     }
 
-    // a menu read for the item `key` since the last take, to show
+    /// A menu read for the item `key` since the last take, to show.
     pub fn take_menu(key: &str) -> Option<Vec<TrayMenuItem>> {
         let mut tray = Self::write();
 
@@ -161,12 +169,12 @@ impl Tray {
         tray.menu.take().map(|(_, items)| items)
     }
 
-    // the item's main action, like showing its window; x and y are where on the screen
+    /// The item's main action, like showing its window; x and y are where on the screen.
     pub fn activate(key: &str, x: i32, y: i32) {
         call_item(key, "Activate", vec![Argument::Int(x), Argument::Int(y)]);
     }
 
-    // the middle click's action
+    /// The middle click's action.
     pub fn secondary_activate(key: &str, x: i32, y: i32) {
         call_item(
             key,
@@ -175,11 +183,12 @@ impl Tray {
         );
     }
 
-    // asks the program to show its own menu, for an item without a dbusmenu
+    /// Asks the program to show its own menu, for an item without a dbusmenu.
     pub fn context_menu(key: &str, x: i32, y: i32) {
         call_item(key, "ContextMenu", vec![Argument::Int(x), Argument::Int(y)]);
     }
 
+    /// Scrolls over the item by `delta` steps, along the vertical or the horizontal.
     pub fn scroll(key: &str, delta: i32, vertical: bool) {
         let orientation = if vertical { "vertical" } else { "horizontal" };
 
@@ -190,10 +199,8 @@ impl Tray {
         );
     }
 
-    /*
-     * reads the item's menu on a worker; it shows up for take_menu, and
-     * the windows that read the tray draw again
-     */
+    /// Reads the item's menu on a worker; it shows up for take_menu, and
+    /// the windows that read the tray draw again.
     pub fn open_menu(key: &str) {
         let Some((sender, path)) = Self::read().menu_of(key) else {
             return;
@@ -208,7 +215,7 @@ impl Tray {
         });
     }
 
-    // a menu entry was picked
+    /// A menu entry was picked.
     pub fn select(key: &str, id: i32) {
         let Some((sender, path)) = Self::read().menu_of(key) else {
             return;

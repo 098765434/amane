@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 //! The screencasts niri is running, from its event stream (the connection the other niri
 //! services share), so a privacy indicator needs no polling. Empty under another compositor.

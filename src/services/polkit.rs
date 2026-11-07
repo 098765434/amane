@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 #[cfg(feature = "polkit-agent")]
 mod agent;
@@ -12,11 +12,9 @@ use crate::Service;
 pub use agent::PolkitAgent;
 pub use request::{AuthPrompt, AuthRequest};
 
-/*
- * polkit's authentication prompts, for a shell that answers them with
- * serve_agent(): what polkitd asks, what the helper wants typed, and how
- * the last try went
- */
+/// Polkit's authentication prompts, for a shell that answers them with
+/// serve_agent(): what polkitd asks, what the helper wants typed, and how
+/// the last try went.
 #[derive(Default)]
 pub struct Polkit {
     // the question polkitd is asking, waiting for an answer; only with serve_agent()
@@ -36,10 +34,12 @@ impl Service for Polkit {
 }
 
 impl Polkit {
+    /// The question polkitd is asking, waiting for an answer; only with serve_agent().
     pub fn auth_request(&self) -> Option<&AuthRequest> {
         self.request.as_ref()
     }
 
+    /// Whether polkitd took the agent's registration.
     pub fn is_registered(&self) -> bool {
         self.registered
     }

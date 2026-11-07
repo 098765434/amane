@@ -1,10 +1,8 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
-/*
- * moving pictures handed in from another thread, like a decoded video
- * stream: the newest frame replaces the last, and only the windows showing
- * the feed are drawn again for it
- */
+//! Moving pictures handed in from another thread, like a decoded video
+//! stream: the newest frame replaces the last, and only the windows showing
+//! the feed are drawn again for it.
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
@@ -13,41 +11,44 @@ use crate::changes::{self, Source};
 
 static NEXT: AtomicU64 = AtomicU64::new(1);
 
-// how a frame's numbers turn into colours
+/// How a frame's numbers turn into colors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Colors {
-    // high definition video's, which phones and cameras send
+    /// High definition video's, which phones and cameras send.
     #[default]
     Bt709,
 
-    // standard definition video's
+    /// Standard definition video's.
     Bt601,
 }
 
-/*
- * one picture in NV12: a byte of brightness for every pixel, then a byte
- * pair of colour for every two by two; both rows are packed tightly, so y
- * is width × height long and uv is width × height / 2 (sizes rounded up to even)
- */
+/// One picture in NV12: a byte of brightness for every pixel, then a byte
+/// pair of color for every two by two; both rows are packed tightly, so y
+/// is width × height long and uv is width × height / 2 (sizes rounded up to even).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Frame {
+    /// Width in pixels.
     pub width: u32,
+    /// Height in pixels.
     pub height: u32,
+    /// The brightness plane, a byte per pixel.
     pub y: Vec<u8>,
+    /// The color plane, a byte pair per two by two pixels.
     pub uv: Vec<u8>,
+    /// How its numbers turn into colors.
     pub colors: Colors,
 
-    // brightness runs 0 to 255, not video's 16 to 235
+    /// Brightness runs 0 to 255, not video's 16 to 235.
     pub full_range: bool,
 }
 
 impl Frame {
-    // the colour plane's size in pairs
+    /// The color plane's size in pairs.
     pub fn chroma_size(&self) -> (u32, u32) {
         (self.width.div_ceil(2), self.height.div_ceil(2))
     }
 
-    // whether the planes are as long as the size says
+    /// Whether the planes are as long as the size says.
     pub fn is_whole(&self) -> bool {
         let (chroma_width, chroma_height) = self.chroma_size();
 
@@ -64,7 +65,7 @@ struct Feed {
     count: AtomicU64,
 }
 
-// where frames go in; clones share the one feed, and any thread can publish to it
+/// Where frames go in; clones share the one feed, and any thread can publish to it.
 #[derive(Clone)]
 pub struct VideoFeed(Arc<Feed>);
 
@@ -75,6 +76,7 @@ impl Default for VideoFeed {
 }
 
 impl VideoFeed {
+    /// A feed with nothing in it yet.
     pub fn new() -> Self {
         Self(Arc::new(Feed {
             id: NEXT.fetch_add(1, Ordering::Relaxed),
@@ -83,7 +85,7 @@ impl VideoFeed {
         }))
     }
 
-    // replaces what it shows; a frame whose planes don't fit its size is dropped
+    /// Replaces what it shows; a frame whose planes don't fit its size is dropped.
     pub fn publish(&self, frame: Frame) {
         if !frame.is_whole() {
             return;
@@ -97,14 +99,14 @@ impl VideoFeed {
         changes::mark_source(Source::Video(self.0.id));
     }
 
-    // shows nothing until the next frame
+    /// Shows nothing until the next frame.
     pub fn clear(&self) {
         *self.0.newest.lock().unwrap_or_else(PoisonError::into_inner) = None;
 
         changes::mark_source(Source::Video(self.0.id));
     }
 
-    // the newest frame's size, none before the first
+    /// The newest frame's size, none before the first.
     pub fn size(&self) -> Option<(u32, u32)> {
         self.0
             .newest
@@ -114,7 +116,7 @@ impl VideoFeed {
             .map(|(_, frame)| (frame.width, frame.height))
     }
 
-    // how many frames came in all
+    /// How many frames came in all.
     pub fn frames(&self) -> u64 {
         self.0.count.load(Ordering::Relaxed)
     }
@@ -133,7 +135,7 @@ impl VideoFeed {
     }
 }
 
-// one frame as a draw command carries it; made by the Video widget
+/// One frame as a draw command carries it; made by the Video widget.
 #[derive(Debug, Clone)]
 pub struct Picture {
     pub(crate) feed: u64,

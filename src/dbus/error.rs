@@ -1,6 +1,6 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
-// why a call failed: the error's d-bus name and the text the service sent with it
+/// Why a call failed: the error's d-bus name and the text the service sent with it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BusError {
     // like org.bluez.Error.Failed, or org.freedesktop.DBus.Error.NoReply
@@ -11,6 +11,7 @@ pub struct BusError {
 }
 
 impl BusError {
+    /// An error with its d-bus name, like org.bluez.Error.Failed, and the text sent with it.
     pub fn new(name: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -18,10 +19,12 @@ impl BusError {
         }
     }
 
+    /// The error's d-bus name, like org.bluez.Error.Failed or org.freedesktop.DBus.Error.NoReply.
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    /// The text the service sent with the error; empty when it sent none.
     pub fn message(&self) -> &str {
         &self.message
     }

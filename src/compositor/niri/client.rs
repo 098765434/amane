@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 //! Asking niri directly: its outputs, windows, screencasts, and which of the niri fork's
 //! features it has. Each call opens a connection, sends one request and waits up to two
@@ -135,7 +135,9 @@ pub fn features() -> &'static Features {
 pub struct Output {
     /// The connector, like `eDP-1`.
     pub name: String,
+    /// The maker its EDID names; empty when it names none.
     pub make: String,
+    /// The model its EDID names; empty when it names none.
     pub model: String,
     /// The serial number its EDID gives, when it gives one.
     pub serial: Option<String>,
@@ -166,10 +168,13 @@ pub struct Output {
 /// A mode an output offers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Mode {
+    /// Width in physical pixels.
     pub width: u16,
+    /// Height in physical pixels.
     pub height: u16,
     /// In millihertz, like 120000 for 120 Hz.
     pub refresh_rate: u32,
+    /// Whether the output says it's the mode to use.
     pub is_preferred: bool,
 }
 
@@ -195,14 +200,22 @@ impl Mode {
 /// How an output is turned, counter-clockwise, as niri turns them.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Transform {
+    /// Not turned.
     #[default]
     Normal,
+    /// Turned 90 degrees.
     _90,
+    /// Turned 180 degrees.
     _180,
+    /// Turned 270 degrees.
     _270,
+    /// Mirrored left to right.
     Flipped,
+    /// Mirrored, then turned 90 degrees.
     Flipped90,
+    /// Mirrored, then turned 180 degrees.
     Flipped180,
+    /// Mirrored, then turned 270 degrees.
     Flipped270,
 }
 
@@ -249,11 +262,17 @@ impl Transform {
 /// An output's place in the layout, in logical pixels.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Logical {
+    /// The left edge.
     pub x: i32,
+    /// The top edge.
     pub y: i32,
+    /// The width, after scale and transform.
     pub width: u32,
+    /// The height, after scale and transform.
     pub height: u32,
+    /// Physical pixels per logical pixel, like 1.5.
     pub scale: f64,
+    /// How it's turned.
     pub transform: Transform,
 }
 
@@ -378,25 +397,37 @@ pub fn quit() -> Result<(), NiriError> {
 /// A change niri makes to an output at once, and keeps until it reads its config again.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum OutputChange {
+    /// Turns the output on.
     On,
+    /// Turns the output off.
     Off,
+    /// One of the modes the output lists.
     Mode(Mode),
     /// A mode the output doesn't list: width, height and refresh rate in hertz.
     CustomMode {
+        /// Width in physical pixels.
         width: u16,
+        /// Height in physical pixels.
         height: u16,
+        /// Refresh rate in hertz.
         hz: f64,
     },
+    /// Physical pixels per logical pixel, like 1.5.
     Scale(f64),
+    /// How the output is turned.
     Transform(Transform),
     /// Its top-left corner in the layout, in logical pixels.
     Position {
+        /// The left edge.
         x: i32,
+        /// The top edge.
         y: i32,
     },
     /// A varying refresh rate: on, and if so whether only while a window asks for it.
     Vrr {
+        /// Whether the refresh rate may vary.
         on: bool,
+        /// Only while a window asks for it.
         on_demand: bool,
     },
     /// HDR on or off (the fork).
@@ -465,13 +496,19 @@ pub fn stop_cast(session_id: u64) -> Result<(), NiriError> {
 /// An open window.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Window {
+    /// The id niri gives the window.
     pub id: u64,
+    /// Its title, when the app set one.
     pub title: Option<String>,
+    /// Its app id, when the app set one.
     pub app_id: Option<String>,
     /// The process that made it, when niri knows.
     pub pid: Option<i32>,
+    /// The id of the workspace it's on, if any.
     pub workspace_id: Option<u64>,
+    /// Whether it has the keyboard focus.
     pub is_focused: bool,
+    /// Whether it floats rather than tiles.
     pub is_floating: bool,
     /// Whether it's fullscreen (the fork; false on stock niri).
     pub is_fullscreen: bool,
@@ -513,11 +550,15 @@ fn parse_window(window: &Value) -> Option<Window> {
 /// A screencast niri is running.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Cast {
+    /// The id niri gives the cast session, which stop_cast takes.
     pub session_id: u64,
+    /// The id niri gives the cast's stream.
     pub stream_id: u64,
     /// `PipeWire` (a portal screencast) or `WlrScreencopy`.
     pub kind: String,
+    /// What it shows.
     pub target: CastTarget,
+    /// Whether it's casting now, rather than waiting to start.
     pub is_active: bool,
     /// The program casting, when niri knows.
     pub pid: Option<i32>,
@@ -526,8 +567,11 @@ pub struct Cast {
 /// What a screencast shows.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CastTarget {
+    /// Nothing yet, or nothing niri names.
     Nothing,
+    /// An output, by its connector name.
     Output(String),
+    /// A window, by the id niri gives it.
     Window(u64),
 }
 

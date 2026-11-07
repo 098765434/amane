@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 //! What a NetworkManager signal asks of [`Network`](super::Network). Most of them say something
 //! that changes what shows and need everything read again. A few come every few seconds and

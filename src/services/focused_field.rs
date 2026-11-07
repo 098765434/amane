@@ -10,7 +10,7 @@
 //! keyboard, and says whose field it is from the app's socket and process, not from what
 //! the app calls itself.
 
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use std::path::PathBuf;
 use std::sync::{Mutex, PoisonError};
@@ -22,20 +22,34 @@ use crate::{Service, changes};
 /// What a field is for, as the app said (zwp_text_input_v3 content purpose).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum Purpose {
+    /// Plain text, or the app said nothing.
     #[default]
     Normal,
+    /// Letters only.
     Alpha,
+    /// Digits only.
     Digits,
+    /// A number, which may have a sign or a decimal point.
     Number,
+    /// A phone number.
     Phone,
+    /// A web address.
     Url,
+    /// An email address.
     Email,
+    /// A person's name.
     Name,
+    /// A password.
     Password,
+    /// A PIN.
     Pin,
+    /// A date.
     Date,
+    /// A time of day.
     Time,
+    /// A date and a time.
     Datetime,
+    /// A terminal.
     Terminal,
 }
 
@@ -69,16 +83,17 @@ impl Hints {
     const SENSITIVE_DATA: u32 = 0x80;
     const MULTILINE: u32 = 0x200;
 
-    // the characters are hidden, like a password's dots
+    /// The characters are hidden, like a password's dots.
     pub fn hidden_text(self) -> bool {
         self.0 & Self::HIDDEN_TEXT != 0
     }
 
-    // what is typed is private
+    /// What is typed is private.
     pub fn sensitive(self) -> bool {
         self.0 & Self::SENSITIVE_DATA != 0
     }
 
+    /// It takes more than one line.
     pub fn multiline(self) -> bool {
         self.0 & Self::MULTILINE != 0
     }
@@ -99,7 +114,9 @@ pub struct FieldOwner {
     /// The window's id in the compositor's IPC, none for a layer surface.
     pub window_id: Option<u64>,
 
+    /// The field is in a normal window.
     pub in_window: bool,
+    /// The field is in a layer-shell surface, like a bar or a launcher.
     pub in_layer: bool,
 
     /// The app runs in a sandbox (a security context).
@@ -114,11 +131,17 @@ pub struct FieldOwner {
 pub enum FillError {
     /// Another field, window or app has the keyboard now.
     Changed,
+    /// The field takes no text input.
     NoTextInput,
+    /// The session is locked.
     Locked,
+    /// The compositor's handle for the field is too old.
     Expired,
+    /// This field was filled already.
     Used,
+    /// Fills came too quickly.
     TooSoon,
+    /// The text is empty, too long or holds control characters.
     InvalidText,
 
     /// The compositor lacks niri-secure-fill, or this app isn't the input method.
@@ -136,6 +159,8 @@ pub(crate) struct FillRequest {
 
 pub(crate) static FILLS: Mutex<Vec<FillRequest>> = Mutex::new(Vec::new());
 
+/// The text field that has the keyboard in any app, what kind of field it is and whose,
+/// for an app that called App::input_method; what the field holds is never kept.
 #[derive(Debug, Default)]
 pub struct FocusedField {
     available: bool,
@@ -186,10 +211,12 @@ impl FocusedField {
         self.active
     }
 
+    /// What the field is for, as the app said.
     pub fn purpose(&self) -> Purpose {
         self.purpose
     }
 
+    /// How the app said the field behaves.
     pub fn hints(&self) -> Hints {
         self.hints
     }
@@ -224,11 +251,9 @@ impl FocusedField {
         self.field_rect
     }
 
-    /*
-     * puts text in the field of `generation`, if that field still has the keyboard; done
-     * runs on the event loop's thread with how it went. The text is wiped once sent. Call
-     * it from anywhere, like the thread that fetched a password
-     */
+    /// Puts text in the field of `generation`, if that field still has the keyboard; done
+    /// runs on the event loop's thread with how it went. The text is wiped once sent. Call
+    /// it from anywhere, like the thread that fetched a password.
     pub fn fill(
         text: Zeroizing<String>,
         generation: u64,

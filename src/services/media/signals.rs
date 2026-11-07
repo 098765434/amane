@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 //! Following the players by their signals, so nothing polls: a player
 //! appearing or quitting (`NameOwnerChanged` for `org.mpris.MediaPlayer2.*`),

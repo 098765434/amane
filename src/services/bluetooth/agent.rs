@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, Once, PoisonError};
@@ -29,7 +29,7 @@ static NEXT: AtomicU64 = AtomicU64::new(1);
 // the call bluez is waiting on an answer to, with the id of its request
 static WAITING: Mutex<Option<(u64, Method)>> = Mutex::new(None);
 
-// what bluez is asking about one device
+/// What bluez is asking about one device.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PairingRequest {
     pub(crate) id: u64,
@@ -40,51 +40,65 @@ pub struct PairingRequest {
     pub(crate) kind: PairingKind,
 }
 
+/// What a pairing needs from the user.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PairingKind {
-    // both sides show this six-digit number, pair if they match
+    /// Both sides show this six-digit number, pair if they match.
     Confirm(u32),
 
-    // a PIN to type, for older devices; often 0000
+    /// A PIN to type, for older devices; often 0000.
     EnterPin,
 
-    // the six-digit number the device shows, to type here
+    /// The six-digit number the device shows, to type here.
     EnterPasskey,
 
-    // a PIN to type on the device, like a keyboard
+    /// A PIN to type on the device, like a keyboard.
     DisplayPin(String),
 
-    // a number to type on the device, and how many digits it has so far
-    DisplayPasskey { passkey: u32, entered: u16 },
+    /// A number to type on the device, and how many digits it has so far.
+    DisplayPasskey {
+        /// The six-digit number to type.
+        passkey: u32,
+        /// How many digits have been typed on the device so far.
+        entered: u16,
+    },
 
-    // a device asking to pair with no code at all
+    /// A device asking to pair with no code at all.
     Authorize,
 
-    // a device that isn't trusted asking to use a service, by its UUID
+    /// A device that isn't trusted asking to use a service, by its UUID.
     AuthorizeService(String),
 }
 
+/// The user's answer to a pairing request, for Bluetooth::answer.
 pub enum PairingAnswer {
+    /// Yes, for a confirm or an authorize.
     Accept,
+    /// No; bluez ends the pairing.
     Reject,
+    /// The PIN the user typed, for EnterPin.
     Pin(String),
+    /// The number the user typed, for EnterPasskey.
     Passkey(u32),
 }
 
 impl PairingRequest {
+    /// What answer() takes to answer this request.
     pub fn id(&self) -> u64 {
         self.id
     }
 
+    /// The device's d-bus path.
     pub fn device(&self) -> &str {
         &self.device
     }
 
+    /// What the pairing needs from the user.
     pub fn kind(&self) -> &PairingKind {
         &self.kind
     }
 
-    // whether it waits for an answer, rather than only showing a code
+    /// Whether it waits for an answer, rather than only showing a code.
     pub fn asks(&self) -> bool {
         !matches!(
             self.kind,
@@ -94,11 +108,9 @@ impl PairingRequest {
 }
 
 impl Bluetooth {
-    /*
-     * answers bluez's pairing questions through pairing_request() and
-     * answer(); only one program should, so a shell calls this once and
-     * other amane programs leave it alone
-     */
+    /// Answers bluez's pairing questions through pairing_request() and
+    /// answer(); only one program should, so a shell calls this once and
+    /// other amane programs leave it alone.
     pub fn serve_agent() {
         static SERVE: Once = Once::new();
 
@@ -107,7 +119,7 @@ impl Bluetooth {
         });
     }
 
-    // answers the request with this id; an old id, already answered or canceled, does nothing
+    /// Answers the request with this id; an old id, already answered or canceled, does nothing.
     pub fn answer(id: u64, answer: PairingAnswer) {
         let waiting = {
             let mut waiting = WAITING.lock().unwrap_or_else(PoisonError::into_inner);

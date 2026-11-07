@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use smithay_client_toolkit::reexports::protocols::ext::background_effect::v1::client::{
     ext_background_effect_manager_v1::{self, ExtBackgroundEffectManagerV1},

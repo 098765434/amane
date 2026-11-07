@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 //! Change subscriptions: [`Service::subscribe`] calls back after a write that changed the
 //! service, so one service can follow another without polling and without side effects in

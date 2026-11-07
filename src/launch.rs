@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 //! Starting programs: never a panic, the activation token passed on, and each program in a
 //! systemd scope of its own (`app-amane-<app>-<pid>.scope` under `app.slice`), so restarting

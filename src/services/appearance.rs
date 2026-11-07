@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use crate::{Argument, Bus, Color, Service, Value};
 
@@ -18,15 +18,20 @@ const CONTRAST: &str = "contrast";
 
 const REDUCED_MOTION: &str = "reduced-motion";
 
-// the light or dark preference the desktop asks programs to follow
+/// The light or dark preference the desktop asks programs to follow.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Scheme {
+    /// The desktop says nothing, or there's no portal.
     #[default]
     NoPreference,
+    /// Dark colors wanted.
     Dark,
+    /// Light colors wanted.
     Light,
 }
 
+/// The desktop's appearance settings from the settings portal: light or dark, the accent
+/// color and the accessibility preferences, kept up to date as they change.
 #[derive(Default, PartialEq)]
 pub struct Appearance {
     // none without xdg-desktop-portal, then everything reads as no preference
@@ -87,29 +92,32 @@ impl Service for Appearance {
 }
 
 impl Appearance {
-    // false without xdg-desktop-portal
+    /// False without xdg-desktop-portal.
     pub fn present(&self) -> bool {
         self.present
     }
 
+    /// The light or dark preference.
     pub fn scheme(&self) -> Scheme {
         self.scheme
     }
 
+    /// Whether the desktop asks for dark colors.
     pub fn prefers_dark(&self) -> bool {
         self.scheme == Scheme::Dark
     }
 
+    /// The accent color the desktop picked; only some portal backends know one.
     pub fn accent(&self) -> Option<Color> {
         self.accent
     }
 
-    // the desktop asks for higher contrast
+    /// The desktop asks for higher contrast.
     pub fn high_contrast(&self) -> bool {
         self.high_contrast
     }
 
-    // the desktop asks for less motion
+    /// The desktop asks for less motion.
     pub fn reduced_motion(&self) -> bool {
         self.reduced_motion
     }

@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 //! Caps Lock and Num Lock. The niri fork reports them on its event stream (`lock-keys`), so
 //! nothing polls; elsewhere the keyboard LEDs in `/sys/class/leds` are read every 250 ms while

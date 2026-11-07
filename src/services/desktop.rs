@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use std::collections::HashMap;
 
@@ -41,7 +41,7 @@ impl Service for Desktop {
 }
 
 impl Desktop {
-    // whether nothing under the workspaces of the output by this name shows
+    /// Whether nothing under the workspaces of the output by this name shows.
     pub fn obscured(&self, output: &str) -> bool {
         self.obscured.get(output).copied().unwrap_or(false)
     }

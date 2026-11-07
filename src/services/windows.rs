@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use crate::changes::{self, Source};
 use crate::compositor::{self, Action};
@@ -6,6 +6,8 @@ use crate::services::worker;
 use crate::timing;
 use crate::{Service, WindowInfo};
 
+/// The open windows the compositor reports, and whether its overview is open, with actions
+/// to focus, close and move them; empty on a compositor amane can't follow.
 pub struct Windows {
     list: Vec<WindowInfo>,
     overview: bool,
@@ -68,18 +70,18 @@ impl Service for Windows {
 }
 
 impl Windows {
-    // sorted by id
+    /// Sorted by id.
     pub fn list(&self) -> &[WindowInfo] {
         &self.list
     }
 
-    // the one focused window, or none (e.g. a layer surface has focus)
+    /// The one focused window, or none (e.g. a layer surface has focus).
     pub fn focused(&self) -> Option<&WindowInfo> {
         self.list.iter().find(|window| window.focused)
     }
 
-    // whether niri's overview is currently open (always false on backends
-    // without overview support)
+    /// Whether niri's overview is currently open (always false on backends
+    /// without overview support).
     pub fn overview(&self) -> bool {
         self.overview
     }
@@ -88,22 +90,27 @@ impl Windows {
     // Each runs on the shared worker thread so a slow socket never stalls
     // drawing, mirroring `Workspaces::focus`.
 
+    /// Focuses the window with this id.
     pub fn focus(id: u64) {
         worker::run(move || compositor::act(Action::FocusWindow(id)));
     }
 
+    /// Asks the window with this id to close.
     pub fn close(id: u64) {
         worker::run(move || compositor::act(Action::CloseWindow(id)));
     }
 
+    /// Toggles fullscreen for the window with this id.
     pub fn fullscreen(id: u64) {
         worker::run(move || compositor::act(Action::FullscreenWindow(id)));
     }
 
+    /// Moves the window with this id between floating and the tiling layout.
     pub fn toggle_floating(id: u64) {
         worker::run(move || compositor::act(Action::ToggleFloating(id)));
     }
 
+    /// Moves the window to the workspace with this id, the focus going with it.
     pub fn move_to_workspace(id: u64, workspace: i64) {
         worker::run(move || {
             compositor::act(Action::MoveWindowToWorkspace {
@@ -114,8 +121,8 @@ impl Windows {
         });
     }
 
-    // moves the window to `workspace` (none: stays on its own) and its column to
-    // `index` there, from 1, without the focus going with it, as a drag in a dock does
+    /// Moves the window to `workspace` (none: stays on its own) and its column to
+    /// `index` there, from 1, without the focus going with it, as a drag in a dock does.
     pub fn move_to(id: u64, workspace: Option<i64>, index: usize) {
         worker::run(move || {
             if let Some(workspace) = workspace {
@@ -130,25 +137,29 @@ impl Windows {
         });
     }
 
+    /// Focuses the column left of the focused one.
     pub fn focus_column_left() {
         worker::run(|| compositor::act(Action::FocusColumnLeft));
     }
 
+    /// Focuses the column right of the focused one.
     pub fn focus_column_right() {
         worker::run(|| compositor::act(Action::FocusColumnRight));
     }
 
-    // Ask the compositor to spawn a command. Unlike `amane::spawn`, which the
-    // shell runs itself, this hands the command to the compositor, so it is
-    // parented and tracked like any binding-launched program.
+    /// Ask the compositor to spawn a command. Unlike `amane::spawn`, which the
+    /// shell runs itself, this hands the command to the compositor, so it is
+    /// parented and tracked like any binding-launched program.
     pub fn spawn(command: Vec<String>) {
         worker::run(move || compositor::act(Action::Spawn(command)));
     }
 
+    /// Starts the compositor's interactive screenshot, with the pointer shown.
     pub fn screenshot() {
         worker::run(|| compositor::act(Action::Screenshot));
     }
 
+    /// Opens or closes the compositor's overview.
     pub fn toggle_overview() {
         worker::run(|| compositor::act(Action::ToggleOverview));
     }

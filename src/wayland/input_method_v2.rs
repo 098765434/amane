@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use wayland_client::protocol::{wl_seat::WlSeat, wl_surface::WlSurface};
 use wayland_client::{Connection, Dispatch, Proxy, QueueHandle};

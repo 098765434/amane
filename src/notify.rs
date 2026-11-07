@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use std::collections::BTreeMap;
 use std::sync::OnceLock;
@@ -9,10 +9,8 @@ use crate::{Argument, Bus, Urgency};
 // the app-id App::run started with, which notifications are sent under
 pub(crate) static APP_NAME: OnceLock<String> = OnceLock::new();
 
-/*
- * a desktop notification for the notification server to show, like the shell's:
- * Notify::new("Saved").body("notes.txt").send()
- */
+/// A desktop notification for the notification server to show, like the shell's:
+/// Notify::new("Saved").body("notes.txt").send().
 pub struct Notify {
     summary: String,
     body: String,
@@ -21,6 +19,7 @@ pub struct Notify {
 }
 
 impl Notify {
+    /// A notification with this title; send() shows it.
     pub fn new(summary: &str) -> Self {
         Self {
             summary: String::from(summary),
@@ -30,26 +29,28 @@ impl Notify {
         }
     }
 
+    /// The text under the title.
     pub fn body(mut self, body: &str) -> Self {
         self.body = String::from(body);
 
         self
     }
 
-    // an icon theme name, like "document-save", or a file path
+    /// An icon theme name, like "document-save", or a file path.
     pub fn icon(mut self, icon: &str) -> Self {
         self.icon = String::from(icon);
 
         self
     }
 
+    /// Low, normal or critical; servers often keep a critical one up until it is dismissed.
     pub fn urgency(mut self, urgency: Urgency) -> Self {
         self.urgency = urgency;
 
         self
     }
 
-    // sent on the worker thread, so a slow server never holds up a frame
+    /// Sent on the worker thread, so a slow server never holds up a frame.
     pub fn send(self) {
         let app_name = APP_NAME
             .get()

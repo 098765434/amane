@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 //! BlueZ's errors as [`ServiceError`]s: its own names first, then the reason it puts in the
 //! text of a plain `org.bluez.Error.Failed`. How a failure reads is the UI's choice.

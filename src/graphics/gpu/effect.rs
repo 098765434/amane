@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use vello::wgpu::{
     AddressMode, Device, Extent3d, FilterMode, Queue, Sampler, SamplerDescriptor,

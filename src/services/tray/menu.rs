@@ -12,35 +12,40 @@ use super::icon::fnv;
 
 const DBUSMENU: &str = "com.canonical.dbusmenu";
 
-// how a menu entry can be ticked
+/// How a menu entry can be ticked.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TrayToggle {
+    /// A plain entry, with no tick.
     #[default]
     None,
 
-    // on or off, on its own
+    /// On or off, on its own.
     Check(bool),
 
-    // one of a group
+    /// One of a group.
     Radio(bool),
 }
 
-// one entry of an item's menu
+/// One entry of an item's menu.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TrayMenuItem {
-    // what picking it tells the program
+    /// What picking it tells the program.
     pub id: i32,
 
-    // with the underscores that mark access keys taken out
+    /// With the underscores that mark access keys taken out.
     pub label: String,
 
+    /// Whether it can be picked; a disabled one shows grayed out.
     pub enabled: bool,
+    /// A line between groups of entries, with nothing to pick.
     pub separator: bool,
+    /// Whether it has a check mark or a radio dot, and if it's on.
     pub toggle: TrayToggle,
 
+    /// Its icon as a file to load, when it has one.
     pub icon: Option<PathBuf>,
 
-    // a submenu's entries
+    /// A submenu's entries.
     pub children: Vec<TrayMenuItem>,
 }
 

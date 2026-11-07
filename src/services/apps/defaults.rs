@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use std::collections::HashMap;
 use std::env;
@@ -13,12 +13,10 @@ use crate::{ErrorKind, Service, ServiceError};
 const DEFAULTS: &str = "Default Applications";
 const ADDED: &str = "Added Associations";
 
-/*
- * which app opens each kind of file and link: the freedesktop mimeapps.list
- * files, read in the spec's order, so it answers as xdg-open does. changes go
- * to the user's own ~/.config/mimeapps.list, a line at a time, leaving the
- * rest of the file as it was
- */
+/// Which app opens each kind of file and link: the freedesktop mimeapps.list
+/// files, read in the spec's order, so it answers as xdg-open does. Changes go
+/// to the user's own ~/.config/mimeapps.list, a line at a time, leaving the
+/// rest of the file as it was.
 #[derive(Default, PartialEq)]
 pub struct MimeApps {
     // every app listed as the default for a kind, the first file's first
@@ -100,19 +98,19 @@ fn system_fingerprint() -> Fingerprint {
 }
 
 impl MimeApps {
-    // the desktop file ids listed as the default for `kind`, most wanted first;
-    // the first one installed is the one that opens it
+    /// The desktop file ids listed as the default for `kind`, most wanted first;
+    /// the first one installed is the one that opens it.
     pub fn defaults_for(&self, kind: &str) -> &[String] {
         self.defaults.get(kind).map_or(&[], Vec::as_slice)
     }
 
-    // the defaults the user has set themselves, kind and app id, in their file's order
+    /// The defaults the user has set themselves, kind and app id, in their file's order.
     pub fn own(&self) -> &[(String, String)] {
         &self.own
     }
 
-    // the installed app that opens `kind`: the first listed default installed,
-    // else the one xdg-open falls back to from mimeinfo.cache
+    /// The installed app that opens `kind`: the first listed default installed,
+    /// else the one xdg-open falls back to from mimeinfo.cache.
     pub fn default_app(kind: &str) -> Option<DesktopApp> {
         let (ids, cached) = {
             let lists = Self::read();
@@ -129,11 +127,9 @@ impl MimeApps {
             .find_map(|id| apps.get(id).cloned())
     }
 
-    /*
-     * the apps that can open `kind`, by name: the ones menus show that list it
-     * (or a kind it comes from), or are said to open it, and the default, even
-     * one menus don't show
-     */
+    /// The apps that can open `kind`, by name: the ones menus show that list it
+    /// (or a kind it comes from), or are said to open it, and the default, even
+    /// one menus don't show.
     pub fn handlers(kind: &str) -> Vec<DesktopApp> {
         let (added, defaults) = {
             let lists = Self::read();
@@ -156,7 +152,7 @@ impl MimeApps {
             .collect()
     }
 
-    // makes `id` the default for each of `kinds`, said to open those it doesn't list
+    /// Makes `id` the default for each of `kinds`, said to open those it doesn't list.
     pub fn set_default(kinds: &[String], id: &str) -> Result<(), ServiceError> {
         let app = Apps::read().get(id).cloned();
 
@@ -205,7 +201,7 @@ impl MimeApps {
         Ok(())
     }
 
-    // takes the user's own default for each of `kinds` away, back to the system's
+    /// Takes the user's own default for each of `kinds` away, back to the system's.
     pub fn reset(kinds: &[String]) -> Result<(), ServiceError> {
         edit(|text| {
             kinds.iter().fold(text.to_string(), |text, kind| {

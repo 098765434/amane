@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 //! niri's outputs as [`amane::niri::outputs`](crate::niri::outputs) answers them, kept up to
 //! date: read again when the niri fork says they changed (`OutputsChanged`), so nothing polls.

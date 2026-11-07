@@ -1,64 +1,82 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use crate::Value;
 
+/// What a battery is doing, as upower reports it.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum BatteryState {
+    /// Upower doesn't know, or there's no battery.
     #[default]
     Unknown,
 
+    /// Taking charge.
     Charging,
 
+    /// Running the machine.
     Discharging,
 
+    /// Out of charge.
     Empty,
 
+    /// Fully charged.
     Full,
 
-    // plugged in, but waiting to charge, like a battery kept below 80% to last longer
+    /// Plugged in, but waiting to charge, like a battery kept below 80% to last longer.
     PendingCharge,
 
+    /// Plugged in, but waiting to run on the battery.
     PendingDischarge,
 }
 
-// ordered, so warning() >= WarningLevel::Low covers low, critical and action
+/// Ordered, so warning() >= WarningLevel::Low covers low, critical and action.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub enum WarningLevel {
+    /// Nothing to warn about.
     #[default]
     None,
 
-    // running on a ups, only for ups devices
+    /// Running on a ups, only for ups devices.
     Discharging,
 
+    /// Low enough to warn about.
     Low,
 
+    /// Low enough to warn about loudly.
     Critical,
 
-    // so low the system is about to hibernate or power off
+    /// So low the system is about to hibernate or power off.
     Action,
 }
 
-// what kind of thing a peripheral is, other kinds keep upower's number
+/// What kind of thing a peripheral is, other kinds keep upower's number.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeviceKind {
+    /// A mouse.
     Mouse,
 
+    /// A keyboard.
     Keyboard,
 
+    /// A phone.
     Phone,
 
+    /// A music player.
     MediaPlayer,
 
+    /// A drawing tablet.
     Tablet,
 
+    /// A game controller or joystick.
     GamingInput,
 
+    /// Headphones or a headset.
     Headset,
 
+    /// Any other kind, by upower's number for it.
     Other(u32),
 }
 
-// a mouse, keyboard, headset or other device with its own battery
+/// A mouse, keyboard, headset or other device with its own battery.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PowerDevice {
     // the name the device reports, like "MX Master 3"
@@ -124,18 +142,22 @@ impl PowerDevice {
         }
     }
 
+    /// The name the device reports, like "MX Master 3".
     pub fn model(&self) -> &str {
         &self.model
     }
 
+    /// What kind of device it is.
     pub fn kind(&self) -> DeviceKind {
         self.kind
     }
 
+    /// How full its battery is, 0 to 100.
     pub fn percent(&self) -> u8 {
         self.percent
     }
 
+    /// Whether its battery is charging, running down or full.
     pub fn state(&self) -> BatteryState {
         self.state
     }

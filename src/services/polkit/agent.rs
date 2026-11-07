@@ -103,11 +103,9 @@ impl Default for PolkitAgent {
 }
 
 impl Polkit {
-    /*
-     * answers polkitd's authentication requests through auth_request() and
-     * answer(); only one program should, so a shell calls this once and
-     * other amane programs leave it alone
-     */
+    /// Answers polkitd's authentication requests through auth_request() and
+    /// answer(); only one program should, so a shell calls this once and
+    /// other amane programs leave it alone.
     pub fn serve_agent() {
         Self::serve_agent_with(PolkitAgent::default());
     }
@@ -123,13 +121,13 @@ impl Polkit {
         });
     }
 
-    // answers the request with this id with what the user typed; an old id does nothing
+    /// Answers the request with this id with what the user typed; an old id does nothing.
     pub fn answer(id: u64, text: String) {
         // off the caller's thread, which may be drawing with the service read
         worker::run(move || answer(id, text));
     }
 
-    // gives up on the request with this id, which the program asking sees as a refusal
+    /// Gives up on the request with this id, which the program asking sees as a refusal.
     pub fn cancel(id: u64) {
         worker::run(move || {
             let waiting = take_if(|waiting| waiting.id == id);

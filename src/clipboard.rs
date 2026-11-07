@@ -1,39 +1,33 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use std::path::PathBuf;
 use std::sync::{Mutex, PoisonError};
 
 use crate::changes;
 
-// the clipboard Ctrl+C and Ctrl+V use, shared with every other program
+/// The clipboard Ctrl+C and Ctrl+V use, shared with every other program.
 pub struct Clipboard;
 
-// the text selected last, which a middle click pastes
+/// The text selected last, which a middle click pastes.
 pub struct PrimarySelection;
 
 impl Clipboard {
-    /*
-     * puts text on the clipboard, for other programs to paste; it has to come from
-     * input, like a key or a click, or the compositor may turn it down
-     */
+    /// Puts text on the clipboard, for other programs to paste; it has to come from
+    /// input, like a key or a click, or the compositor may turn it down.
     pub fn copy(text: impl Into<String>) {
         request(Request::Copy(Board::Clipboard, text.into()));
     }
 
-    /*
-     * reads the clipboard and calls `then` with its text, once the program that copied it
-     * has answered; it runs on the event loop like a handler, and not at all when there is
-     * no text on it
-     */
+    /// Reads the clipboard and calls `then` with its text, once the program that copied it
+    /// has answered; it runs on the event loop like a handler, and not at all when there is
+    /// no text on it.
     pub fn paste(then: impl FnOnce(String) + Send + 'static) {
         request(Request::Paste(Board::Clipboard, Box::new(then)));
     }
 
-    /*
-     * puts a password on the clipboard the way password managers do: it's also offered as
-     * x-kde-passwordManagerHint, so clipboard histories leave it out, and it's taken off the
-     * clipboard after `clear_after` if nothing was copied since. The text is wiped once gone
-     */
+    /// Puts a password on the clipboard the way password managers do: it's also offered as
+    /// x-kde-passwordManagerHint, so clipboard histories leave it out, and it's taken off the
+    /// clipboard after `clear_after` if nothing was copied since. The text is wiped once gone.
     pub fn copy_secret(text: zeroize::Zeroizing<String>, clear_after: std::time::Duration) {
         request(Request::CopySecret(
             String::from(text.as_str()),
@@ -43,21 +37,23 @@ impl Clipboard {
 }
 
 impl PrimarySelection {
-    // the same as Clipboard::copy, for the text a middle click pastes
+    /// The same as Clipboard::copy, for the text a middle click pastes.
     pub fn copy(text: impl Into<String>) {
         request(Request::Copy(Board::Primary, text.into()));
     }
 
-    // the same as Clipboard::paste
+    /// The same as Clipboard::paste.
     pub fn paste(then: impl FnOnce(String) + Send + 'static) {
         request(Request::Paste(Board::Primary, Box::new(then)));
     }
 }
 
-// what a rectangle hands over when it is dragged out to another program
+/// What a rectangle hands over when it is dragged out to another program.
 #[derive(Clone, Debug, PartialEq)]
 pub enum DragData {
+    /// Text, offered in the usual text types.
     Text(String),
+    /// Files, offered as a uri-list and as their paths in text.
     Files(Vec<PathBuf>),
 }
 

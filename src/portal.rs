@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use std::collections::HashMap;
 use std::os::unix::ffi::OsStrExt;
@@ -17,10 +17,8 @@ use crate::changes;
 // each request names its own answer, so two dialogs open at once don't mix theirs up
 static REQUESTS: AtomicU32 = AtomicU32::new(0);
 
-/*
- * the desktop's own file dialog, through the file chooser portal, so it looks like every
- * other app's: FileDialog::open("Open a picture").filter("Images", &["*.png"]).show(...)
- */
+/// The desktop's own file dialog, through the file chooser portal, so it looks like every
+/// other app's: `FileDialog::open("Open a picture").filter("Images", &["*.png"]).show(...)`.
 pub struct FileDialog {
     save: bool,
     title: String,
@@ -37,12 +35,12 @@ pub struct FileDialog {
 }
 
 impl FileDialog {
-    // a dialog that picks files that are there
+    /// A dialog that picks files that are there.
     pub fn open(title: &str) -> Self {
         Self::new(false, title)
     }
 
-    // a dialog that picks where to save a file
+    /// A dialog that picks where to save a file.
     pub fn save(title: &str) -> Self {
         Self::new(true, title)
     }
@@ -59,7 +57,7 @@ impl FileDialog {
         }
     }
 
-    // only shows files that match one of the patterns, which the user picks by name
+    /// Only shows files that match one of the patterns, which the user picks by name.
     pub fn filter(mut self, name: &str, patterns: &[&str]) -> Self {
         let patterns = patterns
             .iter()
@@ -71,37 +69,36 @@ impl FileDialog {
         self
     }
 
-    // lets the user pick more than one
+    /// Lets the user pick more than one.
     pub fn multiple(mut self, multiple: bool) -> Self {
         self.multiple = multiple;
 
         self
     }
 
-    // picks folders instead of files
+    /// Picks folders instead of files.
     pub fn directory(mut self, directory: bool) -> Self {
         self.directory = directory;
 
         self
     }
 
-    // the file name a save dialog suggests
+    /// The file name a save dialog suggests.
     pub fn name(mut self, name: &str) -> Self {
         self.name = Some(String::from(name));
 
         self
     }
 
+    /// The folder the dialog starts in.
     pub fn folder(mut self, folder: impl Into<PathBuf>) -> Self {
         self.folder = Some(folder.into());
 
         self
     }
 
-    /*
-     * shows the dialog and moves on; `then` runs with what the user picked once they
-     * have, on the event loop like a handler, and not at all when they cancel
-     */
+    /// Shows the dialog and moves on; `then` runs with what the user picked once they
+    /// have, on the event loop like a handler, and not at all when they cancel.
     pub fn show(self, then: impl FnOnce(Vec<PathBuf>) + Send + 'static) {
         // the user takes their time, so this waits on a thread of its own
         thread::spawn(move || {

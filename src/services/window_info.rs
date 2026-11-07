@@ -1,10 +1,10 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use crate::changes::{self, Source};
 
-// A single open window (toplevel) as reported by the compositor. Named
-// `WindowInfo` because the crate root already exports `Window` for the
-// xdg-toplevel *surface role* this shell can open itself.
+/// A single open window (toplevel) as reported by the compositor. Named
+/// `WindowInfo` because the crate root already exports `Window` for the
+/// xdg-toplevel *surface role* this shell can open itself.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WindowInfo {
     pub(crate) id: u64,
@@ -30,15 +30,17 @@ pub struct WindowInfo {
 }
 
 impl WindowInfo {
+    /// The compositor's id for the window, which the Windows actions take.
     pub fn id(&self) -> u64 {
         self.id
     }
 
+    /// The app's id, like "foot"; none while the app hasn't set one.
     pub fn app_id(&self) -> Option<&str> {
         self.app_id.as_deref()
     }
 
-    // a later change to any title draws again only the windows that asked for one
+    /// A later change to any title draws again only the windows that asked for one.
     pub fn title(&self) -> Option<&str> {
         changes::note_source(Source::Titles);
 
@@ -56,25 +58,28 @@ impl WindowInfo {
             && self.column == other.column
     }
 
+    /// Whether it has the focus; at most one window does.
     pub fn focused(&self) -> bool {
         self.focused
     }
 
+    /// Whether it floats; false means it is in the tiling layout.
     pub fn floating(&self) -> bool {
         self.floating
     }
 
-    // whether it fills its monitor, a bar hiding for it
+    /// Whether it fills its monitor, a bar hiding for it.
     pub fn fullscreen(&self) -> bool {
         self.fullscreen
     }
 
+    /// The id of the workspace it is on, if any.
     pub fn workspace(&self) -> Option<i64> {
         self.workspace
     }
 
-    // where it is in niri's scrolling layout: its column, then its place in
-    // the column, both from 1; none while floating or under another compositor
+    /// Where it is in niri's scrolling layout: its column, then its place in
+    /// the column, both from 1; none while floating or under another compositor.
     pub fn column(&self) -> Option<(usize, usize)> {
         self.column
     }

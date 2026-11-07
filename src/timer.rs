@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 //! Timers on the event loop: run a job on the UI thread at a time, instead of a thread that
 //! sleeps for it. Callable from any thread, and before the event loop exists (the timers start

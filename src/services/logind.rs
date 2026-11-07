@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 //! The login session as logind sees it: whether it is the active one on its seat, its locked
 //! and idle hints, requests to lock or unlock it (`loginctl lock-session`), and the computer

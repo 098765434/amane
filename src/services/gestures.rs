@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use crate::Service;
 use crate::compositor;
@@ -61,32 +61,32 @@ impl Service for Gestures {
 }
 
 impl Gestures {
-    // overview open/close progress: 0.0 closed .. 1.0 fully open
+    /// Overview open/close progress: 0.0 closed .. 1.0 fully open.
     pub fn overview_progress(&self) -> f64 {
         self.overview_progress
     }
 
-    // horizontal scroll position of the focused output, in logical pixels
+    /// Horizontal scroll position of the focused output, in logical pixels.
     pub fn view_pos(&self) -> f64 {
         self.view_pos
     }
 
-    // index of the active column on the focused output
+    /// Index of the active column on the focused output.
     pub fn active_column_idx(&self) -> usize {
         self.active_column_idx
     }
 
-    // current, possibly fractional, workspace position of the focused output
+    /// Current, possibly fractional, workspace position of the focused output.
     pub fn workspace_idx(&self) -> f64 {
         self.workspace_idx
     }
 
-    // index of the active workspace on the focused output
+    /// Index of the active workspace on the focused output.
     pub fn active_workspace_idx(&self) -> usize {
         self.active_workspace_idx
     }
 
-    // name of the focused output the values above belong to
+    /// Name of the focused output the values above belong to.
     pub fn output(&self) -> &str {
         &self.output
     }

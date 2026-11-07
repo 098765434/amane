@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 //! The kernel's radio switches (rfkill): which radios there are and whether software or a
 //! hardware switch holds each off. Read from `/dev/rfkill`, which sends every switch when it is

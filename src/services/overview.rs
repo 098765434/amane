@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use crate::Service;
 use crate::compositor;
@@ -37,7 +37,7 @@ impl Service for Overview {
 }
 
 impl Overview {
-    // 0.0 closed .. 1.0 fully open
+    /// 0.0 closed .. 1.0 fully open.
     pub fn progress(&self) -> f64 {
         self.progress
     }

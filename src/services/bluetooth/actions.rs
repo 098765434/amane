@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -12,13 +12,16 @@ use crate::{Argument, Bus, Service};
 use super::{ADAPTER, BLUEZ, Bluetooth, DEVICE, PowerState, errors};
 use crate::{ErrorKind, ServiceError};
 
-// what a device is in the middle of
+/// What a device is in the middle of.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Operation {
+    /// Connecting, until bluez answers or 45 seconds pass.
     Connecting,
+    /// Disconnecting.
     Disconnecting,
-    // pairing, then connecting
+    /// Pairing, then connecting.
     Pairing,
+    /// Unpairing and removing it.
     Forgetting,
 }
 
@@ -54,7 +57,7 @@ static SEARCHING: AtomicBool = AtomicBool::new(false);
 static LAST_RESTART: Mutex<Option<Instant>> = Mutex::new(None);
 
 impl Bluetooth {
-    // turns on with rfkill unblocked first, like turning it on in airplane mode
+    /// Turns on with rfkill unblocked first, like turning it on in airplane mode.
     pub fn set_powered(powered: bool) {
         worker::run(move || {
             let Some(adapter) = adapter() else {
@@ -67,13 +70,14 @@ impl Bluetooth {
         });
     }
 
-    // new devices show up in devices() while searching, until stop_scan()
+    /// New devices show up in devices() while searching, until stop_scan().
     pub fn start_scan() {
         SEARCHING.store(true, Ordering::Relaxed);
 
         worker::run(scan);
     }
 
+    /// Ends a search start_scan() began; one another program started keeps going.
     pub fn stop_scan() {
         SEARCHING.store(false, Ordering::Relaxed);
 
@@ -83,10 +87,8 @@ impl Bluetooth {
         });
     }
 
-    /*
-     * visible to phones and other computers searching, and open to their
-     * pairing; bluez turns it off again after its DiscoverableTimeout
-     */
+    /// Visible to phones and other computers searching, and open to their
+    /// pairing; bluez turns it off again after its DiscoverableTimeout.
     pub fn set_discoverable(discoverable: bool) {
         worker::run(move || {
             let Some(adapter) = adapter() else {
@@ -114,23 +116,23 @@ impl Bluetooth {
         });
     }
 
+    /// Connects to a paired device, by its d-bus path; how it went shows in the service.
     pub fn connect(device: &str) {
         run(device, Operation::Connecting, |device, _| {
             device_call(device, "Connect")
         });
     }
 
+    /// Disconnects the device with this d-bus path.
     pub fn disconnect(device: &str) {
         run(device, Operation::Disconnecting, |device, _| {
             device_call(device, "Disconnect")
         });
     }
 
-    /*
-     * pairs, trusts so it reconnects by itself later, then connects, like
-     * other bluetooth menus do; a device that needs a code asks through
-     * the agent (serve_agent)
-     */
+    /// Pairs, trusts so it reconnects by itself later, then connects, like
+    /// other bluetooth menus do; a device that needs a code asks through
+    /// the agent (serve_agent).
     pub fn pair(device: &str) {
         run(device, Operation::Pairing, |device, token| {
             device_call(device, "Pair")?;
@@ -147,7 +149,7 @@ impl Bluetooth {
         });
     }
 
-    // stops a pairing that's waiting, like on a code nobody is going to type
+    /// Stops a pairing that's waiting, like on a code nobody is going to type.
     pub fn cancel_pairing(device: &str) {
         CANCELED
             .lock()
@@ -161,7 +163,7 @@ impl Bluetooth {
         });
     }
 
-    // unpairs and removes the device, it comes back only after a new search
+    /// Unpairs and removes the device, it comes back only after a new search.
     pub fn forget(device: &str) {
         run(device, Operation::Forgetting, |device, _| {
             let path = Argument::Path(device.to_string());
@@ -174,17 +176,17 @@ impl Bluetooth {
         });
     }
 
-    // whether it reconnects by itself when it's nearby and on
+    /// Whether it reconnects by itself when it's nearby and on.
     pub fn set_trusted(device: &str, trusted: bool) {
         set_later(device, "Trusted", Argument::from(trusted));
     }
 
-    // a blocked device can't connect, and any connection it has ends
+    /// A blocked device can't connect, and any connection it has ends.
     pub fn set_blocked(device: &str, blocked: bool) {
         set_later(device, "Blocked", Argument::from(blocked));
     }
 
-    // the name this computer shows for it, an empty one brings back its own
+    /// The name this computer shows for it, an empty one brings back its own.
     pub fn rename(device: &str, name: &str) {
         set_later(device, "Alias", Argument::from(name.trim()));
     }

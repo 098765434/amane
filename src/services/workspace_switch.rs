@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use crate::Service;
 use crate::compositor;
@@ -48,17 +48,17 @@ impl Service for WorkspaceSwitch {
 }
 
 impl WorkspaceSwitch {
-    // name of the focused output the values below belong to
+    /// Name of the focused output the values below belong to.
     pub fn output(&self) -> &str {
         &self.output
     }
 
-    // current, possibly fractional, workspace position, from 0 at the top
+    /// Current, possibly fractional, workspace position, from 0 at the top.
     pub fn workspace_idx(&self) -> f64 {
         self.workspace_idx
     }
 
-    // index of the active workspace, from 0 at the top
+    /// Index of the active workspace, from 0 at the top.
     pub fn active_workspace_idx(&self) -> usize {
         self.active_workspace_idx
     }

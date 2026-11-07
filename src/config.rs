@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use std::env;
 use std::fs;
@@ -11,34 +11,30 @@ use serde::de::DeserializeOwned;
 
 use crate::{Service, watch_file};
 
-/*
- * settings an app keeps in a file of its own, ~/.config/<app>/<file>.json; derive
- * Serialize, Deserialize, Default and PartialEq on a struct and name where it lives
- */
+/// Settings an app keeps in a file of its own, `~/.config/<app>/<file>.json`; derive
+/// Serialize, Deserialize, Default and PartialEq on a struct and name where it lives.
 pub trait Settings:
     Serialize + DeserializeOwned + Default + PartialEq + Send + Sync + 'static
 {
-    // the folder in ~/.config, usually the app-id, like "amane-shell"
+    /// The folder in ~/.config, usually the app-id, like "amane-shell".
     const APP: &'static str;
 
-    // the file's name without .json, like "appearance"
+    /// The file's name without .json, like "appearance".
     const FILE: &'static str;
 
-    // only its owner can read it (0600), for settings that say something private
+    /// Only its owner can read it (0600), for settings that say something private.
     const PRIVATE: bool = false;
 }
 
-/*
- * a settings file as a Service: read it in a view like any other, change it with
- * Config::<T>::change, and every program that reads the same file sees the change, the
- * shell as well as a settings app
- */
+/// A settings file as a Service: read it in a view like any other, change it with
+/// `Config::<T>::change`, and every program that reads the same file sees the change, the
+/// shell as well as a settings app.
 pub struct Config<T: Settings> {
     value: T,
 }
 
 impl<T: Settings> Config<T> {
-    // where the file lives
+    /// Where the file lives.
     pub fn path() -> PathBuf {
         let config = env::var_os("XDG_CONFIG_HOME")
             .map(PathBuf::from)
@@ -49,10 +45,8 @@ impl<T: Settings> Config<T> {
         config.join(T::APP).join(format!("{}.json", T::FILE))
     }
 
-    /*
-     * changes the settings and saves them, for input handlers; the file is written whole
-     * and moved into place, so a program reading it never sees half of it
-     */
+    /// Changes the settings and saves them, for input handlers; the file is written whole
+    /// and moved into place, so a program reading it never sees half of it.
     pub fn change(edit: impl FnOnce(&mut T)) {
         let mut config = Self::write();
 

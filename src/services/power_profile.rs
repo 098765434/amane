@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use crate::services::worker;
 use crate::{Argument, Bus, Service, Value};
@@ -25,6 +25,8 @@ const ENDPOINTS: [Endpoint; 2] = [
     ),
 ];
 
+/// The power profile power-profiles-daemon has the machine in, and the ones it offers;
+/// kept up to date from the daemon's signals.
 #[derive(Default, PartialEq)]
 pub struct PowerProfile {
     // none when power-profiles-daemon isn't installed
@@ -73,23 +75,27 @@ impl Service for PowerProfile {
 }
 
 impl PowerProfile {
+    /// False when power-profiles-daemon isn't installed or running.
     pub fn present(&self) -> bool {
         self.endpoint.is_some()
     }
 
+    /// The profile now: "power-saver", "balanced" or "performance".
     pub fn active(&self) -> &str {
         &self.active
     }
 
+    /// The profiles set() takes; some machines have no "performance".
     pub fn available(&self) -> &[String] {
         &self.available
     }
 
+    /// Why performance is held back, like "high-operating-temperature".
     pub fn degraded(&self) -> Option<&str> {
         self.degraded.as_deref()
     }
 
-    // one of available(); the daemon ignores anything else
+    /// One of available(); the daemon ignores anything else.
     pub fn set(profile: &str) {
         let profile = String::from(profile);
 

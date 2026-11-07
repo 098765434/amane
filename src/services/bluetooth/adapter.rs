@@ -1,20 +1,24 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use crate::Value;
 
-// whether the radio is on, and what it's on its way to
+/// Whether the radio is on, and what it's on its way to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PowerState {
+    /// Off.
     #[default]
     Off,
+    /// On.
     On,
+    /// Turning on.
     TurningOn,
+    /// Turning off.
     TurningOff,
-    // held off by rfkill, airplane mode or a hardware switch
+    /// Held off by rfkill, airplane mode or a hardware switch.
     Blocked,
 }
 
-// this computer's bluetooth radio
+/// This computer's bluetooth radio.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BluetoothAdapter {
     // the d-bus object, like /org/bluez/hci0
@@ -65,30 +69,37 @@ impl BluetoothAdapter {
         }
     }
 
+    /// The d-bus object, like /org/bluez/hci0.
     pub fn path(&self) -> &str {
         &self.path
     }
 
+    /// What other devices see this computer as.
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    /// The radio's address, like 00:1A:7D:DA:71:13.
     pub fn address(&self) -> &str {
         &self.address
     }
 
+    /// Whether it's on, off, blocked, or on its way.
     pub fn power(&self) -> PowerState {
         self.power
     }
 
+    /// Whether it's on.
     pub fn powered(&self) -> bool {
         self.power == PowerState::On
     }
 
+    /// Whether it's searching for devices nearby.
     pub fn discovering(&self) -> bool {
         self.discovering
     }
 
+    /// Whether it's visible to devices searching, so a phone can pair with it.
     pub fn discoverable(&self) -> bool {
         self.discoverable
     }

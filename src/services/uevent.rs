@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 //! The kernel's device events (uevents) for the whole program: one netlink socket on one
 //! thread, handed out per subsystem. A service that would otherwise poll sysfs, like the

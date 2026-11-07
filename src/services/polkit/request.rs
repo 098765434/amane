@@ -3,7 +3,7 @@
 
 use crate::ServiceError;
 
-// what polkitd is asking the user to prove
+/// What polkitd is asking the user to prove.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AuthRequest {
     pub(crate) id: u64,
@@ -36,6 +36,7 @@ pub struct AuthRequest {
     pub(crate) busy: bool,
 }
 
+/// What the helper asks the user to type, like "Password:".
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AuthPrompt {
     pub(crate) text: String,
@@ -45,30 +46,37 @@ pub struct AuthPrompt {
 }
 
 impl AuthRequest {
+    /// What answer() and cancel() take for this request.
     pub fn id(&self) -> u64 {
         self.id
     }
 
+    /// The action asked for, like org.freedesktop.systemd1.manage-units.
     pub fn action_id(&self) -> &str {
         &self.action_id
     }
 
+    /// The action's own sentence, like "Authentication is required to start 'sshd.service'."
     pub fn message(&self) -> &str {
         &self.message
     }
 
+    /// The action's icon name, often empty.
     pub fn icon(&self) -> &str {
         &self.icon
     }
 
+    /// The user whose password proves it.
     pub fn user(&self) -> &str {
         &self.user
     }
 
+    /// What the helper asks for right now, none until it does.
     pub fn prompt(&self) -> Option<&AuthPrompt> {
         self.prompt.as_ref()
     }
 
+    /// Lines the helper showed, like a fingerprint reader's.
     pub fn info(&self) -> &[String] {
         &self.info
     }
@@ -79,20 +87,24 @@ impl AuthRequest {
         self.error.as_ref()
     }
 
+    /// Wrong answers so far.
     pub fn tries(&self) -> u8 {
         self.tries
     }
 
+    /// An answer is with the helper, so the window waits.
     pub fn busy(&self) -> bool {
         self.busy
     }
 }
 
 impl AuthPrompt {
+    /// The helper's question, like "Password:".
     pub fn text(&self) -> &str {
         &self.text
     }
 
+    /// Whether what's typed may show, which a password may not.
     pub fn echo(&self) -> bool {
         self.echo
     }

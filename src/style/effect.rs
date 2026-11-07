@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use std::path::PathBuf;
 
@@ -7,11 +7,9 @@ use crate::graphics::VALUE_ROWS;
 // how many textures one pass can read
 pub const INPUTS: usize = 4;
 
-/*
- * a chain of wgsl fragment shaders run over what a rectangle drew: each pass
- * reads the drawing or earlier passes' results and the last one is shown in
- * the drawing's place, see examples/effect.rs and docs/fork/effects.md
- */
+/// A chain of wgsl fragment shaders run over what a rectangle drew: each pass
+/// reads the drawing or earlier passes' results and the last one is shown in
+/// the drawing's place, see examples/effect.rs and docs/fork/effects.md.
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct Effect {
     pub(crate) passes: Vec<Pass>,
@@ -25,26 +23,30 @@ pub(crate) struct Pass {
     pub inputs: Vec<Input>,
 }
 
-// what a pass reads as input0, input1 and so on
+/// What a pass reads as input0, input1 and so on.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Input {
-    // the rectangle's fill and children, drawn on their own
+    /// The rectangle's fill and children, drawn on their own.
     Content,
 
-    // what an earlier pass wrote, counted from 0
+    /// What an earlier pass wrote, counted from 0.
     Pass(usize),
 
-    /*
-     * what the window drew before the rectangle, under it and around it;
-     * inside a faded group or a clip, only what that group drew
-     */
+    /// What the window drew before the rectangle, under it and around it;
+    /// inside a faded group or a clip, only what that group drew.
     Backdrop,
 
-    // an image file at its own size, blurred by `blur` pixels; clear until it's decoded
-    Image { path: PathBuf, blur: u32 },
+    /// An image file at its own size, blurred by `blur` pixels; clear until it's decoded.
+    Image {
+        /// The image file.
+        path: PathBuf,
+        /// How far it's blurred, in pixels of the image; 0 for not at all.
+        blur: u32,
+    },
 }
 
 impl Input {
+    /// An image file at its own size, not blurred.
     pub fn image(path: impl Into<PathBuf>) -> Self {
         Self::Image {
             path: path.into(),
@@ -52,7 +54,7 @@ impl Input {
         }
     }
 
-    // blurred once when it's decoded, which costs less than blurring in a pass every frame
+    /// Blurred once when it's decoded, which costs less than blurring in a pass every frame.
     pub fn blurred_image(path: impl Into<PathBuf>, blur: u32) -> Self {
         Self::Image {
             path: path.into(),
@@ -83,10 +85,13 @@ impl Effect {
             .any(|pass| pass.inputs.contains(&Input::Backdrop))
     }
 
+    /// An effect with no passes yet, which draws the rectangle as it is.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Adds a pass running the wgsl file `shader` over `inputs`, read as input0 to input3.
+    /// Panics on more than four inputs, or on an `Input::Pass` that isn't before this one.
     pub fn pass(mut self, shader: impl Into<PathBuf>, inputs: impl Into<Vec<Input>>) -> Self {
         let inputs = inputs.into();
 
@@ -114,7 +119,7 @@ impl Effect {
         self
     }
 
-    // numbers every pass reads as `values`, like Rectangle::shader_values
+    /// Numbers every pass reads as `values`, like Rectangle::shader_values.
     pub fn values(mut self, values: Vec<[f32; 4]>) -> Self {
         assert!(
             values.len() <= VALUE_ROWS,
@@ -126,7 +131,7 @@ impl Effect {
         self
     }
 
-    // logical pixels the passes reach past the rectangle, for glows and blurs that spill out
+    /// Logical pixels the passes reach past the rectangle, for glows and blurs that spill out.
     pub fn margin(mut self, margin: f32) -> Self {
         self.margin = margin.max(0.0);
 

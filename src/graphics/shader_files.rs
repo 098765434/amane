@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::ffi::OsString;
@@ -52,7 +52,7 @@ struct Clock {
     behind: f32,
 }
 
-// the time shaders get as `time`, in seconds
+/// The time shaders get as `time`, in seconds.
 pub fn shader_time() -> f32 {
     let clock = CLOCK.lock().unwrap_or_else(PoisonError::into_inner);
 
@@ -61,10 +61,8 @@ pub fn shader_time() -> f32 {
         .unwrap_or_else(|| START.elapsed().as_secs_f32() - clock.behind)
 }
 
-/*
- * holds every shader's time at `at`, or lets it run on from where it was held
- * with none; while it's held, shaders that read time no longer redraw every frame
- */
+/// Holds every shader's time at `at`, or lets it run on from where it was held
+/// with none; while it's held, shaders that read time no longer redraw every frame.
 pub fn pause_shader_time(at: Option<f32>) {
     let mut clock = CLOCK.lock().unwrap_or_else(PoisonError::into_inner);
 
@@ -85,6 +83,7 @@ pub fn pause_shader_time(at: Option<f32>) {
     changes::mark_all();
 }
 
+/// Whether shader time is held by pause_shader_time.
 pub fn shader_time_paused() -> bool {
     CLOCK
         .lock()
@@ -101,10 +100,8 @@ pub fn generation() -> u64 {
     GENERATION.load(Ordering::Relaxed)
 }
 
-/*
- * the shader files that failed to compile or load, with why; a window
- * keeps drawing a file's last good version, or nothing, until it's fixed
- */
+/// The shader files that failed to compile or load, with why; a window
+/// keeps drawing a file's last good version, or nothing, until it's fixed.
 pub fn shader_errors() -> Vec<(PathBuf, String)> {
     let errors = ERRORS.lock().unwrap_or_else(PoisonError::into_inner);
 

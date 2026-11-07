@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 //! What a set of files and folders looks like from outside: where each one really is (on
 //! NixOS a system switch moves `/run/current-system` to a new store path, whose files all carry

@@ -1,13 +1,11 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use crate::graphics::{Area, Corners, Renderer};
 use crate::style::Fit;
 use crate::{Point, Size, VideoFeed, Widget};
 
-/*
- * a feed's newest frame, shown whole in the middle of its area (or covering
- * it); nothing shows before the first frame
- */
+/// A feed's newest frame, shown whole in the middle of its area (or covering
+/// it); nothing shows before the first frame.
 pub struct Video {
     feed: VideoFeed,
     width: Size,
@@ -17,6 +15,7 @@ pub struct Video {
 }
 
 impl Video {
+    /// Shows `feed`, filling its parent, the frame contained and with square corners.
     pub fn new(feed: &VideoFeed) -> Self {
         Self {
             feed: feed.clone(),
@@ -27,37 +26,37 @@ impl Video {
         }
     }
 
+    /// The widget's width; its parent's by default.
     pub fn width(mut self, width: impl Into<Size>) -> Self {
         self.width = width.into();
 
         self
     }
 
+    /// The widget's height; its parent's by default.
     pub fn height(mut self, height: impl Into<Size>) -> Self {
         self.height = height.into();
 
         self
     }
 
-    // fills the whole area, cutting off what spills past it
+    /// Fills the whole area, cutting off what spills past it.
     pub fn cover(mut self) -> Self {
         self.fit = Fit::Cover;
 
         self
     }
 
-    // the shown picture's corners
+    /// The shown picture's corners.
     pub fn radius(mut self, radius: f32) -> Self {
         self.radius = radius;
 
         self
     }
 
-    /*
-     * the frame pixel under `point`, for a contained frame of `frame` size in
-     * an area `width` by `height` with `point` measured from its top left;
-     * none over the bars beside the picture
-     */
+    /// The frame pixel under `point`, for a contained frame of `frame` size in
+    /// an area `width` by `height` with `point` measured from its top left;
+    /// none over the bars beside the picture.
     pub fn frame_point(width: f32, height: f32, frame: (u32, u32), point: Point) -> Option<Point> {
         let area = Area::new(0.0, 0.0, width, height);
         let placed = Fit::Contain.place(area, frame.0 as f32, frame.1 as f32);

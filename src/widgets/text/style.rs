@@ -1,18 +1,21 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use std::hash::{Hash, Hasher};
 
 use crate::Weight;
 
-// how letters are cased before they are laid out, like css text-transform
+/// How letters are cased before they are laid out, like css text-transform.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum Case {
+    /// Left as it was written.
     #[default]
     AsWritten,
+    /// All capitals.
     Upper,
+    /// All small letters.
     Lower,
 
-    // the first letter of every word made a capital, the rest left alone
+    /// The first letter of every word made a capital, the rest left alone.
     Capitalize,
 }
 
@@ -45,33 +48,42 @@ fn capitalize(content: &str) -> String {
     out
 }
 
-// a line drawn with the letters, in their color
+/// A line drawn with the letters, in their color.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum Decoration {
+    /// No line.
     #[default]
     None,
+    /// A line under the letters.
     Underline,
+    /// A line through the middle of the letters.
     StrikeThrough,
 }
 
-// where lines sit across the width text is given; start and end follow the text's direction
+/// Where lines sit across the width text is given; start and end follow the text's direction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum TextAlign {
+    /// At the side the text starts from: the left for left-to-right text.
     #[default]
     Start,
+    /// In the middle.
     Center,
+    /// At the side the text ends at: the right for left-to-right text.
     End,
 
-    // every line but a paragraph's last stretched to the full width
+    /// Every line but a paragraph's last stretched to the full width.
     Justify,
 }
 
-// which way a paragraph reads; auto takes it from the first strong letter
+/// Which way a paragraph reads; auto takes it from the first strong letter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum TextDirection {
+    /// Taken from the paragraph's first strong letter.
     #[default]
     Auto,
+    /// Left to right, like English.
     LeftToRight,
+    /// Right to left, like Arabic or Hebrew.
     RightToLeft,
 }
 

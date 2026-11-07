@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use std::collections::HashMap;
 
@@ -6,11 +6,9 @@ use crate::Service;
 use crate::changes::{self, Source};
 use crate::timing;
 
-/*
- * how bright the compositor says the backdrop is behind each blur shape that
- * has an id (niri-blur-shapes version 2, for materials it reports for), from
- * 0 for black to 1 for white; empty on a compositor that doesn't say
- */
+/// How bright the compositor says the backdrop is behind each blur shape that
+/// has an id (niri-blur-shapes version 2, for materials it reports for), from
+/// 0 for black to 1 for white; empty on a compositor that doesn't say.
 #[derive(Default)]
 pub struct Backdrop {
     shapes: HashMap<u32, f32>,
@@ -26,10 +24,8 @@ impl Service for Backdrop {
 }
 
 impl Backdrop {
-    /*
-     * the last reading for the shape with this id, none before the first;
-     * a later reading for it draws again only the windows that asked
-     */
+    /// The last reading for the shape with this id, none before the first;
+    /// a later reading for it draws again only the windows that asked.
     pub fn luminance(&self, id: u32) -> Option<f32> {
         changes::note_source(Source::Backdrop(id));
 

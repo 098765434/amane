@@ -1,36 +1,40 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use super::pulse::Endpoint;
 
-// what a sound goes to or comes from, so a shell can show the right icon
+/// What a sound goes to or comes from, so a shell can show the right icon.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AudioKind {
-    // built into the machine, like laptop speakers or the laptop microphone
+    /// Built into the machine, like laptop speakers or the laptop microphone.
     #[default]
     Internal,
 
-    // a separate speaker, like a usb or bluetooth one
+    /// A separate speaker, like a usb or bluetooth one.
     Speaker,
 
+    /// Headphones without a microphone.
     Headphones,
 
-    // headphones with a microphone
+    /// Headphones with a microphone.
     Headset,
 
-    // a tv or monitor, over hdmi or displayport
+    /// A tv or monitor, over hdmi or displayport.
     Display,
 
+    /// A car's sound system.
     Car,
 
+    /// A phone, like one connected over bluetooth.
     Phone,
 
+    /// A webcam's microphone.
     Webcam,
 
-    // a separate microphone
+    /// A separate microphone.
     Microphone,
 }
 
-// one output or input that can be made the default
+/// One output or input that can be made the default.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AudioDevice {
     // the sound server's own name, which set_output and set_input take
@@ -60,18 +64,22 @@ impl AudioDevice {
         }
     }
 
+    /// The sound server's own name, which set_output and set_input take.
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    /// The name to show; the sound server's name when it has no description.
     pub fn description(&self) -> &str {
         &self.description
     }
 
+    /// What kind of device it is, for its icon.
     pub fn kind(&self) -> AudioKind {
         self.kind
     }
 
+    /// Whether it's the one sounds go to, or come from, right now.
     pub fn default(&self) -> bool {
         self.default
     }

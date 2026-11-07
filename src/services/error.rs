@@ -1,4 +1,4 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 //! One way for the fork's services to say something failed.
 //!
@@ -50,9 +50,11 @@ pub enum ErrorKind {
 /// A failure, what the other side said about it, and when it happened.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ServiceError {
+    /// What kind of failure it was.
     pub kind: ErrorKind,
     /// The other side's own words, untranslated; may be empty.
     pub message: String,
+    /// When it happened.
     pub at: Instant,
 }
 

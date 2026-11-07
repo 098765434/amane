@@ -1,16 +1,14 @@
-#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo)]
+#![warn(clippy::unwrap_used, clippy::dbg_macro, clippy::todo, missing_docs)]
 
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use crate::{Color, InputArea};
 
-/*
- * one rounded rectangle the compositor blurs behind (niri-blur-shapes), with
- * how much of the effect shows and the compositor's material it draws with;
- * where the compositor lacks the protocol it is approximated by strips of a
- * blur region instead, which can't fade
- */
+/// One rounded rectangle the compositor blurs behind (niri-blur-shapes), with
+/// how much of the effect shows and the compositor's material it draws with;
+/// where the compositor lacks the protocol it is approximated by strips of a
+/// blur region instead, which can't fade.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BlurShape {
     pub(crate) x: f32,
@@ -25,6 +23,8 @@ pub struct BlurShape {
 }
 
 impl BlurShape {
+    /// A shape at `x`, `y` with this size and corner radius, all in logical pixels from the
+    /// window's top left; fully shown, plain blur, no tint.
     pub fn new(x: f32, y: f32, width: f32, height: f32, radius: f32) -> Self {
         Self {
             x,
@@ -39,39 +39,37 @@ impl BlurShape {
         }
     }
 
-    // how much of the effect shows, 0 to 1
+    /// How much of the effect shows, 0 to 1.
     pub fn alpha(mut self, alpha: f32) -> Self {
         self.alpha = alpha.clamp(0.0, 1.0);
 
         self
     }
 
-    // a material the compositor offers, see material_available; plain blur otherwise
+    /// A material the compositor offers, see material_available; plain blur otherwise.
     pub fn material(mut self, name: &'static str) -> Self {
         self.material = Some(name);
 
         self
     }
 
-    // a colour the material lays over the blur, when it draws tints
+    /// A color the material lays over the blur, when it draws tints.
     pub fn tint(mut self, color: Color) -> Self {
         self.tint = Some(color);
 
         self
     }
 
-    /*
-     * the shell's own name for the shape, the same from frame to frame, so
-     * what the compositor says about the backdrop behind it can be read back
-     * (Backdrop); unique across the program's windows
-     */
+    /// The shell's own name for the shape, the same from frame to frame, so
+    /// what the compositor says about the backdrop behind it can be read back
+    /// (Backdrop); unique across the program's windows.
     pub fn id(mut self, id: u32) -> Self {
         self.id = Some(id);
 
         self
     }
 
-    // as drawn by a layer scaled by `scale` about `origin`
+    /// As drawn by a layer scaled by `scale` about `origin`.
     pub fn scale_about(mut self, scale: f32, origin: (f32, f32)) -> Self {
         self.x = origin.0 + (self.x - origin.0) * scale;
         self.y = origin.1 + (self.y - origin.1) * scale;
@@ -82,7 +80,7 @@ impl BlurShape {
         self
     }
 
-    // as drawn by a layer moved by (`dx`, `dy`)
+    /// As drawn by a layer moved by (`dx`, `dy`).
     pub fn offset(mut self, dx: f32, dy: f32) -> Self {
         self.x += dx;
         self.y += dy;
@@ -90,37 +88,44 @@ impl BlurShape {
         self
     }
 
-    // as drawn by a layer at `opacity`
+    /// As drawn by a layer at `opacity`.
     pub fn fade(mut self, opacity: f32) -> Self {
         self.alpha = (self.alpha * opacity).clamp(0.0, 1.0);
 
         self
     }
 
+    /// The left edge, in logical pixels.
     pub fn x(&self) -> f32 {
         self.x
     }
 
+    /// The top edge, in logical pixels.
     pub fn y(&self) -> f32 {
         self.y
     }
 
+    /// The width, in logical pixels.
     pub fn width(&self) -> f32 {
         self.width
     }
 
+    /// The height, in logical pixels.
     pub fn height(&self) -> f32 {
         self.height
     }
 
+    /// The corner radius, in logical pixels.
     pub fn radius(&self) -> f32 {
         self.radius
     }
 
+    /// How much of the effect shows, 0 to 1.
     pub fn opacity(&self) -> f32 {
         self.alpha
     }
 
+    /// The id set with id(), if any.
     pub fn shape_id(&self) -> Option<u32> {
         self.id
     }
@@ -134,13 +139,13 @@ static MATERIALS: Mutex<Vec<(u32, String)>> = Mutex::new(Vec::new());
 // counts the times the materials changed, so windows send their shapes again
 static MATERIALS_CHANGED: AtomicU64 = AtomicU64::new(0);
 
-// whether the compositor draws blur shapes as asked, with their fade; without it a shape
-// shows only while at least half visible, and with square steps at its corners
+/// Whether the compositor draws blur shapes as asked, with their fade; without it a shape
+/// shows only while at least half visible, and with square steps at its corners.
 pub fn blur_fades() -> bool {
     SHAPES.load(Ordering::Relaxed)
 }
 
-// whether the compositor offers a material by this name
+/// Whether the compositor offers a material by this name.
 pub fn material_available(name: &str) -> bool {
     material_id(name).is_some()
 }
