@@ -8,7 +8,7 @@ use amane::status_item::{
 use amane::{LiveActivity, StatusItem};
 
 /*
- * an item in the bar and a two-minute countdown Live Activity, with no window
+ * an item in the bar and a two-minute countdown activity, with no window
  * of its own; needs a bar serving org.amane.StatusBar1 (amane-shell does).
  * Click, right-click or drop files on the item, and press the activity's
  * buttons: what happens is printed. Restart the bar and both come back

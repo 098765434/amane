@@ -46,7 +46,7 @@ fn call(method: &str, arguments: &[Argument]) -> Result<crate::Value, BusError> 
 }
 
 /*
- * a program's item in the bar, as macOS's NSStatusItem:
+ * a program's own item in the bar:
  *
  * let item = StatusItem::register(ItemSpec::new("org.amane.drop", icon));
  * item.on_event(|event| ...);
@@ -118,7 +118,7 @@ impl StatusItem {
 }
 
 /*
- * a Live Activity in the bar, as macOS 27.3's: started, updated as it goes,
+ * an activity in the bar, something going on now: started, updated as it goes,
  * and ended. An update that alerts briefly shows the expanded view
  */
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

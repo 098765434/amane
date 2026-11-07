@@ -148,7 +148,7 @@ impl Popup {
     /*
      * its light and dark grey content blended with what the compositor
      * frosted behind it rather than painted over it, on a compositor with
-     * niri-vibrancy: Apple's vibrant labels on a material
+     * niri-vibrancy: labels that stay legible on any backdrop
      */
     pub fn vibrant(mut self, vibrant: bool) -> Self {
         self.vibrant = vibrant;

@@ -151,7 +151,7 @@ mod tests {
             Case::Capitalize.apply("hello wide\tworld"),
             "Hello Wide\tWorld"
         );
-        assert_eq!(Case::Capitalize.apply("iOS stays"), "IOS Stays");
+        assert_eq!(Case::Capitalize.apply("eBay stays"), "EBay Stays");
         assert_eq!(Case::AsWritten.apply("as is"), "as is");
     }
 }

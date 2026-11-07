@@ -110,7 +110,7 @@ impl MenuEntry {
 }
 
 /*
- * a program's item in the bar, as macOS's status items: its id is unique on
+ * a program's item in the bar: its id is unique on
  * the desktop, like a reverse-DNS app id ("org.amane.drop"), and the bar
  * keeps its place and whether it's shown by it
  */
@@ -284,8 +284,8 @@ impl ActivityButton {
 }
 
 /*
- * a Live Activity, as macOS 27.3 puts in the menu bar: something going on
- * now, like a timer, a song or an upload. Compact, the bar shows `leading`
+ * an activity: something going on now, shown in the bar while it lasts,
+ * like a timer, a song or an upload. Compact, the bar shows `leading`
  * and `trailing`; minimal, `leading` alone; expanded, everything
  */
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

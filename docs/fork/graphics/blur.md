@@ -92,7 +92,7 @@ example: `examples/blur_shapes.rs`.)
 
 `LayerWindow::vibrant(true)`, `Popup::vibrant(true)` and `Window::vibrant(true)` ask for a
 window's vibrant content to blend with what the compositor frosted behind it, instead of being
-painted over it. These are Apple's vibrant labels on a material.
+painted over it: labels and fills that stay legible on any backdrop the material shows.
 
 A vibrant window's draw commands are split three ways (`src/graphics/vibrancy.rs`):
 

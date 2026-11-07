@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 use crate::input::PIXELS_PER_LINE;
 use crate::{Animation, Easing, Scroll, ScrollSource};
 
-// how quickly a fling's momentum dies out: it travels its speed times this, as iOS's does
+// how quickly a fling's momentum dies out: it travels its speed times this
 const DECAY: f32 = 0.325;
 
 // how long a fling coasts for

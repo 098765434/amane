@@ -1,8 +1,8 @@
-# Status items and Live Activities (fork addition)
+# Status items and activities (fork addition)
 
-A program's own **item in the status bar**, like macOS's `NSStatusItem`, and
-**Live Activities**, as macOS 27.3 puts in the menu bar: something going on now,
-like a timer, a song or an upload. amane is the client side and holds the
+A program's own **item in the status bar**, and its **activities**: something
+going on now, like a timer, a song or an upload, shown in the bar while it
+lasts. amane is the client side and holds the
 protocol types. The bar serves `org.amane.StatusBar1` on the session bus and
 draws both. amane-shell is that bar. Unlike the tray (StatusNotifierItem), the
 bar draws everything here itself, and drops reach the program.
@@ -115,7 +115,7 @@ At `/org/amane/StatusBar`, interface `org.amane.StatusBar1`:
   behind the `StartActivity` that numbers it.
 - **Events.** Events come in on a thread of their own. A handler that should
   change a window writes a `Service` and lets that redraw.
-- **Bar restarts.** The client keeps every item and live activity. When
+- **Bar restarts.** The client keeps every item and activity. When
   `org.amane.StatusBar1` gets a new owner (the bar restarted), it registers
   them all again and maps the new handles back.
 

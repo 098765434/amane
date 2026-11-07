@@ -104,7 +104,7 @@ and its submodules inherit it. Give a new fork module the same line. `clippy.tom
 | Battery on AC from the adapter | `ac012d8` | `src/services/battery.rs` | yes |
 | Bluetooth: BlueZ's signals, operations and failures; the pairing agent | `dabb319` | `src/services/bluetooth/{actions,adapter,agent,errors,model}.rs` | yes |
 | Tray: StatusNotifierItem watcher and host, dbusmenu menus | `168413e` | `src/services/tray/`, `src/dbus/signal.rs` | yes |
-| Status items and Live Activities: a client of the bar's `org.amane.StatusBar1` | `d84c88c` | `src/status_item.rs`, `src/status_item/{client,protocol}.rs`; `examples/status_item.rs` | no, the bar's own interface |
+| Status items and activities: a client of the bar's `org.amane.StatusBar1` | `d84c88c` | `src/status_item.rs`, `src/status_item/{client,protocol}.rs`; `examples/status_item.rs` | no, the bar's own interface |
 | Polkit: the session's authentication agent | `db14388` | `src/services/polkit.rs`, `src/services/polkit/agent.rs` | yes |
 | KDE Connect: phones, text messages, contacts, attachments, file and text sharing | `b5be6de`, `60c969e`, `e1ea6ab`, `8a19284`, `711ed5f`; docs `613d918` | `src/services/kdeconnect/` | yes |
 | Video frames, adb, the phone's address and notifications | `af0f854` | `src/video.rs`, `src/widgets/video.rs`, `src/graphics/gpu/quads/video.rs`, `src/services/adb.rs`; adds `ffmpeg-next` | the video yes; adb is the shell's |

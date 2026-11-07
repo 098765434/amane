@@ -3,7 +3,7 @@
 The **system tray**: the icons programs like Steam, Discord, Nextcloud or
 nm-applet put in a status bar, over the StatusNotifierItem protocol, with the
 menus they send over dbusmenu (`com.canonical.dbusmenu`). It's what a bar needs
-to show macOS-style menu bar extras.
+to show other programs' icons and menus.
 
 ## Usage
 
